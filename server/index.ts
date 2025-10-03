@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { whatsAppMessageService } from "./whatsapp-service";
+import { geminiService } from "./gemini-service";
 import path from "path";
 
 const app = express();
@@ -77,9 +78,11 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
-    // شروع سرویس پیام‌های واتس‌اپ
+    // اول Gemini AI رو initialize کن
+    await geminiService.reinitialize();
+    // بعد سرویس پیام‌های واتس‌اپ رو شروع کن
     whatsAppMessageService.start();
   });
 })();

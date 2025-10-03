@@ -436,6 +436,118 @@ ${message}
       };
     }
   }
+
+  /**
+   * تشخیص اینکه آیا پیام درخواست سفارش محصول است
+   */
+  async isProductOrderRequest(message: string): Promise<boolean> {
+    if (!this.model) return false;
+
+    try {
+      const prompt = `آیا این پیام یک درخواست سفارش محصول است؟ فقط "بله" یا "خیر" جواب بده.
+
+پیام: "${message}"
+
+نکته: اگر کاربر نام یک محصول را گفته، می‌خواهد بخرد، درخواست قیمت کرده، یا هر کلمه‌ای مثل "میخوام"، "بده"، "سفارش"، "خرید" و... به همراه نام محصول است، جواب "بله" است.`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
+      
+      return text.includes('بله') || text.toLowerCase().includes('yes');
+    } catch (error) {
+      console.error("❌ خطا در تشخیص درخواست محصول:", error);
+      return false;
+    }
+  }
+
+  /**
+   * استخراج نام محصول از پیام
+   */
+  async extractProductName(message: string): Promise<string | null> {
+    if (!this.model) return null;
+
+    try {
+      const prompt = `از این پیام، نام محصولی که کاربر می‌خواهد را استخراج کن. فقط نام محصول را بنویس، بدون توضیح اضافی.
+
+پیام: "${message}"
+
+اگر نام محصولی پیدا نکردی، فقط کلمه "نامشخص" بنویس.`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
+      
+      if (text === 'نامشخص' || text.toLowerCase() === 'unknown') {
+        return null;
+      }
+      
+      return text;
+    } catch (error) {
+      console.error("❌ خطا در استخراج نام محصول:", error);
+      return null;
+    }
+  }
+
+  /**
+   * استخراج تعداد از پیام
+   */
+  async extractQuantity(message: string): Promise<number | null> {
+    if (!this.model) return null;
+
+    try {
+      const prompt = `از این پیام، تعداد یا عدد را استخراج کن. فقط یک عدد بنویس.
+
+پیام: "${message}"
+
+اگر عددی پیدا نکردی یا تعداد مشخص نبود، فقط عدد 0 بنویس.`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
+      
+      // تبدیل اعداد فارسی به انگلیسی
+      const persianToEnglish = (str: string): string => {
+        return str
+          .replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
+          .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+      };
+      
+      const numberText = persianToEnglish(text.replace(/[^0-9۰-۹٠-٩]/g, ''));
+      const quantity = parseInt(numberText);
+      
+      if (isNaN(quantity) || quantity <= 0) {
+        return null;
+      }
+      
+      return quantity;
+    } catch (error) {
+      console.error("❌ خطا در استخراج تعداد:", error);
+      return null;
+    }
+  }
+
+  /**
+   * تشخیص پاسخ مثبت یا منفی کاربر (برای سوال "محصول دیگه‌ای میخوای؟")
+   */
+  async isPositiveResponse(message: string): Promise<boolean> {
+    if (!this.model) return false;
+
+    try {
+      const prompt = `آیا این پیام یک پاسخ مثبت (بله، آره، میخوام، دارم و...) است؟ فقط "بله" یا "خیر" جواب بده.
+
+پیام: "${message}"`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
+      
+      return text.includes('بله') || text.toLowerCase().includes('yes');
+    } catch (error) {
+      console.error("❌ خطا در تشخیص پاسخ:", error);
+      return false;
+    }
+  }
 }
 
 export const geminiService = new GeminiService();

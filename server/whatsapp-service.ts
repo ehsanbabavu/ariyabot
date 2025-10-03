@@ -1,6 +1,7 @@
 import { storage } from "./storage";
 import { geminiService } from "./gemini-service";
 import { whatsAppSender } from "./whatsapp-sender";
+import { orderSessionService } from "./order-session-service";
 
 interface WhatsiPlusMessage {
   id: string;
@@ -990,6 +991,251 @@ ${missingFieldsText}
   }
 
   /**
+   * مدیریت فرآیند سفارش محصول از طریق واتس‌اپ
+   */
+  async handleProductOrder(sender: string, message: string, receiverUserId: string, whatsappToken: string): Promise<boolean> {
+    try {
+      console.log(`🛒 در حال پردازش درخواست سفارش از ${sender}...`);
+      
+      // پیدا کردن کاربر سطح 2 بر اساس شماره واتساپ
+      const senderUser = await storage.getUserByWhatsappNumber(sender);
+      if (!senderUser) {
+        console.log(`⚠️ کاربر با شماره ${sender} یافت نشد`);
+        return false;
+      }
+
+      // اطمینان از اینکه کاربر سطح 2 است
+      if (senderUser.role !== 'user_level_2') {
+        console.log(`⚠️ کاربر ${sender} سطح 2 نیست`);
+        return false;
+      }
+
+      // دریافت یا ایجاد session سفارش
+      const session = orderSessionService.getSession(senderUser.id, sender);
+      
+      // مدیریت state های مختلف
+      if (session.state === 'idle') {
+        // ابتدا چک کنیم آیا پیام درخواست سفارش است
+        const isOrder = await geminiService.isProductOrderRequest(message);
+        if (!isOrder) {
+          return false; // اگر درخواست سفارش نبود، ادامه ندهیم
+        }
+
+        // استخراج نام محصول
+        const productName = await geminiService.extractProductName(message);
+        if (!productName) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'متوجه نشدم چه محصولی می‌خواهید. لطفاً نام محصول را واضح‌تر بنویسید.');
+          return true;
+        }
+
+        // جستجوی محصول در لیست محصولات والد
+        const parentUser = await storage.getUser(senderUser.parentUserId || '');
+        if (!parentUser) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'متأسفانه خطایی رخ داد. لطفاً بعداً تلاش کنید.');
+          return true;
+        }
+
+        const products = await storage.getAllProducts(parentUser.id, 'user_level_1');
+        const matchedProducts = products.filter(p => 
+          p.isActive && 
+          (p.name.toLowerCase().includes(productName.toLowerCase()) || 
+           (p.description && p.description.toLowerCase().includes(productName.toLowerCase())))
+        );
+
+        if (matchedProducts.length === 0) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, `متأسفانه محصول "${productName}" یافت نشد. لطفاً نام دیگری را امتحان کنید.`);
+          orderSessionService.clearSession(senderUser.id);
+          return true;
+        }
+
+        if (matchedProducts.length > 1) {
+          const productList = matchedProducts.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
+          await this.sendWhatsAppMessage(whatsappToken, sender, `چند محصول پیدا شد:\n${productList}\n\nلطفاً نام دقیق محصول را بنویسید.`);
+          orderSessionService.clearSession(senderUser.id);
+          return true;
+        }
+
+        // محصول پیدا شد - بروزرسانی session
+        const product = matchedProducts[0];
+        orderSessionService.updateSession(senderUser.id, {
+          currentProduct: product,
+          state: 'asking_quantity'
+        });
+
+        const price = product.priceAfterDiscount || product.priceBeforeDiscount;
+        await this.sendWhatsAppMessage(whatsappToken, sender, `✅ ${product.name}\nقیمت: ${this.formatAmount(price)} ریال\n\nچه تعدادی می‌خواهید؟`);
+        return true;
+      }
+      
+      else if (session.state === 'asking_quantity') {
+        // استخراج تعداد از پیام
+        const quantity = await geminiService.extractQuantity(message);
+        if (!quantity || quantity <= 0) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'لطفاً تعداد را به صورت عدد بنویسید. مثلاً: 2 یا سه');
+          return true;
+        }
+
+        if (!session.currentProduct) {
+          orderSessionService.clearSession(senderUser.id);
+          return false;
+        }
+
+        // بررسی موجودی
+        if (session.currentProduct.quantity < quantity) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, `متأسفانه تنها ${session.currentProduct.quantity} عدد موجود است. لطفاً تعداد کمتری وارد کنید.`);
+          return true;
+        }
+
+        // اضافه کردن به سبد خرید
+        try {
+          await storage.addToCart(senderUser.id, session.currentProduct.id, quantity);
+          const totalPrice = parseFloat(session.currentProduct.priceAfterDiscount || session.currentProduct.priceBeforeDiscount) * quantity;
+          
+          await this.sendWhatsAppMessage(
+            whatsappToken, 
+            sender, 
+            `✅ ${quantity} عدد ${session.currentProduct.name} به سبد خرید اضافه شد.\nجمع: ${this.formatAmount(totalPrice.toString())} ریال\n\nمحصول دیگه‌ای می‌خواهید؟`
+          );
+
+          // بروزرسانی session
+          orderSessionService.updateSession(senderUser.id, {
+            state: 'asking_more_products',
+            currentProduct: undefined
+          });
+          return true;
+        } catch (error) {
+          console.error('❌ خطا در اضافه کردن به سبد خرید:', error);
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+          orderSessionService.clearSession(senderUser.id);
+          return true;
+        }
+      }
+      
+      else if (session.state === 'asking_more_products') {
+        // بررسی پاسخ کاربر
+        const wantsMore = await geminiService.isPositiveResponse(message);
+        
+        if (wantsMore) {
+          // کاربر محصول دیگری می‌خواهد
+          orderSessionService.updateSession(senderUser.id, { state: 'idle' });
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'باشه! چه محصولی می‌خواهید؟');
+          return true;
+        } else {
+          // کاربر نمی‌خواهد محصول دیگری بخرد - ثبت سفارش
+          await this.finalizeOrder(senderUser, sender, whatsappToken);
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error("❌ خطا در پردازش سفارش:", error);
+      orderSessionService.clearSession(sender);
+      return false;
+    }
+  }
+
+  /**
+   * ثبت نهایی سفارش از سبد خرید
+   */
+  async finalizeOrder(user: any, whatsappNumber: string, whatsappToken: string): Promise<void> {
+    try {
+      // دریافت آیتم‌های سبد خرید
+      const cartItems = await storage.getCartItemsWithProducts(user.id);
+      
+      if (cartItems.length === 0) {
+        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'سبد خرید شما خالی است.');
+        orderSessionService.clearSession(user.id);
+        return;
+      }
+
+      // گروه‌بندی محصولات بر اساس فروشنده
+      const itemsBySeller = new Map<string, typeof cartItems>();
+      for (const item of cartItems) {
+        const product = await storage.getProduct(item.productId, user.id, user.role);
+        if (product) {
+          if (!itemsBySeller.has(product.userId)) {
+            itemsBySeller.set(product.userId, []);
+          }
+          itemsBySeller.get(product.userId)!.push(item);
+        }
+      }
+
+      // دریافت آدرس پیش‌فرض کاربر
+      const addresses = await storage.getAddressesByUser(user.id);
+      const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
+
+      if (!defaultAddress) {
+        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'لطفاً ابتدا از پنل کاربری، آدرس خود را ثبت کنید.');
+        orderSessionService.clearSession(user.id);
+        return;
+      }
+
+      // ایجاد سفارش برای هر فروشنده
+      let totalOrders = 0;
+      for (const [sellerId, items] of Array.from(itemsBySeller.entries())) {
+        const totalAmount = items.reduce((sum: number, item: any) => sum + parseFloat(item.totalPrice), 0);
+        
+        const order = await storage.createOrder({
+          userId: user.id,
+          sellerId: sellerId,
+          totalAmount: totalAmount.toString(),
+          status: 'pending',
+          addressId: defaultAddress.id,
+        });
+
+        // ایجاد order items
+        for (const item of items) {
+          await storage.createOrderItem({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+          });
+        }
+
+        totalOrders++;
+      }
+
+      // پاک کردن سبد خرید
+      await storage.clearCart(user.id);
+
+      // ارسال پیام تایید
+      await this.sendWhatsAppMessage(
+        whatsappToken, 
+        whatsappNumber, 
+        `✅ سفارش شما با موفقیت ثبت شد!\n\nتعداد سفارش: ${totalOrders}\nآدرس ارسال: ${defaultAddress.title}\n\nبرای پیگیری سفارش، به پنل کاربری خود مراجعه کنید.`
+      );
+
+      // پاک کردن session
+      orderSessionService.clearSession(user.id);
+    } catch (error) {
+      console.error('❌ خطا در ثبت نهایی سفارش:', error);
+      await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی در ثبت سفارش رخ داد. لطفاً دوباره تلاش کنید.');
+      orderSessionService.clearSession(user.id);
+    }
+  }
+
+  /**
+   * ارسال پیام واتساپ
+   */
+  private async sendWhatsAppMessage(token: string, phoneNumber: string, message: string): Promise<void> {
+    try {
+      const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}?phonenumber=${phoneNumber}&message=${encodeURIComponent(message)}`;
+      const response = await fetch(sendUrl, { method: 'GET' });
+      
+      if (response.ok) {
+        console.log(`✅ پیام به ${phoneNumber} ارسال شد`);
+      } else {
+        console.error(`❌ خطا در ارسال پیام به ${phoneNumber}`);
+      }
+    } catch (error) {
+      console.error("❌ خطا در ارسال پیام واتساپ:", error);
+    }
+  }
+
+  /**
    * یک پاسخ هوشمند برای پیام ورودی ایجاد کرده و آن را از طریق واتس‌اپ ارسال می‌کند.
    * هر کاربر سطح 1 با توکن اختصاصی خود پاسخ می‌دهد
    * @param sender شماره موبایل فرستنده پیام
@@ -1051,6 +1297,18 @@ ${missingFieldsText}
         }
         whatsappToken = whatsappSettings.token;
         console.log("📱 استفاده از توکن عمومی");
+      }
+
+      // بررسی اینکه آیا پیام یک درخواست سفارش محصول است
+      const orderHandled = await this.handleProductOrder(sender, incomingMessage, userId, whatsappToken);
+      if (orderHandled) {
+        console.log(`🛒 درخواست سفارش پردازش شد`);
+        // تغییر وضعیت پیام به خوانده شده
+        const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+        if (userMessage) {
+          await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+        }
+        return; // بعد از پردازش سفارش، پاسخ معمولی ندهیم
       }
 
       // دریافت تنظیمات هوش مصنوعی

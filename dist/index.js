@@ -109,6 +109,8 @@ var init_schema = __esm({
       // شناسه اصلی از WhatsiPlus
       sender: text("sender").notNull(),
       message: text("message").notNull(),
+      imageUrl: text("image_url"),
+      // آدرس عکس در صورت وجود
       status: text("status").notNull().default("\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647"),
       // خوانده نشده, خوانده شده
       originalDate: text("original_date"),
@@ -1363,6 +1365,13 @@ var init_db_storage = __esm({
         ));
         return Number(result[0].total);
       }
+      async getTransactionByReferenceId(referenceId, userId) {
+        const result = await db.select().from(transactions).where(and(
+          eq(transactions.referenceId, referenceId),
+          eq(transactions.userId, userId)
+        )).limit(1);
+        return result[0];
+      }
       // Internal Chat methods
       async getInternalChatById(id) {
         const result = await db.select().from(internalChats).where(eq(internalChats.id, id)).limit(1);
@@ -2051,6 +2060,7 @@ var init_storage = __esm({
           id,
           status: insertMessage.status || "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647",
           originalDate: insertMessage.originalDate || null,
+          imageUrl: insertMessage.imageUrl || null,
           timestamp: /* @__PURE__ */ new Date()
         };
         this.receivedMessages.set(id, message);
@@ -2606,6 +2616,11 @@ var init_storage = __esm({
           return total + parseFloat(transaction.amount);
         }, 0);
       }
+      async getTransactionByReferenceId(referenceId, userId) {
+        return Array.from(this.transactions.values()).find(
+          (transaction) => transaction.referenceId === referenceId && transaction.userId === userId
+        );
+      }
       // Internal Chat methods
       async getInternalChatById(id) {
         return this.internalChats.get(id);
@@ -2902,8 +2917,1097 @@ ${message}
       isActive() {
         return this.model !== null;
       }
+      /**
+       * استخراج اطلاعات مالی از متن پیام واریزی واتساپ
+       * @param message متن پیام واریزی
+       * @returns اطلاعات مالی استخراج شده
+       */
+      async extractDepositInfo(message) {
+        if (!this.model) {
+          throw new Error("Gemini AI \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0648\u06A9\u0646 API \u0631\u0627 \u062A\u0646\u0638\u06CC\u0645 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          const prompt = `\u0627\u0632 \u0645\u062A\u0646 \u0632\u06CC\u0631 \u06A9\u0647 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC \u0627\u0633\u062A\u060C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0645\u0627\u0644\u06CC \u0631\u0627 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646 \u0648 \u0628\u0647 \u0635\u0648\u0631\u062A JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646:
+
+${message}
+
+\u0641\u0631\u0645\u062A JSON \u062E\u0631\u0648\u062C\u06CC:
+{
+  "amount": "\u0645\u0628\u0644\u063A \u0628\u0647 \u0631\u06CC\u0627\u0644 (\u0641\u0642\u0637 \u0639\u062F\u062F)",
+  "transactionDate": "\u062A\u0627\u0631\u06CC\u062E (\u0634\u0645\u0633\u06CC \u06CC\u0627 \u0645\u06CC\u0644\u0627\u062F\u06CC)",
+  "transactionTime": "\u0633\u0627\u0639\u062A",
+  "accountSource": "\u0646\u0627\u0645 \u0628\u0627\u0646\u06A9 \u06CC\u0627 \u0627\u0632 \u062D\u0633\u0627\u0628",
+  "paymentMethod": "\u0631\u0648\u0634 \u067E\u0631\u062F\u0627\u062E\u062A (\u0645\u062B\u0644\u0627 \u0627\u0646\u062A\u0642\u0627\u0644 \u0648\u062C\u0647\u060C \u06A9\u0627\u0631\u062A \u0628\u0647 \u06A9\u0627\u0631\u062A)",
+  "referenceId": "\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u06CC\u0627 \u0634\u0645\u0627\u0631\u0647 \u0645\u0631\u062C\u0639"
+}
+
+\u0645\u0647\u0645:
+- \u0627\u06AF\u0631 \u0647\u0631 \u0641\u06CC\u0644\u062F\u06CC \u062F\u0631 \u0645\u062A\u0646 \u0646\u0628\u0648\u062F\u060C \u0645\u0642\u062F\u0627\u0631 null \u0628\u062F\u0647
+- amount \u0631\u0648 \u0641\u0642\u0637 \u0628\u0647 \u0635\u0648\u0631\u062A \u0639\u062F\u062F \u0628\u062F\u0648\u0646 \u0645\u0645\u06CC\u0632 \u0648 \u0648\u0627\u062D\u062F \u0628\u0631\u06AF\u0631\u062F\u0627\u0646
+- \u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0628\u0627\u06CC\u062F string \u06CC\u0627 null \u0628\u0627\u0634\u0646\u062F
+- \u0641\u0642\u0637 JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646\u060C \u0628\u062F\u0648\u0646 \u062A\u0648\u0636\u06CC\u062D \u0627\u0636\u0627\u0641\u06CC`;
+          const result = await this.model.generateContent(prompt);
+          const response = await result.response;
+          const text2 = response.text().trim();
+          let jsonText = text2;
+          if (jsonText.includes("```json")) {
+            jsonText = jsonText.split("```json")[1].split("```")[0].trim();
+          } else if (jsonText.includes("```")) {
+            jsonText = jsonText.split("```")[1].split("```")[0].trim();
+          }
+          const extractedData = JSON.parse(jsonText);
+          return {
+            amount: extractedData.amount || null,
+            transactionDate: extractedData.transactionDate || null,
+            transactionTime: extractedData.transactionTime || null,
+            accountSource: extractedData.accountSource || null,
+            paymentMethod: extractedData.paymentMethod || null,
+            referenceId: extractedData.referenceId || null
+          };
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+          return {
+            amount: null,
+            transactionDate: null,
+            transactionTime: null,
+            accountSource: null,
+            paymentMethod: null,
+            referenceId: null
+          };
+        }
+      }
+      /**
+       * تشخیص اینکه آیا پیام یک رسید واریزی است یا نه
+       * @param message متن پیام
+       * @returns true اگر پیام رسید واریزی باشد
+       */
+      async isDepositMessage(message) {
+        if (!this.model) {
+          return false;
+        }
+        try {
+          const normalizeText = (text3) => {
+            return text3.normalize("NFKC").replace(/\u200C|\u200F|\u200E/g, "").toLowerCase();
+          };
+          const normalizedMessage = normalizeText(message);
+          const depositKeywords = [
+            "\u0648\u0627\u0631\u06CC\u0632",
+            "\u0631\u0633\u06CC\u062F",
+            "\u067E\u0631\u062F\u0627\u062E\u062A",
+            "\u0627\u0646\u062A\u0642\u0627\u0644",
+            "\u06A9\u0627\u0631\u062A \u0628\u0647 \u06A9\u0627\u0631\u062A",
+            "\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC",
+            "\u0645\u0628\u0644\u063A",
+            "\u0628\u0627\u0646\u06A9",
+            "\u062D\u0633\u0627\u0628",
+            "\u062A\u0631\u0627\u06A9\u0646\u0634",
+            "\u0645\u0631\u062C\u0639",
+            "\u0631\u06CC\u0627\u0644",
+            "\u062A\u0648\u0645\u0627\u0646"
+          ];
+          const keywordCount = depositKeywords.filter(
+            (keyword) => normalizedMessage.includes(keyword)
+          ).length;
+          if (keywordCount >= 3) {
+            return true;
+          }
+          const prompt = `\u0622\u06CC\u0627 \u0645\u062A\u0646 \u0632\u06CC\u0631 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC\u060C \u0627\u0637\u0644\u0627\u0639 \u0648\u0627\u0631\u06CC\u0632\u060C \u06CC\u0627 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A \u0627\u0633\u062A\u061F
+      
+${message}
+
+\u0641\u0642\u0637 \u0628\u0627 "\u0628\u0644\u0647" \u06CC\u0627 "\u062E\u06CC\u0631" \u067E\u0627\u0633\u062E \u0628\u062F\u0647.`;
+          const result = await this.model.generateContent(prompt);
+          const response = await result.response;
+          const text2 = response.text().trim().toLowerCase();
+          return text2.includes("\u0628\u0644\u0647") || text2.includes("yes");
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0634\u062E\u06CC\u0635 \u067E\u06CC\u0627\u0645 \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+          return false;
+        }
+      }
+      /**
+       * بررسی اینکه آیا پیام حاوی لینک عکس است یا نه
+       * @param message متن پیام
+       * @returns لینک عکس یا null اگر عکس نباشد
+       */
+      extractImageUrl(message) {
+        try {
+          const urlPattern = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|bmp|webp))/gi;
+          const match = message.match(urlPattern);
+          if (match && match.length > 0) {
+            return match[0];
+          }
+          const whatsiPlusPattern = /(https?:\/\/api\.whatsiplus\.com\/[^\s]+)/gi;
+          const whatsiMatch = message.match(whatsiPlusPattern);
+          if (whatsiMatch && whatsiMatch.length > 0) {
+            return whatsiMatch[0];
+          }
+          return null;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0644\u06CC\u0646\u06A9 \u0639\u06A9\u0633:", error);
+          return null;
+        }
+      }
+      /**
+       * دانلود عکس از URL
+       * @param imageUrl آدرس عکس
+       * @returns Base64 encoded image data
+       */
+      async downloadImage(imageUrl) {
+        try {
+          console.log(`\u{1F4E5} \u062F\u0631 \u062D\u0627\u0644 \u062F\u0627\u0646\u0644\u0648\u062F \u0639\u06A9\u0633 \u0627\u0632: ${imageUrl}`);
+          const response = await fetch(imageUrl, {
+            method: "GET",
+            headers: {
+              "User-Agent": "WhatsApp-Service/1.0"
+            }
+          });
+          if (!response.ok) {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0627\u0646\u0644\u0648\u062F \u0639\u06A9\u0633: ${response.status} ${response.statusText}`);
+            return null;
+          }
+          const contentType = response.headers.get("content-type") || "image/jpeg";
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const base64Data = buffer.toString("base64");
+          console.log(`\u2705 \u0639\u06A9\u0633 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0627\u0646\u0644\u0648\u062F \u0634\u062F (${contentType})`);
+          return {
+            mimeType: contentType,
+            data: base64Data
+          };
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0627\u0646\u0644\u0648\u062F \u0639\u06A9\u0633:", error);
+          return null;
+        }
+      }
+      /**
+       * استخراج اطلاعات مالی از عکس رسید واریزی با استفاده از Gemini Vision
+       * @param imageUrl آدرس عکس رسید
+       * @returns اطلاعات مالی استخراج شده
+       */
+      async extractDepositInfoFromImage(imageUrl) {
+        if (!this.model) {
+          throw new Error("Gemini AI \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0648\u06A9\u0646 API \u0631\u0627 \u062A\u0646\u0638\u06CC\u0645 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0627\u0632 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F...`);
+          const imageData = await this.downloadImage(imageUrl);
+          if (!imageData) {
+            console.error("\u274C \u0646\u062A\u0648\u0627\u0646\u0633\u062A\u06CC\u0645 \u0639\u06A9\u0633 \u0631\u0627 \u062F\u0627\u0646\u0644\u0648\u062F \u06A9\u0646\u06CC\u0645");
+            return {
+              amount: null,
+              transactionDate: null,
+              transactionTime: null,
+              accountSource: null,
+              paymentMethod: null,
+              referenceId: null
+            };
+          }
+          const prompt = `\u0627\u06CC\u0646 \u062A\u0635\u0648\u06CC\u0631 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0645\u0627\u0644\u06CC \u0631\u0627 \u0627\u0632 \u0622\u0646 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646 \u0648 \u0628\u0647 \u0635\u0648\u0631\u062A JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646:
+
+\u0641\u0631\u0645\u062A JSON \u062E\u0631\u0648\u062C\u06CC:
+{
+  "amount": "\u0645\u0628\u0644\u063A \u0628\u0647 \u0631\u06CC\u0627\u0644 (\u0641\u0642\u0637 \u0639\u062F\u062F)",
+  "transactionDate": "\u062A\u0627\u0631\u06CC\u062E (\u0634\u0645\u0633\u06CC \u06CC\u0627 \u0645\u06CC\u0644\u0627\u062F\u06CC)",
+  "transactionTime": "\u0633\u0627\u0639\u062A",
+  "accountSource": "\u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A \u0645\u0628\u062F\u0627 (\u0627\u0632 \u06A9\u0627\u0631\u062A / \u0645\u0628\u062F\u0627) - \u0641\u0642\u0637 16 \u0631\u0642\u0645 \u06A9\u0627\u0631\u062A",
+  "paymentMethod": "\u0631\u0648\u0634 \u067E\u0631\u062F\u0627\u062E\u062A (\u0645\u062B\u0644\u0627 \u0627\u0646\u062A\u0642\u0627\u0644 \u0648\u062C\u0647\u060C \u06A9\u0627\u0631\u062A \u0628\u0647 \u06A9\u0627\u0631\u062A)",
+  "referenceId": "\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u06CC\u0627 \u0634\u0645\u0627\u0631\u0647 \u0645\u0631\u062C\u0639"
+}
+
+\u0645\u0647\u0645:
+- \u0627\u06AF\u0631 \u0647\u0631 \u0641\u06CC\u0644\u062F\u06CC \u062F\u0631 \u062A\u0635\u0648\u06CC\u0631 \u0646\u0628\u0648\u062F\u060C \u0645\u0642\u062F\u0627\u0631 null \u0628\u062F\u0647
+- amount \u0631\u0648 \u0641\u0642\u0637 \u0628\u0647 \u0635\u0648\u0631\u062A \u0639\u062F\u062F \u0628\u062F\u0648\u0646 \u0645\u0645\u06CC\u0632 \u0648 \u0648\u0627\u062D\u062F \u0628\u0631\u06AF\u0631\u062F\u0627\u0646
+- accountSource \u0628\u0627\u06CC\u062F \u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A 16 \u0631\u0642\u0645\u06CC \u0645\u0628\u062F\u0627 \u0628\u0627\u0634\u0647 (\u0627\u0632 \u0642\u0633\u0645\u062A "\u0627\u0632 \u06A9\u0627\u0631\u062A" \u06CC\u0627 "\u0645\u0628\u062F\u0627" \u06CC\u0627 \u0646\u0632\u062F\u06CC\u06A9 \u0645\u0628\u0644\u063A)
+- \u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A \u0631\u0648 \u06A9\u0627\u0645\u0644 \u0628\u0646\u0648\u06CC\u0633\u060C \u062D\u062A\u06CC \u0627\u06AF\u0631 \u0628\u0639\u0636\u06CC \u0627\u0631\u0642\u0627\u0645 \u0633\u062A\u0627\u0631\u0647 (*) \u0647\u0633\u062A\u0646\u062F
+- \u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0628\u0627\u06CC\u062F string \u06CC\u0627 null \u0628\u0627\u0634\u0646\u062F
+- \u0641\u0642\u0637 JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646\u060C \u0628\u062F\u0648\u0646 \u062A\u0648\u0636\u06CC\u062D \u0627\u0636\u0627\u0641\u06CC
+- \u062F\u0642\u062A \u06A9\u0646 \u06A9\u0647 \u0627\u0639\u062F\u0627\u062F \u0641\u0627\u0631\u0633\u06CC \u0631\u0627 \u0628\u0647 \u0627\u0646\u06AF\u0644\u06CC\u0633\u06CC \u062A\u0628\u062F\u06CC\u0644 \u06A9\u0646\u06CC`;
+          const imagePart = {
+            inlineData: {
+              data: imageData.data,
+              mimeType: imageData.mimeType
+            }
+          };
+          const result = await this.model.generateContent([prompt, imagePart]);
+          const response = await result.response;
+          const text2 = response.text().trim();
+          console.log(`\u{1F4CA} Gemini Vision Response:`, text2);
+          let jsonText = text2;
+          if (jsonText.includes("```json")) {
+            jsonText = jsonText.split("```json")[1].split("```")[0].trim();
+          } else if (jsonText.includes("```")) {
+            jsonText = jsonText.split("```")[1].split("```")[0].trim();
+          }
+          const extractedData = JSON.parse(jsonText);
+          console.log(`\u2705 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0627\u0632 \u0639\u06A9\u0633 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F:`, extractedData);
+          return {
+            amount: extractedData.amount || null,
+            transactionDate: extractedData.transactionDate || null,
+            transactionTime: extractedData.transactionTime || null,
+            accountSource: extractedData.accountSource || null,
+            paymentMethod: extractedData.paymentMethod || null,
+            referenceId: extractedData.referenceId || null
+          };
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0627\u0632 \u0639\u06A9\u0633:", error);
+          return {
+            amount: null,
+            transactionDate: null,
+            transactionTime: null,
+            accountSource: null,
+            paymentMethod: null,
+            referenceId: null
+          };
+        }
+      }
     };
     geminiService = new GeminiService();
+  }
+});
+
+// server/whatsapp-service.ts
+var whatsapp_service_exports = {};
+__export(whatsapp_service_exports, {
+  whatsAppMessageService: () => whatsAppMessageService
+});
+var WhatsAppMessageService, whatsAppMessageService;
+var init_whatsapp_service = __esm({
+  "server/whatsapp-service.ts"() {
+    "use strict";
+    init_storage();
+    init_gemini_service();
+    WhatsAppMessageService = class {
+      intervalId = null;
+      isRunning = false;
+      isFetching = false;
+      lastFetchTime = null;
+      /**
+       * فرمت کردن مبلغ به صورت سه رقم سه رقم و حذف .00
+       * @param amount مبلغ به صورت string
+       * @returns مبلغ فرمت شده
+       */
+      formatAmount(amount) {
+        let numericAmount = parseFloat(amount);
+        numericAmount = Math.floor(numericAmount);
+        return numericAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      }
+      async start() {
+        if (this.isRunning) {
+          console.log("\u{1F504} \u0633\u0631\u0648\u06CC\u0633 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u062F\u0631 \u062D\u0627\u0644 \u0627\u062C\u0631\u0627 \u0627\u0633\u062A");
+          return;
+        }
+        console.log("\u{1F680} \u0634\u0631\u0648\u0639 \u0633\u0631\u0648\u06CC\u0633 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E...");
+        this.isRunning = true;
+        await this.fetchMessages();
+        this.intervalId = setInterval(async () => {
+          await this.fetchMessages();
+        }, 5e3);
+      }
+      stop() {
+        if (this.intervalId) {
+          clearInterval(this.intervalId);
+          this.intervalId = null;
+        }
+        this.isRunning = false;
+        console.log("\u{1F6D1} \u0633\u0631\u0648\u06CC\u0633 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0645\u062A\u0648\u0642\u0641 \u0634\u062F");
+      }
+      async fetchMessages() {
+        if (this.isFetching) {
+          return;
+        }
+        this.isFetching = true;
+        try {
+          console.log(`\u{1F504} \u0686\u06A9 \u06A9\u0631\u062F\u0646 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u062C\u062F\u06CC\u062F...`);
+          const allUsers = await storage.getAllUsers();
+          const usersWithTokens = allUsers.filter(
+            (user) => user.role === "user_level_1" && user.whatsappToken && user.whatsappToken.trim() !== ""
+          );
+          if (usersWithTokens.length === 0) {
+            await this.fetchMessagesForGlobalToken();
+            return;
+          }
+          for (const user of usersWithTokens) {
+            await this.fetchMessagesForUser(user);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error.message || error);
+        } finally {
+          this.isFetching = false;
+        }
+      }
+      /**
+       * دریافت پیام‌ها برای یک کاربر خاص با استفاده از توکن شخصی
+       */
+      async fetchMessagesForUser(user) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1e4);
+          const response = await fetch(`https://api.whatsiplus.com/receivedMessages/${user.whatsappToken}?page=1`, {
+            method: "GET",
+            signal: controller.signal,
+            headers: {
+              "User-Agent": "WhatsApp-Service/1.0",
+              "Accept": "application/json",
+              "Cache-Control": "no-cache"
+            }
+          });
+          clearTimeout(timeoutId);
+          if (!response.ok) {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u0631\u0627\u06CC ${user.username}:`, response.status, response.statusText);
+            return;
+          }
+          const data = await response.json();
+          if (!data.data || data.data.length === 0) {
+            return;
+          }
+          let newMessagesCount = 0;
+          for (const message of data.data) {
+            try {
+              console.log(`\u{1F4E8} \u067E\u06CC\u0627\u0645 \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F\u0647 \u0627\u0632 WhatsiPlus:`, JSON.stringify(message, null, 2));
+              let messageContent = "";
+              let imageUrl = null;
+              if (message.type === "file" && message.mediaUrl) {
+                messageContent = message.mediaUrl;
+                imageUrl = message.mediaUrl;
+                console.log(`\u{1F5BC}\uFE0F \u067E\u06CC\u0627\u0645 \u0646\u0648\u0639 file \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F \u0628\u0627 \u0622\u062F\u0631\u0633: ${imageUrl}`);
+              } else if (message.message) {
+                messageContent = message.message;
+                imageUrl = geminiService.extractImageUrl(message.message);
+                if (imageUrl) {
+                  console.log(`\u{1F5BC}\uFE0F \u0622\u062F\u0631\u0633 \u0639\u06A9\u0633 \u0627\u0632 \u0645\u062A\u0646 \u067E\u06CC\u0627\u0645 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F: ${imageUrl}`);
+                }
+              }
+              if (!messageContent || messageContent.trim() === "") {
+                console.log(`\u26A0\uFE0F \u067E\u06CC\u0627\u0645 \u062E\u0627\u0644\u06CC \u0627\u0632 ${message.from} \u0646\u0627\u062F\u06CC\u062F\u0647 \u06AF\u0631\u0641\u062A\u0647 \u0634\u062F`);
+                continue;
+              }
+              const existingMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(message.id, user.id);
+              if (!existingMessage) {
+                const isUserInRegistrationProcess = await this.handleAutoRegistration(message.from, messageContent, user.id);
+                const savedMessage = await storage.createReceivedMessage({
+                  userId: user.id,
+                  whatsiPlusId: message.id,
+                  sender: message.from,
+                  message: messageContent,
+                  imageUrl,
+                  status: "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647",
+                  originalDate: message.date
+                });
+                if (geminiService.isActive() && !isUserInRegistrationProcess) {
+                  await this.handleAutoResponse(message.from, messageContent, message.id, user.id);
+                }
+                newMessagesCount++;
+              }
+            } catch (error) {
+              console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u067E\u06CC\u0627\u0645:", error);
+            }
+          }
+          if (newMessagesCount > 0) {
+            console.log(`\u{1F4E8} ${newMessagesCount} \u067E\u06CC\u0627\u0645 \u062C\u062F\u06CC\u062F \u0628\u0631\u0627\u06CC ${user.username} \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F`);
+            this.lastFetchTime = /* @__PURE__ */ new Date();
+          }
+        } catch (error) {
+          if (error.name === "AbortError") {
+            console.error(`\u23F1\uFE0F Timeout: \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u0631\u0627\u06CC ${user.username} \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0627\u0646\u062A\u0638\u0627\u0631 \u0637\u0648\u0644 \u06A9\u0634\u06CC\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC ${user.username}:`, error.message || error);
+          }
+        }
+      }
+      /**
+       * دریافت پیام‌ها با استفاده از توکن عمومی (برای ادمین)
+       */
+      async fetchMessagesForGlobalToken() {
+        try {
+          const settings = await storage.getWhatsappSettings();
+          if (!settings || !settings.token || !settings.isEnabled) {
+            console.log("\u26A0\uFE0F \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A \u06CC\u0627 \u062A\u0648\u06A9\u0646 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+            return;
+          }
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1e4);
+          const response = await fetch(`https://api.whatsiplus.com/receivedMessages/${settings.token}?page=1`, {
+            method: "GET",
+            signal: controller.signal,
+            headers: {
+              "User-Agent": "WhatsApp-Service/1.0",
+              "Accept": "application/json",
+              "Cache-Control": "no-cache"
+            }
+          });
+          clearTimeout(timeoutId);
+          if (!response.ok) {
+            console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC:", response.status, response.statusText);
+            return;
+          }
+          const data = await response.json();
+          if (!data.data || data.data.length === 0) {
+            return;
+          }
+          let newMessagesCount = 0;
+          const adminUsers = await storage.getAllUsers();
+          const admin = adminUsers.find((user) => user.role === "admin");
+          if (!admin) {
+            console.error("\u274C \u0647\u06CC\u0686 \u06A9\u0627\u0631\u0628\u0631 \u0627\u062F\u0645\u06CC\u0646 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
+            return;
+          }
+          for (const message of data.data) {
+            try {
+              let messageContent = "";
+              let imageUrl = null;
+              if (message.type === "file" && message.mediaUrl) {
+                messageContent = message.mediaUrl;
+                imageUrl = message.mediaUrl;
+                console.log(`\u{1F5BC}\uFE0F \u067E\u06CC\u0627\u0645 \u0646\u0648\u0639 file \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F \u0628\u0627 \u0622\u062F\u0631\u0633: ${imageUrl}`);
+              } else if (message.message) {
+                messageContent = message.message;
+                imageUrl = geminiService.extractImageUrl(message.message);
+                if (imageUrl) {
+                  console.log(`\u{1F5BC}\uFE0F \u0622\u062F\u0631\u0633 \u0639\u06A9\u0633 \u0627\u0632 \u0645\u062A\u0646 \u067E\u06CC\u0627\u0645 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F: ${imageUrl}`);
+                }
+              }
+              if (!messageContent || messageContent.trim() === "") {
+                continue;
+              }
+              const existingMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(message.id, admin.id);
+              if (!existingMessage) {
+                const isUserInRegistrationProcess = await this.handleAutoRegistration(message.from, messageContent, admin.id);
+                await storage.createReceivedMessage({
+                  userId: admin.id,
+                  whatsiPlusId: message.id,
+                  sender: message.from,
+                  message: messageContent,
+                  imageUrl,
+                  status: "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647",
+                  originalDate: message.date
+                });
+                if (geminiService.isActive() && !isUserInRegistrationProcess) {
+                  await this.handleAutoResponse(message.from, messageContent, message.id, admin.id);
+                }
+                newMessagesCount++;
+              }
+            } catch (error) {
+              console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u067E\u06CC\u0627\u0645:", error);
+            }
+          }
+          if (newMessagesCount > 0) {
+            console.log(`\u{1F4E8} ${newMessagesCount} \u067E\u06CC\u0627\u0645 \u062C\u062F\u06CC\u062F \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F`);
+            this.lastFetchTime = /* @__PURE__ */ new Date();
+          }
+        } catch (error) {
+          if (error.name === "AbortError") {
+            console.error("\u23F1\uFE0F Timeout: \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0627\u0646\u062A\u0638\u0627\u0631 \u0637\u0648\u0644 \u06A9\u0634\u06CC\u062F");
+          } else {
+            console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error.message || error);
+          }
+        }
+      }
+      /**
+       * تجزیه نام و نام خانوادگی از پیام کاربر
+       * @param message پیام کاربر
+       * @returns object شامل firstName و lastName یا null
+       */
+      parseNameFromMessage(message) {
+        const words = message.trim().split(/\s+/).filter((word) => word.length > 0);
+        if (words.length >= 2) {
+          return {
+            firstName: words[0],
+            lastName: words.slice(1).join(" ")
+            // اگر نام خانوادگی چند کلمه باشد
+          };
+        }
+        return null;
+      }
+      /**
+       * ارسال پیام درخواست نام و نام خانوادگی
+       * @param whatsappNumber شماره واتس‌اپ
+       * @param fromUser کاربر ارسال‌کننده 
+       */
+      async sendNameRequestMessage(whatsappNumber, fromUser) {
+        try {
+          let whatsappToken;
+          if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
+            whatsappToken = fromUser.whatsappToken;
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+              return false;
+            }
+            whatsappToken = whatsappSettings2.token;
+          }
+          const nameRequestMessage = `\u0633\u0644\u0627\u0645! \u{1F44B}
+      
+\u0628\u0631\u0627\u06CC \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u062F\u0631 \u0633\u06CC\u0633\u062A\u0645\u060C \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u0648 \u0646\u0627\u0645 \u062E\u0627\u0646\u0648\u0627\u062F\u06AF\u06CC \u062E\u0648\u062F \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.
+
+\u0645\u062B\u0627\u0644: \u0627\u062D\u0645\u062F \u0645\u062D\u0645\u062F\u06CC
+
+\u0645\u0646\u062A\u0638\u0631 \u067E\u0627\u0633\u062E \u0634\u0645\u0627 \u0647\u0633\u062A\u06CC\u0645.`;
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(nameRequestMessage)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+            return true;
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0628\u0647 ${whatsappNumber}`);
+            return false;
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645:", error);
+          return false;
+        }
+      }
+      /**
+       * مدیریت ثبت نام خودکار کاربران جدید از طریق واتس‌اپ
+       * حالا اول نام و نام خانوادگی را می‌پرسد
+       * @param whatsappNumber شماره واتس‌اپ فرستنده
+       * @param message پیام دریافت شده
+       * @param fromUserId شناسه کاربری که پیام را دریافت کرده (کاربر سطح 1)
+       * @returns boolean - true اگر کاربر در حال ثبت‌نام است، false اگر ثبت‌نام کامل شده یا وجود دارد
+       */
+      async handleAutoRegistration(whatsappNumber, message, fromUserId) {
+        try {
+          const existingUser = await storage.getUserByWhatsappNumber(whatsappNumber);
+          if (existingUser) {
+            console.log(`\u{1F464} \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${whatsappNumber} \u0627\u0632 \u0642\u0628\u0644 \u0648\u062C\u0648\u062F \u062F\u0627\u0631\u062F: ${existingUser.username}`);
+            return false;
+          } else {
+            console.log(`\u{1F195} \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${whatsappNumber} \u062C\u062F\u06CC\u062F \u0627\u0633\u062A - \u0628\u0631\u0631\u0633\u06CC \u062B\u0628\u062A \u0646\u0627\u0645...`);
+          }
+          const allUsers = await storage.getAllUsers();
+          const userWithPhone = allUsers.find((user) => user.phone === whatsappNumber);
+          if (userWithPhone && !userWithPhone.whatsappNumber) {
+            await storage.updateUser(userWithPhone.id, {
+              whatsappNumber,
+              isWhatsappRegistered: true
+            });
+            console.log(`\u2705 \u0634\u0645\u0627\u0631\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 \u0645\u0648\u062C\u0648\u062F ${userWithPhone.username} \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F`);
+            return false;
+          }
+          const fromUser = fromUserId ? await storage.getUser(fromUserId) : allUsers.find((user) => user.role === "user_level_1");
+          if (!fromUser) {
+            console.error("\u274C \u0647\u06CC\u0686 \u06A9\u0627\u0631\u0628\u0631 \u0633\u0637\u062D \u06F1 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F - \u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0627\u06CC\u062C\u0627\u062F \u0646\u0645\u06CC\u200C\u0634\u0648\u062F");
+            return false;
+          }
+          const parsedName = this.parseNameFromMessage(message);
+          if (!parsedName) {
+            console.log(`\u{1F4DD} \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0648 \u0646\u0627\u0645 \u062E\u0627\u0646\u0648\u0627\u062F\u06AF\u06CC \u0627\u0632 ${whatsappNumber}`);
+            await this.sendNameRequestMessage(whatsappNumber, fromUser);
+            return true;
+          }
+          console.log(`\u{1F504} \u062B\u0628\u062A \u0646\u0627\u0645 \u062E\u0648\u062F\u06A9\u0627\u0631 \u06A9\u0627\u0631\u0628\u0631 \u062C\u062F\u06CC\u062F \u0627\u0632 \u0648\u0627\u062A\u0633\u200C\u0627\u067E: ${whatsappNumber}`);
+          const generateUsernameFromPhone = (phone) => {
+            if (!phone) return phone;
+            let cleanPhone = phone.replace(/\s+/g, "").replace(/[۰-۹]/g, (d) => "\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9".indexOf(d).toString()).replace(/[٠-٩]/g, (d) => "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669".indexOf(d).toString()).replace(/[^0-9]/g, "");
+            if (cleanPhone.startsWith("0098")) {
+              cleanPhone = cleanPhone.slice(4);
+            } else if (cleanPhone.startsWith("98") && cleanPhone.length > 10) {
+              cleanPhone = cleanPhone.slice(2);
+            } else if (cleanPhone.startsWith("0")) {
+              return cleanPhone;
+            }
+            return "0" + cleanPhone;
+          };
+          const username = generateUsernameFromPhone(whatsappNumber);
+          const newUser = await storage.createUser({
+            username,
+            firstName: parsedName.firstName,
+            lastName: parsedName.lastName,
+            email: null,
+            // ایمیل برای کاربران واتس‌اپ اختیاری است
+            phone: whatsappNumber,
+            whatsappNumber,
+            password: null,
+            // کاربران واتس‌اپ بدون رمز عبور
+            role: "user_level_2",
+            // کاربران واتس‌اپ به صورت پیش‌فرض سطح ۲
+            parentUserId: fromUser.id,
+            // تخصیص به کاربر سطح ۱ که پیام را دریافت کرده
+            isWhatsappRegistered: true
+          });
+          try {
+            const subscriptions2 = await storage.getAllSubscriptions();
+            const trialSubscription = subscriptions2.find((sub) => sub.isDefault === true);
+            if (trialSubscription) {
+              await storage.createUserSubscription({
+                userId: newUser.id,
+                subscriptionId: trialSubscription.id,
+                remainingDays: 7,
+                startDate: /* @__PURE__ */ new Date(),
+                endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3),
+                status: "active",
+                isTrialPeriod: true
+              });
+            }
+          } catch (subscriptionError) {
+            console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u0627\u0634\u062A\u0631\u0627\u06A9 \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", subscriptionError);
+          }
+          console.log(`\u2705 \u06A9\u0627\u0631\u0628\u0631 \u062C\u062F\u06CC\u062F \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u062B\u0628\u062A \u0646\u0627\u0645 \u0634\u062F: ${newUser.username} (${parsedName.firstName} ${parsedName.lastName})`);
+          await this.sendWelcomeMessage(whatsappNumber, parsedName.firstName, fromUser);
+          return false;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u0646\u0627\u0645 \u062E\u0648\u062F\u06A9\u0627\u0631 \u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error);
+          return false;
+        }
+      }
+      /**
+       * ارسال پیام خوشامدگویی به کاربر جدید
+       * @param whatsappNumber شماره واتس‌اپ
+       * @param firstName نام کاربر
+       * @param fromUser کاربر ارسال‌کننده 
+       */
+      async sendWelcomeMessage(whatsappNumber, firstName, fromUser) {
+        try {
+          let whatsappToken;
+          if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
+            whatsappToken = fromUser.whatsappToken;
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              return;
+            }
+            whatsappToken = whatsappSettings2.token;
+          }
+          let welcomeMessage = fromUser?.welcomeMessage;
+          if (!welcomeMessage || welcomeMessage.trim() === "") {
+            welcomeMessage = `\u0633\u0644\u0627\u0645 ${firstName}! \u{1F31F}
+
+\u0628\u0647 \u0633\u06CC\u0633\u062A\u0645 \u0645\u0627 \u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F. \u0634\u0645\u0627 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0646\u0627\u0645 \u0634\u062F\u06CC\u062F.
+
+\u{1F381} \u0627\u0634\u062A\u0631\u0627\u06A9 \u0631\u0627\u06CC\u06AF\u0627\u0646 7 \u0631\u0648\u0632\u0647 \u0628\u0647 \u062D\u0633\u0627\u0628 \u0634\u0645\u0627 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F.
+
+\u0628\u0631\u0627\u06CC \u06A9\u0645\u06A9 \u0648 \u0631\u0627\u0647\u0646\u0645\u0627\u06CC\u06CC\u060C \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u06CC\u062F \u0647\u0631 \u0632\u0645\u0627\u0646 \u067E\u06CC\u0627\u0645 \u0628\u062F\u0647\u06CC\u062F.`;
+          } else {
+            welcomeMessage = welcomeMessage.replace("{firstName}", firstName);
+          }
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(welcomeMessage)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC \u0628\u0647 ${whatsappNumber}`);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC:", error);
+        }
+      }
+      /**
+       * پردازش پیام واریزی و ذخیره اطلاعات مالی
+       * @param sender شماره واتساپ فرستنده
+       * @param message پیام واریزی
+       * @param receiverUserId شناسه کاربر سطح 1 که پیام را دریافت کرده
+       */
+      async handleDepositMessage(sender, message, receiverUserId) {
+        try {
+          console.log(`\u{1F4B0} \u062F\u0631 \u062D\u0627\u0644 \u067E\u0631\u062F\u0627\u0632\u0634 \u067E\u06CC\u0627\u0645 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0627\u0632 ${sender}...`);
+          const senderUser = await storage.getUserByWhatsappNumber(sender);
+          if (!senderUser) {
+            console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${sender} \u06CC\u0627\u0641\u062A \u0646\u0634\u062F`);
+            return;
+          }
+          if (senderUser.role !== "user_level_2") {
+            console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 ${sender} \u0633\u0637\u062D 2 \u0646\u06CC\u0633\u062A`);
+            return;
+          }
+          const depositInfo = await geminiService.extractDepositInfo(message);
+          console.log(`\u{1F4CA} Telemetry - Deposit extraction attempt:`, JSON.stringify({
+            sender,
+            extractedAmount: depositInfo.amount,
+            extractedDate: depositInfo.transactionDate,
+            extractedTime: depositInfo.transactionTime,
+            extractedReference: depositInfo.referenceId,
+            extractedSource: depositInfo.accountSource,
+            extractedMethod: depositInfo.paymentMethod,
+            fullMessage: message
+            // Full message for debugging
+          }));
+          const missingFields = [];
+          if (!depositInfo.amount) missingFields.push("\u0645\u0628\u0644\u063A");
+          if (!depositInfo.referenceId) missingFields.push("\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC");
+          if (!depositInfo.transactionDate) missingFields.push("\u062A\u0627\u0631\u06CC\u062E \u0648\u0627\u0631\u06CC\u0632");
+          if (missingFields.length > 0) {
+            console.error(`\u274C \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0636\u0631\u0648\u0631\u06CC \u06CC\u0627\u0641\u062A \u0646\u0634\u062F: ${missingFields.join(", ")}`);
+            await this.sendDepositClarificationMessage(sender, receiverUserId, missingFields);
+            return;
+          }
+          console.log(`\u2705 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632\u06CC \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount}, \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
+          const existingTransaction = await storage.getTransactionByReferenceId(
+            depositInfo.referenceId,
+            senderUser.id
+          );
+          if (existingTransaction) {
+            console.log(`\u26A0\uFE0F \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC \u062A\u0634\u062E\u06CC\u0635 \u062F\u0627\u062F\u0647 \u0634\u062F - \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
+            await this.sendDuplicateTransactionWarning(sender, receiverUserId, depositInfo.referenceId);
+            return;
+          }
+          const transaction = await storage.createTransaction({
+            userId: senderUser.id,
+            type: "deposit",
+            amount: depositInfo.amount,
+            status: "pending",
+            transactionDate: depositInfo.transactionDate,
+            transactionTime: depositInfo.transactionTime || void 0,
+            accountSource: depositInfo.accountSource || void 0,
+            paymentMethod: depositInfo.paymentMethod || "\u0648\u0627\u062A\u0633\u0627\u067E",
+            referenceId: depositInfo.referenceId,
+            initiatorUserId: senderUser.id,
+            parentUserId: senderUser.parentUserId || receiverUserId
+          });
+          console.log(`\u2705 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount} \u0631\u06CC\u0627\u0644`);
+          await this.sendDepositConfirmationMessage(sender, receiverUserId);
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u067E\u06CC\u0627\u0645 \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+        }
+      }
+      /**
+       * پردازش عکس رسید واریزی و ذخیره اطلاعات مالی
+       * @param sender شماره واتساپ فرستنده
+       * @param imageUrl آدرس عکس رسید
+       * @param receiverUserId شناسه کاربر سطح 1 که پیام را دریافت کرده
+       */
+      async handleDepositImageMessage(sender, imageUrl, receiverUserId) {
+        try {
+          console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u067E\u0631\u062F\u0627\u0632\u0634 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0627\u0632 ${sender}...`);
+          const senderUser = await storage.getUserByWhatsappNumber(sender);
+          if (!senderUser) {
+            console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${sender} \u06CC\u0627\u0641\u062A \u0646\u0634\u062F`);
+            return;
+          }
+          if (senderUser.role !== "user_level_2") {
+            console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 ${sender} \u0633\u0637\u062D 2 \u0646\u06CC\u0633\u062A`);
+            return;
+          }
+          const depositInfo = await geminiService.extractDepositInfoFromImage(imageUrl);
+          console.log(`\u{1F4CA} Telemetry - Deposit extraction from image:`, JSON.stringify({
+            sender,
+            imageUrl,
+            extractedAmount: depositInfo.amount,
+            extractedDate: depositInfo.transactionDate,
+            extractedTime: depositInfo.transactionTime,
+            extractedReference: depositInfo.referenceId,
+            extractedSource: depositInfo.accountSource,
+            extractedMethod: depositInfo.paymentMethod
+          }));
+          const missingFields = [];
+          if (!depositInfo.amount) missingFields.push("\u0645\u0628\u0644\u063A");
+          if (!depositInfo.referenceId) missingFields.push("\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC");
+          if (!depositInfo.transactionDate) missingFields.push("\u062A\u0627\u0631\u06CC\u062E \u0648\u0627\u0631\u06CC\u0632");
+          if (missingFields.length > 0) {
+            console.error(`\u274C \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0636\u0631\u0648\u0631\u06CC \u0627\u0632 \u0639\u06A9\u0633 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0646\u0634\u062F: ${missingFields.join(", ")}`);
+            await this.sendDepositClarificationMessage(sender, receiverUserId, missingFields);
+            return;
+          }
+          console.log(`\u2705 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632\u06CC \u0627\u0632 \u0639\u06A9\u0633 \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount}, \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
+          const existingTransaction = await storage.getTransactionByReferenceId(
+            depositInfo.referenceId,
+            senderUser.id
+          );
+          if (existingTransaction) {
+            console.log(`\u26A0\uFE0F \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC \u062A\u0634\u062E\u06CC\u0635 \u062F\u0627\u062F\u0647 \u0634\u062F - \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
+            await this.sendDuplicateTransactionWarning(sender, receiverUserId, depositInfo.referenceId);
+            return;
+          }
+          const transaction = await storage.createTransaction({
+            userId: senderUser.id,
+            type: "deposit",
+            amount: depositInfo.amount,
+            status: "pending",
+            transactionDate: depositInfo.transactionDate,
+            transactionTime: depositInfo.transactionTime || void 0,
+            accountSource: depositInfo.accountSource || void 0,
+            paymentMethod: depositInfo.paymentMethod || "\u0648\u0627\u062A\u0633\u0627\u067E - \u0639\u06A9\u0633",
+            referenceId: depositInfo.referenceId,
+            initiatorUserId: senderUser.id,
+            parentUserId: senderUser.parentUserId || receiverUserId
+          });
+          console.log(`\u2705 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0627\u0632 \u0639\u06A9\u0633 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount} \u0631\u06CC\u0627\u0644`);
+          await this.sendDepositConfirmationMessage(sender, receiverUserId);
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+        }
+      }
+      /**
+       * ارسال پیام درخواست اطلاعات بیشتر برای واریزی
+       * @param whatsappNumber شماره واتساپ
+       * @param fromUserId شناسه کاربر سطح 1
+       * @param missingFields آرایه فیلدهای مفقود شده
+       */
+      async sendDepositClarificationMessage(whatsappNumber, fromUserId, missingFields) {
+        try {
+          const fromUser = await storage.getUser(fromUserId);
+          let whatsappToken;
+          if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
+            whatsappToken = fromUser.whatsappToken;
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+              return;
+            }
+            whatsappToken = whatsappSettings2.token;
+          }
+          const missingFieldsText = missingFields.join("\u060C ");
+          const clarificationMessage = `\u0628\u0627 \u0633\u0644\u0627\u0645 \u{1F44B}
+
+\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u0646\u062A\u0648\u0627\u0646\u0633\u062A\u06CC\u0645 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0632\u06CC\u0631 \u0631\u0627 \u0627\u0632 \u067E\u06CC\u0627\u0645 \u0634\u0645\u0627 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646\u06CC\u0645:
+${missingFieldsText}
+
+\u0644\u0637\u0641\u0627\u064B \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u062E\u0648\u062F \u0631\u0627 \u0628\u0627 \u062C\u0632\u0626\u06CC\u0627\u062A \u06A9\u0627\u0645\u0644 \u0627\u0631\u0633\u0627\u0644 \u06A9\u0646\u06CC\u062F \u06CC\u0627 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0631\u0627 \u0628\u0647 \u0635\u0648\u0631\u062A \u0632\u06CC\u0631 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F:
+
+\u0645\u0628\u0644\u063A: [\u0645\u0628\u0644\u063A \u0628\u0647 \u0631\u06CC\u0627\u0644]
+\u062A\u0627\u0631\u06CC\u062E: [\u062A\u0627\u0631\u06CC\u062E \u0648\u0627\u0631\u06CC\u0632 \u0645\u062B\u0644\u0627 1403/07/12]
+\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: [\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u062A\u0631\u0627\u06A9\u0646\u0634]
+
+\u0645\u0645\u0646\u0648\u0646 \u0627\u0632 \u0647\u0645\u06A9\u0627\u0631\u06CC \u0634\u0645\u0627.`;
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(clarificationMessage)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0647 ${whatsappNumber}`);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A:", error);
+        }
+      }
+      /**
+       * ارسال پیام هشدار برای تراکنش تکراری
+       * @param whatsappNumber شماره واتساپ
+       * @param fromUserId شناسه کاربر سطح 1 که پیام را ارسال می‌کند
+       * @param referenceId شماره پیگیری تراکنش تکراری
+       */
+      async sendDuplicateTransactionWarning(whatsappNumber, fromUserId, referenceId) {
+        try {
+          const fromUser = await storage.getUser(fromUserId);
+          let whatsappToken;
+          if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
+            whatsappToken = fromUser.whatsappToken;
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0647\u0634\u062F\u0627\u0631 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+              return;
+            }
+            whatsappToken = whatsappSettings2.token;
+          }
+          const warningMessage = `\u26A0\uFE0F \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC
+
+\u0627\u06CC\u0646 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC ${referenceId} \u0642\u0628\u0644\u0627\u064B \u062B\u0628\u062A \u0634\u062F\u0647 \u0627\u0633\u062A.
+
+\u062F\u0631 \u0635\u0648\u0631\u062A\u06CC \u06A9\u0647 \u062A\u0631\u0627\u06A9\u0646\u0634 \u062C\u062F\u06CC\u062F\u06CC \u0627\u0646\u062C\u0627\u0645 \u062F\u0627\u062F\u0647\u200C\u0627\u06CC\u062F\u060C \u0644\u0637\u0641\u0627\u064B \u0631\u0633\u06CC\u062F \u062C\u062F\u06CC\u062F \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u0645\u062A\u0641\u0627\u0648\u062A \u0627\u0631\u0633\u0627\u0644 \u06A9\u0646\u06CC\u062F.
+
+\u062F\u0631 \u063A\u06CC\u0631 \u0627\u06CC\u0646 \u0635\u0648\u0631\u062A\u060C \u062A\u0631\u0627\u06A9\u0646\u0634 \u0642\u0628\u0644\u06CC \u0634\u0645\u0627 \u062F\u0631 \u062D\u0627\u0644 \u0628\u0631\u0631\u0633\u06CC \u0627\u0633\u062A.`;
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(warningMessage)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u0647\u0634\u062F\u0627\u0631 \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0647\u0634\u062F\u0627\u0631 \u0628\u0647 ${whatsappNumber}`);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0647\u0634\u062F\u0627\u0631 \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC:", error);
+        }
+      }
+      /**
+       * ارسال پیام تاییدیه واریز به کاربر
+       * @param whatsappNumber شماره واتساپ
+       * @param fromUserId شناسه کاربر سطح 1 که پیام را ارسال می‌کند
+       */
+      async sendDepositConfirmationMessage(whatsappNumber, fromUserId) {
+        try {
+          const fromUser = await storage.getUser(fromUserId);
+          let whatsappToken;
+          if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
+            whatsappToken = fromUser.whatsappToken;
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F\u06CC\u0647 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+              return;
+            }
+            whatsappToken = whatsappSettings2.token;
+          }
+          const confirmationMessage = `\u0645\u0645\u0646\u0648\u0646 \u0627\u0632 \u0648\u0627\u0631\u06CC\u0632\u06CC \u06A9\u0647 \u0627\u0646\u062C\u0627\u0645 \u062F\u0627\u062F\u06CC\u062F \u{1F64F}
+
+\u0644\u0637\u0641\u0627\u064B \u0645\u0646\u062A\u0638\u0631 \u062A\u0627\u06CC\u06CC\u062F \u0628\u0627\u0634\u06CC\u062F.
+
+\u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632 \u0634\u0645\u0627 \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u062B\u0628\u062A \u0634\u062F \u0648 \u0628\u0647 \u0632\u0648\u062F\u06CC \u0628\u0631\u0631\u0633\u06CC \u062E\u0648\u0627\u0647\u062F \u0634\u062F.`;
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(confirmationMessage)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F\u06CC\u0647 \u0648\u0627\u0631\u06CC\u0632 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F\u06CC\u0647 \u0648\u0627\u0631\u06CC\u0632 \u0628\u0647 ${whatsappNumber}`);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F\u06CC\u0647 \u0648\u0627\u0631\u06CC\u0632:", error);
+        }
+      }
+      /**
+       * ارسال پیام تایید نهایی تراکنش به کاربر (وضعیت completed)
+       * @param whatsappNumber شماره واتساپ
+       * @param fromUserId شناسه کاربر سطح 1 که پیام را ارسال می‌کند
+       * @param amount مبلغ تراکنش
+       */
+      async sendTransactionApprovedMessage(whatsappNumber, fromUserId, amount) {
+        try {
+          const fromUser = await storage.getUser(fromUserId);
+          let whatsappToken;
+          if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
+            whatsappToken = fromUser.whatsappToken;
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+              return;
+            }
+            whatsappToken = whatsappSettings2.token;
+          }
+          const formattedAmount = this.formatAmount(amount);
+          const approvedMessage = `\u2705 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0634\u0645\u0627 \u062A\u0627\u06CC\u06CC\u062F \u0634\u062F
+
+\u0645\u0628\u0644\u063A ${formattedAmount} \u0631\u06CC\u0627\u0644 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0647 \u062D\u0633\u0627\u0628 \u0634\u0645\u0627 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F.
+
+\u0627\u0632 \u0627\u0639\u062A\u0645\u0627\u062F \u0634\u0645\u0627 \u0633\u067E\u0627\u0633\u06AF\u0632\u0627\u0631\u06CC\u0645 \u{1F64F}`;
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(approvedMessage)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F \u0628\u0647 ${whatsappNumber}`);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F \u062A\u0631\u0627\u06A9\u0646\u0634:", error);
+        }
+      }
+      /**
+       * ارسال پیام رد تراکنش به کاربر (وضعیت failed)
+       * @param whatsappNumber شماره واتساپ
+       * @param fromUserId شناسه کاربر سطح 1 که پیام را ارسال می‌کند
+       * @param amount مبلغ تراکنش
+       */
+      async sendTransactionRejectedMessage(whatsappNumber, fromUserId, amount) {
+        try {
+          const fromUser = await storage.getUser(fromUserId);
+          let whatsappToken;
+          if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
+            whatsappToken = fromUser.whatsappToken;
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0631\u062F \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+              return;
+            }
+            whatsappToken = whatsappSettings2.token;
+          }
+          const formattedAmount = this.formatAmount(amount);
+          const rejectedMessage = `\u274C \u062A\u0631\u0627\u06A9\u0646\u0634 \u0634\u0645\u0627 \u0631\u062F \u0634\u062F
+
+\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0647 \u0645\u0628\u0644\u063A ${formattedAmount} \u0631\u06CC\u0627\u0644 \u062A\u0627\u06CC\u06CC\u062F \u0646\u0634\u062F.
+
+\u0644\u0637\u0641\u0627\u064B \u062F\u0631 \u0635\u0648\u0631\u062A \u0646\u06CC\u0627\u0632 \u0628\u0627 \u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u062A\u0645\u0627\u0633 \u0628\u06AF\u06CC\u0631\u06CC\u062F \u06CC\u0627 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632 \u0635\u062D\u06CC\u062D \u0631\u0627 \u0627\u0631\u0633\u0627\u0644 \u06A9\u0646\u06CC\u062F.`;
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(rejectedMessage)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u0631\u062F \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0631\u062F \u0628\u0647 ${whatsappNumber}`);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0631\u062F \u062A\u0631\u0627\u06A9\u0646\u0634:", error);
+        }
+      }
+      /**
+       * یک پاسخ هوشمند برای پیام ورودی ایجاد کرده و آن را از طریق واتس‌اپ ارسال می‌کند.
+       * هر کاربر سطح 1 با توکن اختصاصی خود پاسخ می‌دهد
+       * @param sender شماره موبایل فرستنده پیام
+       * @param incomingMessage پیام دریافت شده از کاربر
+       * @param whatsiPlusId شناسه پیام از WhatsiPlus API
+       * @param userId شناسه کاربر
+       */
+      async handleAutoResponse(sender, incomingMessage, whatsiPlusId, userId) {
+        try {
+          console.log(`\u{1F916} \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u067E\u0627\u0633\u062E \u0628\u0631\u0627\u06CC \u067E\u06CC\u0627\u0645 \u0627\u0632 ${sender}...`);
+          const imageUrl = geminiService.extractImageUrl(incomingMessage);
+          if (imageUrl) {
+            console.log(`\u{1F5BC}\uFE0F \u067E\u06CC\u0627\u0645 \u062D\u0627\u0648\u06CC \u0639\u06A9\u0633 \u0627\u0633\u062A\u060C \u062F\u0631 \u062D\u0627\u0644 \u067E\u0631\u062F\u0627\u0632\u0634 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F...`);
+            await this.handleDepositImageMessage(sender, imageUrl, userId);
+            const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+            if (userMessage) {
+              await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+            }
+            return;
+          }
+          const isDeposit = await geminiService.isDepositMessage(incomingMessage);
+          if (isDeposit) {
+            console.log(`\u{1F4B0} \u067E\u06CC\u0627\u0645 \u062A\u0634\u062E\u06CC\u0635 \u062F\u0627\u062F\u0647 \u0634\u062F \u0628\u0647 \u0639\u0646\u0648\u0627\u0646 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0645\u062A\u0646\u06CC`);
+            await this.handleDepositMessage(sender, incomingMessage, userId);
+            const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+            if (userMessage) {
+              await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+            }
+            return;
+          }
+          const user = await storage.getUser(userId);
+          if (!user) {
+            console.log("\u274C \u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
+            return;
+          }
+          let whatsappToken;
+          if (user.role === "user_level_1" && user.whatsappToken && user.whatsappToken.trim() !== "") {
+            whatsappToken = user.whatsappToken;
+            console.log(`\u{1F4F1} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0627\u062E\u062A\u0635\u0627\u0635\u06CC \u06A9\u0627\u0631\u0628\u0631 ${user.username}`);
+          } else {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A");
+              return;
+            }
+            whatsappToken = whatsappSettings2.token;
+            console.log("\u{1F4F1} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC");
+          }
+          const aiTokenSettings2 = await storage.getAiTokenSettings();
+          if (!aiTokenSettings2?.token || !aiTokenSettings2.isActive) {
+            console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u06CC\u0627 \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A");
+            return;
+          }
+          const aiResponse = await geminiService.generateResponse(incomingMessage, userId);
+          const maxLength = 200;
+          const finalResponse = aiResponse.length > maxLength ? aiResponse.substring(0, maxLength) + "..." : aiResponse;
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${sender}&message=${encodeURIComponent(finalResponse)}`;
+          console.log(`\u{1F504} \u062F\u0631 \u062D\u0627\u0644 \u0627\u0631\u0633\u0627\u0644 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0628\u0647 ${sender} \u0627\u0632 \u0637\u0631\u0641 ${user.username}...`);
+          const sendResponse = await fetch(sendUrl, { method: "GET" });
+          if (sendResponse.ok) {
+            await storage.createSentMessage({
+              userId,
+              recipient: sender,
+              message: aiResponse,
+              status: "sent"
+            });
+            const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+            if (userMessage) {
+              await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+              console.log(`\u{1F4D6} \u0648\u0636\u0639\u06CC\u062A \u067E\u06CC\u0627\u0645 ${whatsiPlusId} \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 ${user.username} \u0628\u0647 "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647" \u062A\u063A\u06CC\u06CC\u0631 \u06A9\u0631\u062F`);
+            }
+            console.log(`\u2705 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0628\u0647 ${sender} \u0627\u0632 \u0637\u0631\u0641 ${user.username} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F: "${aiResponse.substring(0, 50)}..."`);
+          } else {
+            const errorText = await sendResponse.text();
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0628\u0647 ${sender}:`, errorText);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0641\u0631\u0622\u06CC\u0646\u062F \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631:", error);
+        }
+      }
+      getStatus() {
+        return {
+          isRunning: this.isRunning,
+          lastFetchTime: this.lastFetchTime,
+          geminiActive: geminiService.isActive()
+        };
+      }
+    };
+    whatsAppMessageService = new WhatsAppMessageService();
   }
 });
 
@@ -4531,6 +5635,26 @@ ${newPassword}
       if (!updatedTransaction) {
         return res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0631\u0627\u06A9\u0646\u0634" });
       }
+      if (status === "completed" || status === "failed") {
+        const transactionUser = await storage.getUser(transaction.userId);
+        if (transactionUser?.whatsappNumber) {
+          const senderUserId = transaction.parentUserId || req.user.id;
+          const { whatsAppMessageService: whatsAppMessageService2 } = await Promise.resolve().then(() => (init_whatsapp_service(), whatsapp_service_exports));
+          if (status === "completed") {
+            await whatsAppMessageService2.sendTransactionApprovedMessage(
+              transactionUser.whatsappNumber,
+              senderUserId,
+              updatedTransaction.amount
+            );
+          } else if (status === "failed") {
+            await whatsAppMessageService2.sendTransactionRejectedMessage(
+              transactionUser.whatsappNumber,
+              senderUserId,
+              updatedTransaction.amount
+            );
+          }
+        }
+      }
       res.json(updatedTransaction);
     } catch (error) {
       console.error("Error updating transaction status:", error);
@@ -4915,456 +6039,8 @@ function serveStatic(app2) {
   });
 }
 
-// server/whatsapp-service.ts
-init_storage();
-init_gemini_service();
-var WhatsAppMessageService = class {
-  intervalId = null;
-  isRunning = false;
-  isFetching = false;
-  lastFetchTime = null;
-  async start() {
-    if (this.isRunning) {
-      console.log("\u{1F504} \u0633\u0631\u0648\u06CC\u0633 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u062F\u0631 \u062D\u0627\u0644 \u0627\u062C\u0631\u0627 \u0627\u0633\u062A");
-      return;
-    }
-    console.log("\u{1F680} \u0634\u0631\u0648\u0639 \u0633\u0631\u0648\u06CC\u0633 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E...");
-    this.isRunning = true;
-    await this.fetchMessages();
-    this.intervalId = setInterval(async () => {
-      await this.fetchMessages();
-    }, 5e3);
-  }
-  stop() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
-    }
-    this.isRunning = false;
-    console.log("\u{1F6D1} \u0633\u0631\u0648\u06CC\u0633 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0645\u062A\u0648\u0642\u0641 \u0634\u062F");
-  }
-  async fetchMessages() {
-    if (this.isFetching) {
-      return;
-    }
-    this.isFetching = true;
-    try {
-      console.log(`\u{1F504} \u0686\u06A9 \u06A9\u0631\u062F\u0646 \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u062C\u062F\u06CC\u062F...`);
-      const allUsers = await storage.getAllUsers();
-      const usersWithTokens = allUsers.filter(
-        (user) => user.role === "user_level_1" && user.whatsappToken && user.whatsappToken.trim() !== ""
-      );
-      if (usersWithTokens.length === 0) {
-        await this.fetchMessagesForGlobalToken();
-        return;
-      }
-      for (const user of usersWithTokens) {
-        await this.fetchMessagesForUser(user);
-      }
-    } catch (error) {
-      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error.message || error);
-    } finally {
-      this.isFetching = false;
-    }
-  }
-  /**
-   * دریافت پیام‌ها برای یک کاربر خاص با استفاده از توکن شخصی
-   */
-  async fetchMessagesForUser(user) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1e4);
-      const response = await fetch(`https://api.whatsiplus.com/receivedMessages/${user.whatsappToken}?page=1`, {
-        method: "GET",
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "WhatsApp-Service/1.0",
-          "Accept": "application/json",
-          "Cache-Control": "no-cache"
-        }
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) {
-        console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u0631\u0627\u06CC ${user.username}:`, response.status, response.statusText);
-        return;
-      }
-      const data = await response.json();
-      if (!data.data || data.data.length === 0) {
-        return;
-      }
-      let newMessagesCount = 0;
-      for (const message of data.data) {
-        try {
-          if (!message.message || message.message.trim() === "") {
-            continue;
-          }
-          const existingMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(message.id, user.id);
-          if (!existingMessage) {
-            const isUserInRegistrationProcess = await this.handleAutoRegistration(message.from, message.message, user.id);
-            const savedMessage = await storage.createReceivedMessage({
-              userId: user.id,
-              whatsiPlusId: message.id,
-              sender: message.from,
-              message: message.message,
-              status: "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647",
-              originalDate: message.date
-            });
-            if (geminiService.isActive() && !isUserInRegistrationProcess) {
-              await this.handleAutoResponse(message.from, message.message, message.id, user.id);
-            }
-            newMessagesCount++;
-          }
-        } catch (error) {
-          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u067E\u06CC\u0627\u0645:", error);
-        }
-      }
-      if (newMessagesCount > 0) {
-        console.log(`\u{1F4E8} ${newMessagesCount} \u067E\u06CC\u0627\u0645 \u062C\u062F\u06CC\u062F \u0628\u0631\u0627\u06CC ${user.username} \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F`);
-        this.lastFetchTime = /* @__PURE__ */ new Date();
-      }
-    } catch (error) {
-      if (error.name === "AbortError") {
-        console.error(`\u23F1\uFE0F Timeout: \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u0631\u0627\u06CC ${user.username} \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0627\u0646\u062A\u0638\u0627\u0631 \u0637\u0648\u0644 \u06A9\u0634\u06CC\u062F`);
-      } else {
-        console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC ${user.username}:`, error.message || error);
-      }
-    }
-  }
-  /**
-   * دریافت پیام‌ها با استفاده از توکن عمومی (برای ادمین)
-   */
-  async fetchMessagesForGlobalToken() {
-    try {
-      const settings = await storage.getWhatsappSettings();
-      if (!settings || !settings.token || !settings.isEnabled) {
-        console.log("\u26A0\uFE0F \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A \u06CC\u0627 \u062A\u0648\u06A9\u0646 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
-        return;
-      }
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 1e4);
-      const response = await fetch(`https://api.whatsiplus.com/receivedMessages/${settings.token}?page=1`, {
-        method: "GET",
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "WhatsApp-Service/1.0",
-          "Accept": "application/json",
-          "Cache-Control": "no-cache"
-        }
-      });
-      clearTimeout(timeoutId);
-      if (!response.ok) {
-        console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC:", response.status, response.statusText);
-        return;
-      }
-      const data = await response.json();
-      if (!data.data || data.data.length === 0) {
-        return;
-      }
-      let newMessagesCount = 0;
-      const adminUsers = await storage.getAllUsers();
-      const admin = adminUsers.find((user) => user.role === "admin");
-      if (!admin) {
-        console.error("\u274C \u0647\u06CC\u0686 \u06A9\u0627\u0631\u0628\u0631 \u0627\u062F\u0645\u06CC\u0646 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
-        return;
-      }
-      for (const message of data.data) {
-        try {
-          if (!message.message || message.message.trim() === "") {
-            continue;
-          }
-          const existingMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(message.id, admin.id);
-          if (!existingMessage) {
-            const isUserInRegistrationProcess = await this.handleAutoRegistration(message.from, message.message, admin.id);
-            await storage.createReceivedMessage({
-              userId: admin.id,
-              whatsiPlusId: message.id,
-              sender: message.from,
-              message: message.message,
-              status: "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647",
-              originalDate: message.date
-            });
-            if (geminiService.isActive() && !isUserInRegistrationProcess) {
-              await this.handleAutoResponse(message.from, message.message, message.id, admin.id);
-            }
-            newMessagesCount++;
-          }
-        } catch (error) {
-          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u067E\u06CC\u0627\u0645:", error);
-        }
-      }
-      if (newMessagesCount > 0) {
-        console.log(`\u{1F4E8} ${newMessagesCount} \u067E\u06CC\u0627\u0645 \u062C\u062F\u06CC\u062F \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F`);
-        this.lastFetchTime = /* @__PURE__ */ new Date();
-      }
-    } catch (error) {
-      if (error.name === "AbortError") {
-        console.error("\u23F1\uFE0F Timeout: \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0627\u0646\u062A\u0638\u0627\u0631 \u0637\u0648\u0644 \u06A9\u0634\u06CC\u062F");
-      } else {
-        console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error.message || error);
-      }
-    }
-  }
-  /**
-   * تجزیه نام و نام خانوادگی از پیام کاربر
-   * @param message پیام کاربر
-   * @returns object شامل firstName و lastName یا null
-   */
-  parseNameFromMessage(message) {
-    const words = message.trim().split(/\s+/).filter((word) => word.length > 0);
-    if (words.length >= 2) {
-      return {
-        firstName: words[0],
-        lastName: words.slice(1).join(" ")
-        // اگر نام خانوادگی چند کلمه باشد
-      };
-    }
-    return null;
-  }
-  /**
-   * ارسال پیام درخواست نام و نام خانوادگی
-   * @param whatsappNumber شماره واتس‌اپ
-   * @param fromUser کاربر ارسال‌کننده 
-   */
-  async sendNameRequestMessage(whatsappNumber, fromUser) {
-    try {
-      let whatsappToken;
-      if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
-        whatsappToken = fromUser.whatsappToken;
-      } else {
-        const whatsappSettings2 = await storage.getWhatsappSettings();
-        if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
-          console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
-          return false;
-        }
-        whatsappToken = whatsappSettings2.token;
-      }
-      const nameRequestMessage = `\u0633\u0644\u0627\u0645! \u{1F44B}
-      
-\u0628\u0631\u0627\u06CC \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u062F\u0631 \u0633\u06CC\u0633\u062A\u0645\u060C \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u0648 \u0646\u0627\u0645 \u062E\u0627\u0646\u0648\u0627\u062F\u06AF\u06CC \u062E\u0648\u062F \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.
-
-\u0645\u062B\u0627\u0644: \u0627\u062D\u0645\u062F \u0645\u062D\u0645\u062F\u06CC
-
-\u0645\u0646\u062A\u0638\u0631 \u067E\u0627\u0633\u062E \u0634\u0645\u0627 \u0647\u0633\u062A\u06CC\u0645.`;
-      const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(nameRequestMessage)}`;
-      const response = await fetch(sendUrl, { method: "GET" });
-      if (response.ok) {
-        console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
-        return true;
-      } else {
-        console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0628\u0647 ${whatsappNumber}`);
-        return false;
-      }
-    } catch (error) {
-      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645:", error);
-      return false;
-    }
-  }
-  /**
-   * مدیریت ثبت نام خودکار کاربران جدید از طریق واتس‌اپ
-   * حالا اول نام و نام خانوادگی را می‌پرسد
-   * @param whatsappNumber شماره واتس‌اپ فرستنده
-   * @param message پیام دریافت شده
-   * @param fromUserId شناسه کاربری که پیام را دریافت کرده (کاربر سطح 1)
-   * @returns boolean - true اگر کاربر در حال ثبت‌نام است، false اگر ثبت‌نام کامل شده یا وجود دارد
-   */
-  async handleAutoRegistration(whatsappNumber, message, fromUserId) {
-    try {
-      const existingUser = await storage.getUserByWhatsappNumber(whatsappNumber);
-      if (existingUser) {
-        console.log(`\u{1F464} \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${whatsappNumber} \u0627\u0632 \u0642\u0628\u0644 \u0648\u062C\u0648\u062F \u062F\u0627\u0631\u062F: ${existingUser.username}`);
-        return false;
-      } else {
-        console.log(`\u{1F195} \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${whatsappNumber} \u062C\u062F\u06CC\u062F \u0627\u0633\u062A - \u0628\u0631\u0631\u0633\u06CC \u062B\u0628\u062A \u0646\u0627\u0645...`);
-      }
-      const allUsers = await storage.getAllUsers();
-      const userWithPhone = allUsers.find((user) => user.phone === whatsappNumber);
-      if (userWithPhone && !userWithPhone.whatsappNumber) {
-        await storage.updateUser(userWithPhone.id, {
-          whatsappNumber,
-          isWhatsappRegistered: true
-        });
-        console.log(`\u2705 \u0634\u0645\u0627\u0631\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 \u0645\u0648\u062C\u0648\u062F ${userWithPhone.username} \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F`);
-        return false;
-      }
-      const fromUser = fromUserId ? await storage.getUser(fromUserId) : allUsers.find((user) => user.role === "user_level_1");
-      if (!fromUser) {
-        console.error("\u274C \u0647\u06CC\u0686 \u06A9\u0627\u0631\u0628\u0631 \u0633\u0637\u062D \u06F1 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F - \u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0627\u06CC\u062C\u0627\u062F \u0646\u0645\u06CC\u200C\u0634\u0648\u062F");
-        return false;
-      }
-      const parsedName = this.parseNameFromMessage(message);
-      if (!parsedName) {
-        console.log(`\u{1F4DD} \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0648 \u0646\u0627\u0645 \u062E\u0627\u0646\u0648\u0627\u062F\u06AF\u06CC \u0627\u0632 ${whatsappNumber}`);
-        await this.sendNameRequestMessage(whatsappNumber, fromUser);
-        return true;
-      }
-      console.log(`\u{1F504} \u062B\u0628\u062A \u0646\u0627\u0645 \u062E\u0648\u062F\u06A9\u0627\u0631 \u06A9\u0627\u0631\u0628\u0631 \u062C\u062F\u06CC\u062F \u0627\u0632 \u0648\u0627\u062A\u0633\u200C\u0627\u067E: ${whatsappNumber}`);
-      const generateUsernameFromPhone = (phone) => {
-        if (!phone) return phone;
-        let cleanPhone = phone.replace(/\s+/g, "").replace(/[۰-۹]/g, (d) => "\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9".indexOf(d).toString()).replace(/[٠-٩]/g, (d) => "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669".indexOf(d).toString()).replace(/[^0-9]/g, "");
-        if (cleanPhone.startsWith("0098")) {
-          cleanPhone = cleanPhone.slice(4);
-        } else if (cleanPhone.startsWith("98") && cleanPhone.length > 10) {
-          cleanPhone = cleanPhone.slice(2);
-        } else if (cleanPhone.startsWith("0")) {
-          return cleanPhone;
-        }
-        return "0" + cleanPhone;
-      };
-      const username = generateUsernameFromPhone(whatsappNumber);
-      const newUser = await storage.createUser({
-        username,
-        firstName: parsedName.firstName,
-        lastName: parsedName.lastName,
-        email: null,
-        // ایمیل برای کاربران واتس‌اپ اختیاری است
-        phone: whatsappNumber,
-        whatsappNumber,
-        password: null,
-        // کاربران واتس‌اپ بدون رمز عبور
-        role: "user_level_2",
-        // کاربران واتس‌اپ به صورت پیش‌فرض سطح ۲
-        parentUserId: fromUser.id,
-        // تخصیص به کاربر سطح ۱ که پیام را دریافت کرده
-        isWhatsappRegistered: true
-      });
-      try {
-        const subscriptions2 = await storage.getAllSubscriptions();
-        const trialSubscription = subscriptions2.find((sub) => sub.isDefault === true);
-        if (trialSubscription) {
-          await storage.createUserSubscription({
-            userId: newUser.id,
-            subscriptionId: trialSubscription.id,
-            remainingDays: 7,
-            startDate: /* @__PURE__ */ new Date(),
-            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3),
-            status: "active",
-            isTrialPeriod: true
-          });
-        }
-      } catch (subscriptionError) {
-        console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u0627\u0634\u062A\u0631\u0627\u06A9 \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", subscriptionError);
-      }
-      console.log(`\u2705 \u06A9\u0627\u0631\u0628\u0631 \u062C\u062F\u06CC\u062F \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u062B\u0628\u062A \u0646\u0627\u0645 \u0634\u062F: ${newUser.username} (${parsedName.firstName} ${parsedName.lastName})`);
-      await this.sendWelcomeMessage(whatsappNumber, parsedName.firstName, fromUser);
-      return false;
-    } catch (error) {
-      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u0646\u0627\u0645 \u062E\u0648\u062F\u06A9\u0627\u0631 \u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error);
-      return false;
-    }
-  }
-  /**
-   * ارسال پیام خوشامدگویی به کاربر جدید
-   * @param whatsappNumber شماره واتس‌اپ
-   * @param firstName نام کاربر
-   * @param fromUser کاربر ارسال‌کننده 
-   */
-  async sendWelcomeMessage(whatsappNumber, firstName, fromUser) {
-    try {
-      let whatsappToken;
-      if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
-        whatsappToken = fromUser.whatsappToken;
-      } else {
-        const whatsappSettings2 = await storage.getWhatsappSettings();
-        if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
-          return;
-        }
-        whatsappToken = whatsappSettings2.token;
-      }
-      let welcomeMessage = fromUser?.welcomeMessage;
-      if (!welcomeMessage || welcomeMessage.trim() === "") {
-        welcomeMessage = `\u0633\u0644\u0627\u0645 ${firstName}! \u{1F31F}
-
-\u0628\u0647 \u0633\u06CC\u0633\u062A\u0645 \u0645\u0627 \u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F. \u0634\u0645\u0627 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0646\u0627\u0645 \u0634\u062F\u06CC\u062F.
-
-\u{1F381} \u0627\u0634\u062A\u0631\u0627\u06A9 \u0631\u0627\u06CC\u06AF\u0627\u0646 7 \u0631\u0648\u0632\u0647 \u0628\u0647 \u062D\u0633\u0627\u0628 \u0634\u0645\u0627 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F.
-
-\u0628\u0631\u0627\u06CC \u06A9\u0645\u06A9 \u0648 \u0631\u0627\u0647\u0646\u0645\u0627\u06CC\u06CC\u060C \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u06CC\u062F \u0647\u0631 \u0632\u0645\u0627\u0646 \u067E\u06CC\u0627\u0645 \u0628\u062F\u0647\u06CC\u062F.`;
-      } else {
-        welcomeMessage = welcomeMessage.replace("{firstName}", firstName);
-      }
-      const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(welcomeMessage)}`;
-      const response = await fetch(sendUrl, { method: "GET" });
-      if (response.ok) {
-        console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
-      } else {
-        console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC \u0628\u0647 ${whatsappNumber}`);
-      }
-    } catch (error) {
-      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC:", error);
-    }
-  }
-  /**
-   * یک پاسخ هوشمند برای پیام ورودی ایجاد کرده و آن را از طریق واتس‌اپ ارسال می‌کند.
-   * هر کاربر سطح 1 با توکن اختصاصی خود پاسخ می‌دهد
-   * @param sender شماره موبایل فرستنده پیام
-   * @param incomingMessage پیام دریافت شده از کاربر
-   * @param whatsiPlusId شناسه پیام از WhatsiPlus API
-   * @param userId شناسه کاربر
-   */
-  async handleAutoResponse(sender, incomingMessage, whatsiPlusId, userId) {
-    try {
-      console.log(`\u{1F916} \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u067E\u0627\u0633\u062E \u0628\u0631\u0627\u06CC \u067E\u06CC\u0627\u0645 \u0627\u0632 ${sender}...`);
-      const user = await storage.getUser(userId);
-      if (!user) {
-        console.log("\u274C \u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
-        return;
-      }
-      let whatsappToken;
-      if (user.role === "user_level_1" && user.whatsappToken && user.whatsappToken.trim() !== "") {
-        whatsappToken = user.whatsappToken;
-        console.log(`\u{1F4F1} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0627\u062E\u062A\u0635\u0627\u0635\u06CC \u06A9\u0627\u0631\u0628\u0631 ${user.username}`);
-      } else {
-        const whatsappSettings2 = await storage.getWhatsappSettings();
-        if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
-          console.log("\u26A0\uFE0F \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A");
-          return;
-        }
-        whatsappToken = whatsappSettings2.token;
-        console.log("\u{1F4F1} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC");
-      }
-      const aiTokenSettings2 = await storage.getAiTokenSettings();
-      if (!aiTokenSettings2?.token || !aiTokenSettings2.isActive) {
-        console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u06CC\u0627 \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A");
-        return;
-      }
-      const aiResponse = await geminiService.generateResponse(incomingMessage, userId);
-      const maxLength = 200;
-      const finalResponse = aiResponse.length > maxLength ? aiResponse.substring(0, maxLength) + "..." : aiResponse;
-      const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${sender}&message=${encodeURIComponent(finalResponse)}`;
-      console.log(`\u{1F504} \u062F\u0631 \u062D\u0627\u0644 \u0627\u0631\u0633\u0627\u0644 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0628\u0647 ${sender} \u0627\u0632 \u0637\u0631\u0641 ${user.username}...`);
-      const sendResponse = await fetch(sendUrl, { method: "GET" });
-      if (sendResponse.ok) {
-        await storage.createSentMessage({
-          userId,
-          recipient: sender,
-          message: aiResponse,
-          status: "sent"
-        });
-        const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-        if (userMessage) {
-          await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
-          console.log(`\u{1F4D6} \u0648\u0636\u0639\u06CC\u062A \u067E\u06CC\u0627\u0645 ${whatsiPlusId} \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 ${user.username} \u0628\u0647 "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647" \u062A\u063A\u06CC\u06CC\u0631 \u06A9\u0631\u062F`);
-        }
-        console.log(`\u2705 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0628\u0647 ${sender} \u0627\u0632 \u0637\u0631\u0641 ${user.username} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F: "${aiResponse.substring(0, 50)}..."`);
-      } else {
-        const errorText = await sendResponse.text();
-        console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631 \u0628\u0647 ${sender}:`, errorText);
-      }
-    } catch (error) {
-      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0641\u0631\u0622\u06CC\u0646\u062F \u067E\u0627\u0633\u062E \u062E\u0648\u062F\u06A9\u0627\u0631:", error);
-    }
-  }
-  getStatus() {
-    return {
-      isRunning: this.isRunning,
-      lastFetchTime: this.lastFetchTime,
-      geminiActive: geminiService.isActive()
-    };
-  }
-};
-var whatsAppMessageService = new WhatsAppMessageService();
-
 // server/index.ts
+init_whatsapp_service();
 import path4 from "path";
 var app = express3();
 app.use((req, res, next) => {

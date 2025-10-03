@@ -748,6 +748,7 @@ export class MemStorage implements IStorage {
       id,
       status: insertMessage.status || "خوانده نشده",
       originalDate: insertMessage.originalDate || null,
+      imageUrl: insertMessage.imageUrl || null,
       timestamp: new Date(),
     };
     this.receivedMessages.set(id, message);
