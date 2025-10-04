@@ -1069,7 +1069,15 @@ ${missingFieldsText}
         });
 
         const price = product.priceAfterDiscount || product.priceBeforeDiscount;
-        await this.sendWhatsAppMessage(whatsappToken, sender, `✅ ${product.name}\nقیمت: ${this.formatAmount(price)} ریال\n\nچه تعدادی می‌خواهید؟`);
+        const productMessage = `✅ ${product.name}\nقیمت: ${this.formatAmount(price)} ریال\n\nچه تعدادی می‌خواهید؟`;
+        
+        // اگر محصول عکس دارد، عکس را هم ارسال کن
+        if (product.image && product.image.trim() !== '') {
+          await this.sendWhatsAppMessageWithImage(whatsappToken, sender, productMessage, product.image);
+        } else {
+          // اگر عکس نداشت، فقط پیام متنی ارسال کن
+          await this.sendWhatsAppMessage(whatsappToken, sender, productMessage);
+        }
         return true;
       }
       
@@ -1242,6 +1250,36 @@ ${missingFieldsText}
   }
 
   /**
+   * ارسال پیام واتساپ با عکس
+   */
+  private async sendWhatsAppMessageWithImage(token: string, phoneNumber: string, message: string, imageUrl: string): Promise<void> {
+    try {
+      const formData = new URLSearchParams();
+      formData.append('phonenumber', phoneNumber);
+      formData.append('message', message);
+      formData.append('link', imageUrl);
+
+      const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}`;
+      const response = await fetch(sendUrl, { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString()
+      });
+      
+      if (response.ok) {
+        console.log(`✅ پیام با عکس به ${phoneNumber} ارسال شد`);
+      } else {
+        const errorText = await response.text();
+        console.error(`❌ خطا در ارسال پیام با عکس به ${phoneNumber}:`, errorText);
+      }
+    } catch (error) {
+      console.error("❌ خطا در ارسال پیام واتساپ با عکس:", error);
+    }
+  }
+
+  /**
    * یک پاسخ هوشمند برای پیام ورودی ایجاد کرده و آن را از طریق واتس‌اپ ارسال می‌کند.
    * هر کاربر سطح 1 با توکن اختصاصی خود پاسخ می‌دهد
    * @param sender شماره موبایل فرستنده پیام
@@ -1252,43 +1290,6 @@ ${missingFieldsText}
   async handleAutoResponse(sender: string, incomingMessage: string, whatsiPlusId: string, userId: string) {
     try {
       console.log(`🤖 در حال تولید پاسخ برای پیام از ${sender}...`);
-      
-      // ابتدا بررسی کنیم که آیا پیام حاوی عکس است
-      const imageUrl = geminiService.extractImageUrl(incomingMessage);
-      
-      if (imageUrl) {
-        console.log(`🖼️ پیام حاوی عکس است، در حال پردازش عکس رسید...`);
-        const depositProcessed = await this.handleDepositImageMessage(sender, imageUrl, userId);
-        
-        if (depositProcessed) {
-          // تغییر وضعیت پیام به خوانده شده
-          const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-          if (userMessage) {
-            await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
-          }
-          return; // بعد از پردازش موفق عکس واریزی، پاسخ معمولی ندهیم
-        }
-        // اگر عکس واریزی نبود، ادامه بده و جواب عادی AI بده
-        console.log(`ℹ️ عکس واریزی نبود، ادامه می‌دهیم با پاسخ عادی AI...`);
-      }
-      
-      // اگر عکس نبود یا عکس واریزی نبود، چک کنیم که آیا پیام یک رسید واریزی متنی است
-      const isDeposit = await geminiService.isDepositMessage(incomingMessage);
-      if (isDeposit) {
-        console.log(`💰 پیام تشخیص داده شد به عنوان رسید واریزی متنی`);
-        const depositProcessed = await this.handleDepositMessage(sender, incomingMessage, userId);
-        
-        if (depositProcessed) {
-          // تغییر وضعیت پیام به خوانده شده
-          const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-          if (userMessage) {
-            await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
-          }
-          return; // بعد از پردازش موفق واریز، پاسخ معمولی ندهیم
-        }
-        // اگر استخراج اطلاعات ناموفق بود، ادامه بده و جواب عادی AI بده
-        console.log(`ℹ️ استخراج اطلاعات واریزی ناموفق بود، ادامه می‌دهیم با پاسخ عادی AI...`);
-      }
       
       // دریافت کاربری که این پیام را دریافت کرده
       const user = await storage.getUser(userId);
@@ -1313,7 +1314,62 @@ ${missingFieldsText}
         console.log("📱 استفاده از توکن عمومی");
       }
 
-      // ۱. اولویت اول: بررسی سوالات متداول (FAQs) والد کاربر
+      // ۱. اولویت اول: بررسی اینکه آیا پیام یک درخواست سفارش محصول است (انتخاب محصول در سبد خرید)
+      console.log(`🛒 بررسی درخواست سفارش محصول...`);
+      const orderHandled = await this.handleProductOrder(sender, incomingMessage, userId, whatsappToken);
+      if (orderHandled) {
+        console.log(`✅ درخواست سفارش پردازش شد`);
+        // تغییر وضعیت پیام به خوانده شده
+        const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+        if (userMessage) {
+          await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+        }
+        return; // بعد از پردازش سفارش، پاسخ معمولی ندهیم
+      }
+
+      // ۲. اولویت دوم: بررسی فیش یا رسید واریزی (عکس و متن)
+      console.log(`💰 بررسی رسید واریزی...`);
+      
+      // ابتدا بررسی کنیم که آیا پیام حاوی عکس است
+      const imageUrl = geminiService.extractImageUrl(incomingMessage);
+      
+      if (imageUrl) {
+        console.log(`🖼️ پیام حاوی عکس است، در حال پردازش عکس رسید...`);
+        const depositProcessed = await this.handleDepositImageMessage(sender, imageUrl, userId);
+        
+        if (depositProcessed) {
+          // تغییر وضعیت پیام به خوانده شده
+          const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+          if (userMessage) {
+            await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+          }
+          return; // بعد از پردازش موفق عکس واریزی، پاسخ معمولی ندهیم
+        }
+        // اگر عکس واریزی نبود، ادامه بده
+        console.log(`ℹ️ عکس واریزی نبود، ادامه می‌دهیم...`);
+      }
+      
+      // اگر عکس نبود یا عکس واریزی نبود، چک کنیم که آیا پیام یک رسید واریزی متنی است
+      const isDeposit = await geminiService.isDepositMessage(incomingMessage);
+      if (isDeposit) {
+        console.log(`💰 پیام تشخیص داده شد به عنوان رسید واریزی متنی`);
+        const depositProcessed = await this.handleDepositMessage(sender, incomingMessage, userId);
+        
+        if (depositProcessed) {
+          // تغییر وضعیت پیام به خوانده شده
+          const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+          if (userMessage) {
+            await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+          }
+          return; // بعد از پردازش موفق واریز، پاسخ معمولی ندهیم
+        }
+        // اگر استخراج اطلاعات ناموفق بود، ادامه بده
+        console.log(`ℹ️ استخراج اطلاعات واریزی ناموفق بود، ادامه می‌دهیم...`);
+      }
+
+      // ۳. اولویت سوم: بررسی سوالات متداول (FAQs) والد کاربر
+      console.log(`📚 بررسی سوالات متداول...`);
+      
       // پیدا کردن کاربر ارسال‌کننده (سطح 2) برای دسترسی به والدش
       const senderUser = await storage.getUserByWhatsappNumber(sender);
       if (senderUser && senderUser.role === 'user_level_2' && senderUser.parentUserId) {
@@ -1359,19 +1415,7 @@ ${missingFieldsText}
         }
       }
 
-      // ۲. اولویت دوم: بررسی اینکه آیا پیام یک درخواست سفارش محصول است
-      const orderHandled = await this.handleProductOrder(sender, incomingMessage, userId, whatsappToken);
-      if (orderHandled) {
-        console.log(`🛒 درخواست سفارش پردازش شد`);
-        // تغییر وضعیت پیام به خوانده شده
-        const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-        if (userMessage) {
-          await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
-        }
-        return; // بعد از پردازش سفارش، پاسخ معمولی ندهیم
-      }
-
-      // ۳. اولویت سوم: پاسخ عادی هوش مصنوعی (AI Fallback)
+      // ۴. اولویت چهارم: پاسخ هوشمند AI (در صورتی که هیچ کدام از مراحل قبلی متناسب نبود)
       // دریافت تنظیمات هوش مصنوعی
       const aiTokenSettings = await storage.getAiTokenSettings();
       if (!aiTokenSettings?.token || !aiTokenSettings.isActive) {

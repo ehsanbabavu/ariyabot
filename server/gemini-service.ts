@@ -533,18 +533,62 @@ ${message}
    * تشخیص پاسخ مثبت یا منفی کاربر (برای سوال "محصول دیگه‌ای میخوای؟")
    */
   async isPositiveResponse(message: string): Promise<boolean> {
-    if (!this.model) return false;
-
     try {
-      const prompt = `آیا این پیام یک پاسخ مثبت (بله، آره، میخوام، دارم و...) است؟ فقط "بله" یا "خیر" جواب بده.
+      const normalizedMessage = message.toLowerCase().trim();
+      
+      // لیست کلمات منفی (اولویت اول)
+      const negativeWords = [
+        'خیر', 'نه', 'نخیر', 'نچ', 'نمیخوام', 'نمی خوام', 'نمیخام', 'نمی خام',
+        'کافیه', 'کافی است', 'کافی', 'همین کافیه', 'همین کافی است',
+        'بسه', 'دیگه نه', 'نمیخواهم', 'نمی خواهم', 'تموم', 'تمام',
+        'پرداخت', 'میخام پرداخت کنم', 'می خوام پرداخت کنم',
+        'ثبت', 'ثبت سفارش', 'میخام ثبت کنم', 'می خوام ثبت کنم',
+        'no', 'nope', 'nah', 'enough'
+      ];
+      
+      // لیست کلمات مثبت
+      const positiveWords = [
+        'بله', 'آره', 'اره', 'بلی', 'باشه', 'چشم', 'اوکی', 'اوکی',
+        'میخوام', 'می خوام', 'میخام', 'می خام', 'دارم', 'می خواهم', 'میخواهم',
+        'yes', 'yeah', 'yep', 'sure', 'ok', 'okay'
+      ];
+      
+      // اول چک کنیم که آیا کلمات منفی دارد یا نه
+      for (const negWord of negativeWords) {
+        if (normalizedMessage.includes(negWord)) {
+          console.log(`🔴 پاسخ منفی تشخیص داده شد: "${negWord}" در "${message}"`);
+          return false;
+        }
+      }
+      
+      // بعد چک کنیم که آیا کلمات مثبت دارد
+      for (const posWord of positiveWords) {
+        if (normalizedMessage.includes(posWord)) {
+          console.log(`🟢 پاسخ مثبت تشخیص داده شد: "${posWord}" در "${message}"`);
+          return true;
+        }
+      }
+      
+      // اگر هیچ کدام نبود، از AI کمک بگیریم
+      if (!this.model) {
+        console.log(`⚠️ هیچ کلمه مشخصی پیدا نشد و AI غیرفعال است، پیش‌فرض: منفی`);
+        return false;
+      }
+
+      console.log(`🤖 از AI برای تشخیص پاسخ کمک می‌گیریم...`);
+      const prompt = `آیا این پیام یک پاسخ مثبت (بله، آره، میخوام، دارم و...) است یا منفی (نه، خیر، کافیه، بسه و...)؟
+فقط یک کلمه جواب بده: "مثبت" یا "منفی"
 
 پیام: "${message}"`;
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      const text = response.text().trim();
+      const text = response.text().trim().toLowerCase();
       
-      return text.includes('بله') || text.toLowerCase().includes('yes');
+      const isPositive = text.includes('مثبت') || text.includes('positive');
+      console.log(`🤖 نتیجه AI: ${isPositive ? 'مثبت' : 'منفی'} (پاسخ کامل: "${text}")`);
+      
+      return isPositive;
     } catch (error) {
       console.error("❌ خطا در تشخیص پاسخ:", error);
       return false;

@@ -2,6 +2,14 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
+## Current State
+- **Status**: Running successfully on Replit
+- **Development Server**: Running on port 5000
+- **Database**: PostgreSQL (Helium) - Schema initialized successfully
+- **Admin Credentials**: Username: `ehsan` / Password: `admin123`
+- **Test Seller**: Username: `test_seller` / Password: `test123`
+- **Environment**: Development mode with test data loaded
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
