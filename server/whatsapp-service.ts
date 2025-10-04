@@ -586,8 +586,9 @@ class WhatsAppMessageService {
    * @param sender شماره واتساپ فرستنده
    * @param message پیام واریزی
    * @param receiverUserId شناسه کاربر سطح 1 که پیام را دریافت کرده
+   * @returns true اگر واریزی بود و موفق پردازش شد، false در غیر اینصورت
    */
-  async handleDepositMessage(sender: string, message: string, receiverUserId: string) {
+  async handleDepositMessage(sender: string, message: string, receiverUserId: string): Promise<boolean> {
     try {
       console.log(`💰 در حال پردازش پیام واریزی از ${sender}...`);
       
@@ -595,13 +596,13 @@ class WhatsAppMessageService {
       const senderUser = await storage.getUserByWhatsappNumber(sender);
       if (!senderUser) {
         console.log(`⚠️ کاربر با شماره ${sender} یافت نشد`);
-        return;
+        return false;
       }
 
       // اطمینان از اینکه کاربر سطح 2 است
       if (senderUser.role !== 'user_level_2') {
         console.log(`⚠️ کاربر ${sender} سطح 2 نیست`);
-        return;
+        return false;
       }
 
       // استخراج اطلاعات مالی با هوش مصنوعی
@@ -626,9 +627,8 @@ class WhatsAppMessageService {
       if (!depositInfo.transactionDate) missingFields.push('تاریخ واریز');
       
       if (missingFields.length > 0) {
-        console.error(`❌ فیلدهای ضروری یافت نشد: ${missingFields.join(', ')}`);
-        await this.sendDepositClarificationMessage(sender, receiverUserId, missingFields);
-        return;
+        console.log(`⚠️ فیلدهای ضروری یافت نشد: ${missingFields.join(', ')} - این پیام احتمالا واریزی نیست`);
+        return false;
       }
 
       // لاگ موفقیت‌آمیز استخراج
@@ -643,7 +643,7 @@ class WhatsAppMessageService {
       if (existingTransaction) {
         console.log(`⚠️ تراکنش تکراری تشخیص داده شد - شماره پیگیری: ${depositInfo.referenceId}`);
         await this.sendDuplicateTransactionWarning(sender, receiverUserId, depositInfo.referenceId as string);
-        return;
+        return true;
       }
 
       // ایجاد تراکنش جدید با وضعیت pending
@@ -667,8 +667,11 @@ class WhatsAppMessageService {
       // ارسال پیام تاییدیه به کاربر
       await this.sendDepositConfirmationMessage(sender, receiverUserId);
       
+      return true;
+      
     } catch (error) {
       console.error("❌ خطا در پردازش پیام واریزی:", error);
+      return false;
     }
   }
 
@@ -677,8 +680,9 @@ class WhatsAppMessageService {
    * @param sender شماره واتساپ فرستنده
    * @param imageUrl آدرس عکس رسید
    * @param receiverUserId شناسه کاربر سطح 1 که پیام را دریافت کرده
+   * @returns true اگر واریزی بود و موفق پردازش شد، false در غیر اینصورت
    */
-  async handleDepositImageMessage(sender: string, imageUrl: string, receiverUserId: string) {
+  async handleDepositImageMessage(sender: string, imageUrl: string, receiverUserId: string): Promise<boolean> {
     try {
       console.log(`🖼️ در حال پردازش عکس رسید واریزی از ${sender}...`);
       
@@ -686,13 +690,13 @@ class WhatsAppMessageService {
       const senderUser = await storage.getUserByWhatsappNumber(sender);
       if (!senderUser) {
         console.log(`⚠️ کاربر با شماره ${sender} یافت نشد`);
-        return;
+        return false;
       }
 
       // اطمینان از اینکه کاربر سطح 2 است
       if (senderUser.role !== 'user_level_2') {
         console.log(`⚠️ کاربر ${sender} سطح 2 نیست`);
-        return;
+        return false;
       }
 
       // استخراج اطلاعات مالی از عکس با هوش مصنوعی
@@ -717,9 +721,8 @@ class WhatsAppMessageService {
       if (!depositInfo.transactionDate) missingFields.push('تاریخ واریز');
       
       if (missingFields.length > 0) {
-        console.error(`❌ فیلدهای ضروری از عکس استخراج نشد: ${missingFields.join(', ')}`);
-        await this.sendDepositClarificationMessage(sender, receiverUserId, missingFields);
-        return;
+        console.log(`⚠️ فیلدهای ضروری از عکس استخراج نشد: ${missingFields.join(', ')} - احتمالا عکس واریزی نیست`);
+        return false;
       }
 
       // لاگ موفقیت‌آمیز استخراج
@@ -734,7 +737,7 @@ class WhatsAppMessageService {
       if (existingTransaction) {
         console.log(`⚠️ تراکنش تکراری تشخیص داده شد - شماره پیگیری: ${depositInfo.referenceId}`);
         await this.sendDuplicateTransactionWarning(sender, receiverUserId, depositInfo.referenceId as string);
-        return;
+        return true;
       }
 
       // ایجاد تراکنش جدید با وضعیت pending
@@ -757,8 +760,11 @@ class WhatsAppMessageService {
       // ارسال پیام تاییدیه به کاربر
       await this.sendDepositConfirmationMessage(sender, receiverUserId);
       
+      return true;
+      
     } catch (error) {
       console.error("❌ خطا در پردازش عکس رسید واریزی:", error);
+      return false;
     }
   }
 
@@ -1252,28 +1258,36 @@ ${missingFieldsText}
       
       if (imageUrl) {
         console.log(`🖼️ پیام حاوی عکس است، در حال پردازش عکس رسید...`);
-        await this.handleDepositImageMessage(sender, imageUrl, userId);
+        const depositProcessed = await this.handleDepositImageMessage(sender, imageUrl, userId);
         
-        // تغییر وضعیت پیام به خوانده شده
-        const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-        if (userMessage) {
-          await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+        if (depositProcessed) {
+          // تغییر وضعیت پیام به خوانده شده
+          const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+          if (userMessage) {
+            await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+          }
+          return; // بعد از پردازش موفق عکس واریزی، پاسخ معمولی ندهیم
         }
-        return; // بعد از پردازش عکس، پاسخ معمولی ندهیم
+        // اگر عکس واریزی نبود، ادامه بده و جواب عادی AI بده
+        console.log(`ℹ️ عکس واریزی نبود، ادامه می‌دهیم با پاسخ عادی AI...`);
       }
       
-      // اگر عکس نبود، چک کنیم که آیا پیام یک رسید واریزی متنی است
+      // اگر عکس نبود یا عکس واریزی نبود، چک کنیم که آیا پیام یک رسید واریزی متنی است
       const isDeposit = await geminiService.isDepositMessage(incomingMessage);
       if (isDeposit) {
         console.log(`💰 پیام تشخیص داده شد به عنوان رسید واریزی متنی`);
-        await this.handleDepositMessage(sender, incomingMessage, userId);
+        const depositProcessed = await this.handleDepositMessage(sender, incomingMessage, userId);
         
-        // تغییر وضعیت پیام به خوانده شده
-        const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-        if (userMessage) {
-          await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+        if (depositProcessed) {
+          // تغییر وضعیت پیام به خوانده شده
+          const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+          if (userMessage) {
+            await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+          }
+          return; // بعد از پردازش موفق واریز، پاسخ معمولی ندهیم
         }
-        return; // بعد از پردازش واریز، پاسخ معمولی ندهیم
+        // اگر استخراج اطلاعات ناموفق بود، ادامه بده و جواب عادی AI بده
+        console.log(`ℹ️ استخراج اطلاعات واریزی ناموفق بود، ادامه می‌دهیم با پاسخ عادی AI...`);
       }
       
       // دریافت کاربری که این پیام را دریافت کرده
@@ -1299,7 +1313,53 @@ ${missingFieldsText}
         console.log("📱 استفاده از توکن عمومی");
       }
 
-      // بررسی اینکه آیا پیام یک درخواست سفارش محصول است
+      // ۱. اولویت اول: بررسی سوالات متداول (FAQs) والد کاربر
+      // پیدا کردن کاربر ارسال‌کننده (سطح 2) برای دسترسی به والدش
+      const senderUser = await storage.getUserByWhatsappNumber(sender);
+      if (senderUser && senderUser.role === 'user_level_2' && senderUser.parentUserId) {
+        console.log(`📚 در حال بررسی سوالات متداول والد کاربر...`);
+        
+        // دریافت FAQهای فعال والد
+        const parentFaqs = await storage.getFaqsByCreator(senderUser.parentUserId);
+        
+        if (parentFaqs.length > 0) {
+          console.log(`📋 ${parentFaqs.length} سوال متداول از والد پیدا شد`);
+          
+          // یافتن FAQ منطبق با سوال کاربر
+          const matchedFaq = await geminiService.findMatchingFaq(
+            incomingMessage,
+            parentFaqs.map(faq => ({ id: faq.id, question: faq.question, answer: faq.answer }))
+          );
+          
+          if (matchedFaq) {
+            console.log(`✅ FAQ منطبق پیدا شد: "${matchedFaq.question}"`);
+            
+            // ارسال پاسخ FAQ
+            await this.sendWhatsAppMessage(whatsappToken, sender, matchedFaq.answer);
+            
+            // ذخیره پیام ارسالی
+            await storage.createSentMessage({
+              userId: userId,
+              recipient: sender,
+              message: matchedFaq.answer,
+              status: "sent"
+            });
+            
+            // تغییر وضعیت پیام به خوانده شده
+            const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+            if (userMessage) {
+              await storage.updateReceivedMessageStatus(userMessage.id, "خوانده شده");
+            }
+            
+            console.log(`✅ پاسخ FAQ به ${sender} ارسال شد`);
+            return; // پس از ارسال پاسخ FAQ، ادامه ندهیم
+          }
+          
+          console.log(`ℹ️ هیچ FAQ منطبقی پیدا نشد، ادامه می‌دهیم...`);
+        }
+      }
+
+      // ۲. اولویت دوم: بررسی اینکه آیا پیام یک درخواست سفارش محصول است
       const orderHandled = await this.handleProductOrder(sender, incomingMessage, userId, whatsappToken);
       if (orderHandled) {
         console.log(`🛒 درخواست سفارش پردازش شد`);
@@ -1311,6 +1371,7 @@ ${missingFieldsText}
         return; // بعد از پردازش سفارش، پاسخ معمولی ندهیم
       }
 
+      // ۳. اولویت سوم: پاسخ عادی هوش مصنوعی (AI Fallback)
       // دریافت تنظیمات هوش مصنوعی
       const aiTokenSettings = await storage.getAiTokenSettings();
       if (!aiTokenSettings?.token || !aiTokenSettings.isActive) {
@@ -1318,6 +1379,7 @@ ${missingFieldsText}
         return;
       }
 
+      console.log(`🤖 هیچ FAQ یا سفارشی یافت نشد، در حال تولید پاسخ هوشمند...`);
       // تولید پاسخ با Gemini AI
       const aiResponse = await geminiService.generateResponse(incomingMessage, userId);
 

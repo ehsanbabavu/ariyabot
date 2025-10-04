@@ -145,6 +145,7 @@ export interface IStorage {
   getFaq(id: string): Promise<Faq | undefined>;
   getAllFaqs(includeInactive?: boolean): Promise<Faq[]>;
   getActiveFaqs(): Promise<Faq[]>;
+  getFaqsByCreator(creatorId: string): Promise<Faq[]>;
   createFaq(faq: InsertFaq, createdBy: string): Promise<Faq>;
   updateFaq(id: string, faq: UpdateFaq): Promise<Faq | undefined>;
   deleteFaq(id: string): Promise<boolean>;
@@ -1603,6 +1604,12 @@ export class MemStorage implements IStorage {
   async getActiveFaqs(): Promise<Faq[]> {
     return Array.from(this.faqs.values())
       .filter(faq => faq.isActive)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  async getFaqsByCreator(creatorId: string): Promise<Faq[]> {
+    return Array.from(this.faqs.values())
+      .filter(faq => faq.isActive && faq.createdBy === creatorId)
       .sort((a, b) => a.order - b.order);
   }
 

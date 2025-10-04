@@ -1557,6 +1557,19 @@ export class DbStorage implements IStorage {
     }
   }
 
+  async getFaqsByCreator(creatorId: string): Promise<Faq[]> {
+    try {
+      const result = await db.select()
+        .from(faqs)
+        .where(and(eq(faqs.isActive, true), eq(faqs.createdBy, creatorId)))
+        .orderBy(faqs.order);
+      return result;
+    } catch (error) {
+      console.error("Error getting FAQs by creator:", error);
+      return [];
+    }
+  }
+
   async createFaq(faq: InsertFaq, createdBy: string): Promise<Faq> {
     try {
       const result = await db.insert(faqs).values({

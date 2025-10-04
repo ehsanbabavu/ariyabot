@@ -231,20 +231,22 @@ ${message}
         'تومان'
       ];
       
-      // بررسی اینکه حداقل 3 کلمه کلیدی در متن باشد
+      // بررسی اینکه حداقل 5 کلمه کلیدی در متن باشد (سخت‌تر شد)
       const keywordCount = depositKeywords.filter(keyword => 
         normalizedMessage.includes(keyword)
       ).length;
       
-      // اگر حداقل 3 کلمه کلیدی داشت، احتمالا رسید واریزی است
-      if (keywordCount >= 3) {
-        return true;
+      // فقط اگر حداقل 5 کلمه کلیدی داشت، با AI بررسی کن
+      if (keywordCount < 5) {
+        return false;
       }
       
       // بررسی با هوش مصنوعی برای دقت بیشتر
-      const prompt = `آیا متن زیر یک رسید واریزی بانکی، اطلاع واریز، یا اطلاعات پرداخت است؟
+      const prompt = `آیا متن زیر یک رسید واریزی بانکی، اطلاع واریز، یا اطلاعات پرداخت کامل است؟
       
 ${message}
+
+توجه: فقط اگر مطمئن هستی که این یک رسید واریزی واقعی با اطلاعات کامل است، "بله" بگو. در غیر این صورت "خیر" بگو.
 
 فقط با "بله" یا "خیر" پاسخ بده.`;
 
@@ -546,6 +548,63 @@ ${message}
     } catch (error) {
       console.error("❌ خطا در تشخیص پاسخ:", error);
       return false;
+    }
+  }
+
+  /**
+   * یافتن FAQ منطبق با سوال کاربر از بین لیست سوالات متداول
+   * @param message پیام کاربر
+   * @param faqs لیست سوالات متداول والد کاربر
+   * @returns FAQ منطبق یا null
+   */
+  async findMatchingFaq(message: string, faqs: Array<{id: string, question: string, answer: string}>): Promise<{id: string, question: string, answer: string} | null> {
+    if (!this.model || !faqs || faqs.length === 0) {
+      return null;
+    }
+
+    try {
+      // محدود کردن تعداد FAQs برای جلوگیری از بزرگ شدن prompt
+      const maxFaqs = 20;
+      const limitedFaqs = faqs.slice(0, maxFaqs);
+      
+      // ساخت لیست سوالات برای prompt
+      const faqList = limitedFaqs.map((faq, index) => 
+        `${index + 1}. سوال: ${faq.question}\n   پاسخ: ${faq.answer}`
+      ).join('\n\n');
+
+      const prompt = `تو یک دستیار هوشمند هستی که باید مشخص کنی آیا پیام کاربر با یکی از سوالات متداول زیر مطابقت دارد یا نه.
+
+سوالات متداول:
+${faqList}
+
+پیام کاربر: "${message}"
+
+اگر پیام کاربر با یکی از سوالات بالا مطابقت دارد (حتی اگر با کلمات متفاوت بیان شده باشد)، فقط شماره آن سوال را بنویس (مثلاً "1" یا "5").
+اگر پیام کاربر با هیچکدام از سوالات بالا مطابقت ندارد، فقط کلمه "هیچکدام" را بنویس.
+
+جواب:`;
+
+      const result = await this.model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text().trim();
+      
+      console.log(`🔍 نتیجه مطابقت FAQ: "${text}"`);
+      
+      // بررسی اینکه آیا جواب یک عدد است
+      const numberMatch = text.match(/^(\d+)/);
+      if (numberMatch) {
+        const index = parseInt(numberMatch[1]) - 1;
+        if (index >= 0 && index < limitedFaqs.length) {
+          console.log(`✅ FAQ منطبق پیدا شد: "${limitedFaqs[index].question}"`);
+          return limitedFaqs[index];
+        }
+      }
+      
+      console.log(`ℹ️ هیچ FAQ منطبقی پیدا نشد`);
+      return null;
+    } catch (error) {
+      console.error("❌ خطا در یافتن FAQ منطبق:", error);
+      return null;
     }
   }
 }
