@@ -57,6 +57,7 @@ export default function Login() {
                   onChange={(e) => setEmailOrUsername(e.target.value)}
                   placeholder="نام کاربری یا ایمیل"
                   className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  autoComplete="username"
                   required
                   data-testid="input-email-or-username"
                 />
@@ -73,6 +74,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="رمز عبور"
                   className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  autoComplete="current-password"
                   required
                   data-testid="input-password"
                 />
