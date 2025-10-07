@@ -2,6 +2,7 @@ import { storage } from "./storage";
 import { geminiService } from "./gemini-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { orderSessionService } from "./order-session-service";
+import { generateAndSaveInvoice } from "./invoice-service";
 
 interface WhatsiPlusMessage {
   id: string;
@@ -1179,8 +1180,12 @@ ${missingFieldsText}
 
       // ایجاد سفارش برای هر فروشنده
       let totalOrders = 0;
+      let grandTotal = 0;
+      let lastOrderId = '';
+      
       for (const [sellerId, items] of Array.from(itemsBySeller.entries())) {
         const totalAmount = items.reduce((sum: number, item: any) => sum + parseFloat(item.totalPrice), 0);
+        grandTotal += totalAmount;
         
         const order = await storage.createOrder({
           userId: user.id,
@@ -1201,18 +1206,43 @@ ${missingFieldsText}
           });
         }
 
+        lastOrderId = order.id;
         totalOrders++;
       }
 
       // پاک کردن سبد خرید
       await storage.clearCart(user.id);
 
+      // ساخت آدرس کامل
+      const fullAddress = `${defaultAddress.title}\n${defaultAddress.fullAddress || ''}${defaultAddress.postalCode ? '\nکد پستی: ' + defaultAddress.postalCode : ''}`;
+
       // ارسال پیام تایید
       await this.sendWhatsAppMessage(
         whatsappToken, 
         whatsappNumber, 
-        `✅ سفارش شما با موفقیت ثبت شد!\n\nتعداد سفارش: ${totalOrders}\nآدرس ارسال: ${defaultAddress.title}\n\nبرای پیگیری سفارش، به پنل کاربری خود مراجعه کنید.`
+        `✅ سفارش شما با موفقیت ثبت شد!\n\n📦 تعداد سفارش: ${totalOrders}\n\n📍 آدرس ارسال:\n${fullAddress}\n\n💰 مبلغ کل فاکتور: ${this.formatAmount(grandTotal.toString())} ریال\n\nبرای پیگیری سفارش، به پنل کاربری خود مراجعه کنید.`
       );
+
+      // تولید و ارسال فاکتور (فقط برای آخرین سفارش - یا اولین سفارش)
+      if (lastOrderId) {
+        try {
+          console.log(`🖼️ در حال تولید فاکتور برای سفارش ${lastOrderId}...`);
+          
+          const invoiceUrl = await generateAndSaveInvoice(lastOrderId);
+          
+          await this.sendWhatsAppImage(
+            whatsappToken,
+            whatsappNumber,
+            `📄 فاکتور سفارش شما`,
+            invoiceUrl
+          );
+          
+          console.log(`✅ فاکتور با موفقیت برای کاربر ${whatsappNumber} ارسال شد`);
+        } catch (error) {
+          console.error('❌ خطا در تولید یا ارسال فاکتور:', error);
+          // عدم ارسال فاکتور نباید مانع از ادامه فرآیند شود
+        }
+      }
 
       // پاک کردن session
       orderSessionService.clearSession(user.id);
@@ -1238,6 +1268,33 @@ ${missingFieldsText}
       }
     } catch (error) {
       console.error("❌ خطا در ارسال پیام واتساپ:", error);
+    }
+  }
+
+  /**
+   * ارسال عکس به واتساپ
+   */
+  private async sendWhatsAppImage(token: string, phoneNumber: string, message: string, imageUrl: string): Promise<void> {
+    try {
+      const formData = new FormData();
+      formData.append('phonenumber', phoneNumber);
+      formData.append('message', message);
+      formData.append('link', imageUrl);
+
+      const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}`;
+      const response = await fetch(sendUrl, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        console.log(`✅ عکس به ${phoneNumber} ارسال شد`);
+      } else {
+        const errorText = await response.text();
+        console.error(`❌ خطا در ارسال عکس به ${phoneNumber}:`, errorText);
+      }
+    } catch (error) {
+      console.error("❌ خطا در ارسال عکس واتساپ:", error);
     }
   }
 

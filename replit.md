@@ -2,6 +2,24 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
+## Replit Setup (October 7, 2025)
+
+The application has been successfully configured to run in the Replit environment:
+
+- **Database**: PostgreSQL database provisioned with Drizzle schema pushed
+- **Development Server**: Running on port 5000 (http://0.0.0.0:5000)
+- **Default Users**:
+  - Admin: username `ehsan`, password `admin123`
+  - Test Seller: username `test_seller`, password `test123`
+- **Test Data**: Pre-loaded with 3 mobile categories and 6 test products
+- **Deployment**: Configured for autoscale deployment with build and start scripts
+- **AI Integration**: Gemini AI token needs to be configured via admin panel for AI features
+
+### Important Notes
+- Gemini AI token should be configured in the admin panel (AI Token Settings) to enable AI-powered features
+- WhatsApp integration requires token configuration in admin settings
+- The application runs frontend and backend on the same port (5000) using Vite in development mode
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -24,10 +42,11 @@ Preferred communication style: Simple, everyday language.
 - **File Uploads**: Multer middleware
 - **Authentication**: JWT-based with bcrypt for password hashing
 - **Middleware**: Custom authentication and request logging
+- **Invoice Generation**: Puppeteer-based HTML-to-image conversion for professional Persian invoices
 - **Feature Specifications**:
-    - **WhatsApp Integration**: AI-powered deposit receipt processing (OCR with Gemini Vision), smart product ordering with session management, duplicate transaction detection, and automated user notifications for transaction status.
+    - **WhatsApp Integration**: AI-powered deposit receipt processing (OCR with Gemini Vision), smart product ordering with session management, duplicate transaction detection, automated user notifications for transaction status, and automatic invoice delivery via WhatsApp after order completion.
     - **Internal Chat**: Unread message badge system with real-time updates and role-based display.
-    - **Order Management**: Enhanced order display for level 1 users with customer details, notification bell for new orders, and unshipped orders dashboard.
+    - **Order Management**: Enhanced order display for level 1 users with customer details, notification bell for new orders, unshipped orders dashboard, and automatic invoice generation with WhatsApp delivery upon order completion.
     - **Transaction Management**: Comprehensive duplicate transaction detection and automatic WhatsApp notifications for approval/rejection.
     - **Security**: JWT authentication with role-based access control.
 
@@ -66,6 +85,7 @@ Preferred communication style: Simple, everyday language.
 - **Database ORM**: Drizzle ORM
 - **File Processing**: Multer
 - **Authentication**: JWT, bcrypt
+- **Invoice Generation**: Puppeteer (headless Chrome for HTML-to-image conversion)
 
 ## AI Services
 - **Gemini AI**: For intelligent deposit receipt OCR (Gemini 2.0 Flash Vision) and natural language understanding for WhatsApp product ordering.

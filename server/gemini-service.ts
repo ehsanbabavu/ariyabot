@@ -536,6 +536,89 @@ ${message}
     if (!this.model) return false;
 
     try {
+      // normalize کردن متن برای تشخیص بهتر
+      const normalizeText = (text: string): string => {
+        return text
+          .normalize('NFKC')
+          .replace(/\u200C|\u200F|\u200E/g, '') // حذف ZWNJ و کاراکترهای مخفی
+          .replace(/[\u064A]/g, '\u06CC') // تبدیل ي عربی به ی فارسی
+          .replace(/[\u0643]/g, '\u06A9') // تبدیل ك عربی به ک فارسی
+          .trim()
+          .toLowerCase();
+      };
+
+      const normalizedMessage = normalizeText(message);
+      
+      // اول چک کردن مستقیم کلمات کلیدی منفی (برای سرعت و دقت بیشتر)
+      const negativeKeywords = [
+        'نه',
+        'نخیر',
+        'نمیخوام',
+        'نمی خوام',
+        'نمیخواهم',
+        'نمی خواهم',
+        'خیر',
+        'کافیه',
+        'کافی است',
+        'بسه',
+        'بس است',
+        'همین',
+        'همینا',
+        'تکمیل',
+        'ثبت',
+        'نهایی',
+        'تموم',
+        'تمام',
+        'پرداخت',
+        'خرید',
+        'no',
+        'nope',
+        'enough',
+        'done',
+        'finish',
+        'complete',
+      ];
+
+      // بررسی کلمات کلیدی منفی
+      for (const keyword of negativeKeywords) {
+        if (normalizedMessage.includes(keyword)) {
+          console.log(`🔍 کلمه کلیدی منفی یافت شد: "${keyword}" - پاسخ: منفی`);
+          return false; // پاسخ منفی است
+        }
+      }
+
+      // چک کردن کلمات کلیدی مثبت
+      const positiveKeywords = [
+        'بله',
+        'آره',
+        'اره',
+        'میخوام',
+        'می خوام',
+        'میخواهم',
+        'می خواهم',
+        'باشه',
+        'باشد',
+        'حتما',
+        'البته',
+        'چرا که نه',
+        'yes',
+        'yeah',
+        'yep',
+        'sure',
+        'ok',
+        'okay',
+      ];
+
+      // بررسی کلمات کلیدی مثبت
+      for (const keyword of positiveKeywords) {
+        if (normalizedMessage.includes(keyword)) {
+          console.log(`🔍 کلمه کلیدی مثبت یافت شد: "${keyword}" - پاسخ: مثبت`);
+          return true; // پاسخ مثبت است
+        }
+      }
+
+      // اگر هیچ کلمه کلیدی پیدا نشد، از AI کمک بگیر
+      console.log(`🤖 هیچ کلمه کلیدی مستقیم یافت نشد، از AI می‌پرسیم...`);
       const prompt = `آیا این پیام یک پاسخ مثبت (بله، آره، میخوام، دارم و...) است؟ فقط "بله" یا "خیر" جواب بده.
 
 پیام: "${message}"`;
@@ -544,7 +627,10 @@ ${message}
       const response = await result.response;
       const text = response.text().trim();
       
-      return text.includes('بله') || text.toLowerCase().includes('yes');
+      const isPositive = text.includes('بله') || text.toLowerCase().includes('yes');
+      console.log(`🤖 پاسخ AI: ${text} - نتیجه: ${isPositive ? 'مثبت' : 'منفی'}`);
+      
+      return isPositive;
     } catch (error) {
       console.error("❌ خطا در تشخیص پاسخ:", error);
       return false;
