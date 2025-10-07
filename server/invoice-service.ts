@@ -356,8 +356,8 @@ export async function generateAndSaveInvoice(orderId: string): Promise<string> {
     let publicUrl: string;
     
     if (process.env.REPLIT_DEV_DOMAIN) {
-      // REPLIT_DEV_DOMAIN already includes protocol
-      publicUrl = `${process.env.REPLIT_DEV_DOMAIN}/invoices/${filename}`;
+      // اضافه کردن https:// به REPLIT_DEV_DOMAIN
+      publicUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/invoices/${filename}`;
     } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
       // Manual construction for Replit
       publicUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/invoices/${filename}`;

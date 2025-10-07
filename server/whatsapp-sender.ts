@@ -68,6 +68,33 @@ export class WhatsAppSender {
       return false;
     }
   }
+
+  async sendWhatsAppImage(token: string, phoneNumber: string, message: string, imageUrl: string): Promise<boolean> {
+    try {
+      const formData = new FormData();
+      formData.append('phonenumber', phoneNumber);
+      formData.append('message', message);
+      formData.append('link', imageUrl);
+
+      const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}`;
+      const response = await fetch(sendUrl, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (response.ok) {
+        console.log(`✅ عکس به ${phoneNumber} ارسال شد`);
+        return true;
+      } else {
+        const errorText = await response.text();
+        console.error(`❌ خطا در ارسال عکس به ${phoneNumber}:`, errorText);
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ خطا در ارسال عکس واتساپ:", error);
+      return false;
+    }
+  }
 }
 
 export const whatsAppSender = new WhatsAppSender();

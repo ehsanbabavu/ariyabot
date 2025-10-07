@@ -9,6 +9,8 @@ import { fileURLToPath } from "url";
 import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, type User } from "@shared/schema";
 import { z } from "zod";
 import fs from "fs";
+import { generateAndSaveInvoice } from "./invoice-service";
+import { whatsAppSender } from "./whatsapp-sender";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1958,6 +1960,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear the cart after successful order creation
       await storage.clearCart(req.user!.id);
 
+      // تولید و ارسال فاکتور برای اولین سفارش
+      if (createdOrders.length > 0) {
+        const firstOrder = createdOrders[0];
+        try {
+          console.log(`🖼️ در حال تولید فاکتور برای سفارش ${firstOrder.id}...`);
+          const invoiceUrl = await generateAndSaveInvoice(firstOrder.id);
+          console.log(`✅ فاکتور تولید شد: ${invoiceUrl}`);
+          
+          // ارسال فاکتور از طریق واتساپ اگر تنظیمات واتساپ کاربر موجود باشد
+          const user = await storage.getUser(req.user!.id);
+          if (user && user.whatsappNumber) {
+            // دریافت توکن واتساپ فروشنده
+            const seller = await storage.getUser(firstOrder.sellerId);
+            const whatsappToken = seller?.whatsappToken;
+            
+            if (whatsappToken) {
+              await whatsAppSender.sendWhatsAppImage(
+                whatsappToken,
+                user.whatsappNumber,
+                `📄 فاکتور سفارش شما`,
+                invoiceUrl
+              );
+              console.log(`✅ فاکتور با موفقیت به ${user.whatsappNumber} ارسال شد`);
+            }
+          }
+        } catch (error) {
+          console.error('❌ خطا در تولید یا ارسال فاکتور:', error);
+          // خطای فاکتور نباید مانع ثبت سفارش شود
+        }
+      }
+
       res.status(201).json({ 
         message: "سفارش با موفقیت ثبت شد",
         orders: createdOrders 
@@ -2517,6 +2550,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedFaq);
     } catch (error) {
       res.status(500).json({ message: "خطا در تغییر ترتیب سوال متداول" });
+    }
+  });
+
+  // Test endpoint for sending WhatsApp image
+  app.post("/api/test/send-whatsapp-image", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.whatsappNumber) {
+        return res.status(400).json({ message: "شماره واتساپ کاربر موجود نیست" });
+      }
+
+      // Get WhatsApp token
+      let whatsappToken: string | undefined;
+      
+      if (user.role === 'user_level_1' && user.whatsappToken) {
+        whatsappToken = user.whatsappToken;
+      } else {
+        // Use global settings for other users
+        const settings = await storage.getWhatsappSettings();
+        whatsappToken = settings?.token || undefined;
+      }
+      
+      if (!whatsappToken) {
+        return res.status(400).json({ message: "توکن واتساپ موجود نیست" });
+      }
+
+      // Test image URL (from Replit domain)
+      const testImageUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/uploads/iphone15-pro-max.png`;
+      
+      console.log(`📤 ارسال تست عکس به ${user.whatsappNumber} با URL: ${testImageUrl}`);
+      
+      await whatsAppSender.sendWhatsAppImage(
+        whatsappToken,
+        user.whatsappNumber,
+        '🧪 این یک عکس تستی است',
+        testImageUrl
+      );
+
+      res.json({ 
+        message: "عکس تست ارسال شد",
+        phoneNumber: user.whatsappNumber,
+        imageUrl: testImageUrl
+      });
+    } catch (error: any) {
+      console.error("❌ خطا در ارسال عکس تست:", error);
+      res.status(500).json({ message: "خطا در ارسال عکس تست", error: error.message });
     }
   });
 
