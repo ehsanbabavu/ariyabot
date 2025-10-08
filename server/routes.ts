@@ -1970,20 +1970,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const invoiceUrl = await generateAndSaveInvoice(order.id);
             console.log(`✅ فاکتور ذخیره شد: ${invoiceUrl}`);
             
-            // ارسال فاکتور از طریق واتساپ اگر تنظیمات واتساپ کاربر موجود باشد
+            // ارسال فاکتور از طریق واتساپ اگر شماره واتساپ کاربر موجود باشد
             if (user && user.whatsappNumber) {
-              // دریافت توکن واتساپ فروشنده
-              const seller = await storage.getUser(order.sellerId);
-              const whatsappToken = seller?.whatsappToken;
+              const success = await whatsAppSender.sendImage(
+                user.whatsappNumber,
+                `📄 فاکتور سفارش شما`,
+                invoiceUrl,
+                order.sellerId
+              );
               
-              if (whatsappToken) {
-                await whatsAppSender.sendWhatsAppImage(
-                  whatsappToken,
-                  user.whatsappNumber,
-                  `📄 فاکتور سفارش شما`,
-                  invoiceUrl
-                );
+              if (success) {
                 console.log(`✅ فاکتور با موفقیت به ${user.whatsappNumber} ارسال شد`);
+              } else {
+                console.log(`⚠️ ارسال فاکتور به ${user.whatsappNumber} ناموفق بود`);
               }
             }
           } catch (error) {

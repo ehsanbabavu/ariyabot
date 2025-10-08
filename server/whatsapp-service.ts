@@ -1181,7 +1181,7 @@ ${missingFieldsText}
       // ایجاد سفارش برای هر فروشنده
       let totalOrders = 0;
       let grandTotal = 0;
-      let lastOrderId = '';
+      const createdOrders: Array<{id: string, sellerId: string}> = [];
       
       for (const [sellerId, items] of Array.from(itemsBySeller.entries())) {
         const totalAmount = items.reduce((sum: number, item: any) => sum + parseFloat(item.totalPrice), 0);
@@ -1206,7 +1206,7 @@ ${missingFieldsText}
           });
         }
 
-        lastOrderId = order.id;
+        createdOrders.push({ id: order.id, sellerId });
         totalOrders++;
       }
 
@@ -1223,23 +1223,28 @@ ${missingFieldsText}
         `✅ سفارش شما با موفقیت ثبت شد!\n\n📦 تعداد سفارش: ${totalOrders}\n\n📍 آدرس ارسال:\n${fullAddress}\n\n💰 مبلغ کل فاکتور: ${this.formatAmount(grandTotal.toString())} ریال\n\nبرای پیگیری سفارش، به پنل کاربری خود مراجعه کنید.`
       );
 
-      // تولید و ارسال فاکتور (فقط برای آخرین سفارش - یا اولین سفارش)
-      if (lastOrderId) {
+      // تولید و ارسال فاکتور برای همه سفارشات
+      for (const order of createdOrders) {
         try {
-          console.log(`🖼️ در حال تولید فاکتور برای سفارش ${lastOrderId}...`);
+          console.log(`🖼️ در حال تولید فاکتور برای سفارش ${order.id}...`);
+          const invoiceUrl = await generateAndSaveInvoice(order.id);
+          console.log(`✅ فاکتور ذخیره شد: ${invoiceUrl}`);
           
-          const invoiceUrl = await generateAndSaveInvoice(lastOrderId);
-          
-          await this.sendWhatsAppImage(
-            whatsappToken,
+          // ارسال فاکتور از طریق واتساپ با استفاده از متد جدید sendImage
+          const success = await whatsAppSender.sendImage(
             whatsappNumber,
             `📄 فاکتور سفارش شما`,
-            invoiceUrl
+            invoiceUrl,
+            order.sellerId
           );
           
-          console.log(`✅ فاکتور با موفقیت برای کاربر ${whatsappNumber} ارسال شد`);
+          if (success) {
+            console.log(`✅ فاکتور با موفقیت به ${whatsappNumber} ارسال شد`);
+          } else {
+            console.log(`⚠️ ارسال فاکتور به ${whatsappNumber} ناموفق بود`);
+          }
         } catch (error) {
-          console.error('❌ خطا در تولید یا ارسال فاکتور:', error);
+          console.error(`❌ خطا در تولید یا ارسال فاکتور برای سفارش ${order.id}:`, error);
           // عدم ارسال فاکتور نباید مانع از ادامه فرآیند شود
         }
       }

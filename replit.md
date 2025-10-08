@@ -2,19 +2,20 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
-## Replit Setup (October 8, 2025)
+## Replit Setup (Fresh GitHub Import - October 8, 2025)
 
-This is a fresh GitHub import successfully configured to run in the Replit environment:
+This project has been successfully imported from GitHub and configured to run in the Replit environment:
 
-- **Database**: PostgreSQL database already provisioned with DATABASE_URL configured, Drizzle schema pushed successfully
-- **Development Server**: Running on port 5000 (http://0.0.0.0:5000)
-- **Default Users**:
+- **Database**: External PostgreSQL database (DATABASE_URL secret configured), Drizzle schema pushed successfully
+- **Dependencies**: All npm packages installed (638 packages)
+- **Development Server**: Running on port 5000 (http://0.0.0.0:5000) with Vite dev server
+- **Default Users**: Automatically created on first run
   - Admin: username `ehsan`, password `admin123`
   - Test Seller: username `test_seller`, password `test123`
 - **Test Data**: Pre-loaded with 3 mobile categories and 6 test products
-- **Deployment**: Configured for autoscale deployment with build (`npm run build`) and start (`npm start`) scripts
-- **AI Integration**: Gemini AI token needs to be configured via admin panel for AI features
-- **TypeScript Configuration**: Updated to properly include config files and resolve LSP issues
+- **Deployment**: Configured for autoscale deployment with build (`npm run build`) and run (`npm start`) scripts
+- **Vite Configuration**: Already configured with `allowedHosts: true` for Replit proxy compatibility
+- **Workflow**: Single workflow "Server" running `npm run dev` on port 5000
 
 ### Important Notes
 - Gemini AI token should be configured in the admin panel (AI Token Settings) to enable AI-powered features
