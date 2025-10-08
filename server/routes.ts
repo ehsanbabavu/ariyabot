@@ -2553,6 +2553,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Save invoice for level 2 users
+  app.post("/api/save-invoice", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { orderId, imageData } = req.body;
+      
+      if (!orderId || !imageData) {
+        return res.status(400).json({ message: "داده‌های فاکتور ناقص است" });
+      }
+
+      // دریافت اطلاعات سفارش برای گرفتن اطلاعات کاربر
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "سفارش یافت نشد" });
+      }
+
+      // دریافت اطلاعات کاربر
+      const user = await storage.getUser(order.userId);
+      if (!user) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      // ایجاد پوشه invoice در صورت عدم وجود
+      const invoiceDir = path.join(process.cwd(), 'invoice');
+      if (!fs.existsSync(invoiceDir)) {
+        fs.mkdirSync(invoiceDir, { recursive: true });
+      }
+
+      // استخراج داده تصویر از data URL
+      const base64Data = imageData.replace(/^data:image\/png;base64,/, '');
+      const imageBuffer = Buffer.from(base64Data, 'base64');
+
+      // نام فایل یونیک با timestamp
+      const timestamp = Date.now();
+      const filename = `فاکتور-سفارش-${orderId}-${timestamp}.png`;
+      const filepath = path.join(invoiceDir, filename);
+
+      // ذخیره فایل
+      fs.writeFileSync(filepath, imageBuffer);
+
+      console.log(`✅ فاکتور کاربر سطح 2 ذخیره شد: ${filename}`);
+
+      // ارسال فاکتور به واتس‌اپ کاربر (در صورت وجود شماره واتس‌اپ)
+      if (user.whatsappNumber) {
+        try {
+          // دریافت توکن واتس‌اپ
+          let whatsappToken: string | undefined;
+          
+          // اگر کاربر سطح 1 باشد و توکن خودش رو داشته باشه
+          const seller = await storage.getUser(order.sellerId);
+          if (seller?.role === 'user_level_1' && seller?.whatsappToken) {
+            whatsappToken = seller.whatsappToken;
+          } else {
+            // استفاده از تنظیمات عمومی
+            const settings = await storage.getWhatsappSettings();
+            whatsappToken = settings?.token || undefined;
+          }
+
+          if (whatsappToken) {
+            // ساخت URL عمومی برای فاکتور
+            let publicUrl: string;
+            
+            if (process.env.REPLIT_DEV_DOMAIN) {
+              publicUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/invoice/${encodeURIComponent(filename)}`;
+            } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+              publicUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/invoice/${encodeURIComponent(filename)}`;
+            } else {
+              publicUrl = `http://localhost:5000/invoice/${encodeURIComponent(filename)}`;
+            }
+
+            // ارسال فاکتور به واتس‌اپ
+            await whatsAppSender.sendWhatsAppImage(
+              whatsappToken,
+              user.whatsappNumber,
+              `📄 فاکتور سفارش شما\n\nسفارش شماره: ${order.orderNumber || order.id.slice(0, 8)}\n\nفاکتور شما با موفقیت ارسال شد.`,
+              publicUrl
+            );
+
+            console.log(`✅ فاکتور به واتس‌اپ ${user.whatsappNumber} ارسال شد`);
+          } else {
+            console.warn('⚠️ توکن واتس‌اپ موجود نیست، فاکتور ارسال نشد');
+          }
+        } catch (whatsappError: any) {
+          console.error('❌ خطا در ارسال فاکتور به واتس‌اپ:', whatsappError.message);
+          // ادامه می‌دهیم حتی اگر ارسال واتس‌اپ با خطا مواجه شود
+        }
+      } else {
+        console.log('⚠️ کاربر شماره واتس‌اپ ندارد، فاکتور ارسال نشد');
+      }
+
+      res.json({ 
+        message: "فاکتور با موفقیت ذخیره شد",
+        filename: filename,
+        path: filepath
+      });
+    } catch (error: any) {
+      console.error("❌ خطا در ذخیره فاکتور:", error);
+      res.status(500).json({ message: "خطا در ذخیره فاکتور", error: error.message });
+    }
+  });
+
   // Test endpoint for sending WhatsApp image
   app.post("/api/test/send-whatsapp-image", authenticateToken, async (req: AuthRequest, res) => {
     try {
@@ -2601,6 +2701,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  
+  // Serve invoice files
+  app.use("/invoice", express.static(path.join(process.cwd(), "invoice")));
 
   const httpServer = createServer(app);
   return httpServer;

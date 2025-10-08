@@ -2,23 +2,26 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
-## Replit Setup (October 7, 2025)
+## Replit Setup (October 8, 2025)
 
-The application has been successfully configured to run in the Replit environment:
+This is a fresh GitHub import successfully configured to run in the Replit environment:
 
-- **Database**: PostgreSQL database provisioned with Drizzle schema pushed
+- **Database**: PostgreSQL database already provisioned with DATABASE_URL configured, Drizzle schema pushed successfully
 - **Development Server**: Running on port 5000 (http://0.0.0.0:5000)
 - **Default Users**:
   - Admin: username `ehsan`, password `admin123`
   - Test Seller: username `test_seller`, password `test123`
 - **Test Data**: Pre-loaded with 3 mobile categories and 6 test products
-- **Deployment**: Configured for autoscale deployment with build and start scripts
+- **Deployment**: Configured for autoscale deployment with build (`npm run build`) and start (`npm start`) scripts
 - **AI Integration**: Gemini AI token needs to be configured via admin panel for AI features
+- **TypeScript Configuration**: Updated to properly include config files and resolve LSP issues
 
 ### Important Notes
 - Gemini AI token should be configured in the admin panel (AI Token Settings) to enable AI-powered features
 - WhatsApp integration requires token configuration in admin settings
 - The application runs frontend and backend on the same port (5000) using Vite in development mode
+- JWT_SECRET environment variable is optional for development (uses fixed secret) but required for production
+- ADMIN_PASSWORD environment variable is optional (defaults to "admin123" if not set)
 
 # User Preferences
 
