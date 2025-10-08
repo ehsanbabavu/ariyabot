@@ -1960,34 +1960,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Clear the cart after successful order creation
       await storage.clearCart(req.user!.id);
 
-      // تولید و ارسال فاکتور برای اولین سفارش
+      // تولید و ارسال فاکتور برای همه سفارشات
       if (createdOrders.length > 0) {
-        const firstOrder = createdOrders[0];
-        try {
-          console.log(`🖼️ در حال تولید فاکتور برای سفارش ${firstOrder.id}...`);
-          const invoiceUrl = await generateAndSaveInvoice(firstOrder.id);
-          console.log(`✅ فاکتور تولید شد: ${invoiceUrl}`);
-          
-          // ارسال فاکتور از طریق واتساپ اگر تنظیمات واتساپ کاربر موجود باشد
-          const user = await storage.getUser(req.user!.id);
-          if (user && user.whatsappNumber) {
-            // دریافت توکن واتساپ فروشنده
-            const seller = await storage.getUser(firstOrder.sellerId);
-            const whatsappToken = seller?.whatsappToken;
+        const user = await storage.getUser(req.user!.id);
+        
+        for (const order of createdOrders) {
+          try {
+            console.log(`🖼️ در حال تولید فاکتور برای سفارش ${order.id}...`);
+            const invoiceUrl = await generateAndSaveInvoice(order.id);
+            console.log(`✅ فاکتور ذخیره شد: ${invoiceUrl}`);
             
-            if (whatsappToken) {
-              await whatsAppSender.sendWhatsAppImage(
-                whatsappToken,
-                user.whatsappNumber,
-                `📄 فاکتور سفارش شما`,
-                invoiceUrl
-              );
-              console.log(`✅ فاکتور با موفقیت به ${user.whatsappNumber} ارسال شد`);
+            // ارسال فاکتور از طریق واتساپ اگر تنظیمات واتساپ کاربر موجود باشد
+            if (user && user.whatsappNumber) {
+              // دریافت توکن واتساپ فروشنده
+              const seller = await storage.getUser(order.sellerId);
+              const whatsappToken = seller?.whatsappToken;
+              
+              if (whatsappToken) {
+                await whatsAppSender.sendWhatsAppImage(
+                  whatsappToken,
+                  user.whatsappNumber,
+                  `📄 فاکتور سفارش شما`,
+                  invoiceUrl
+                );
+                console.log(`✅ فاکتور با موفقیت به ${user.whatsappNumber} ارسال شد`);
+              }
             }
+          } catch (error) {
+            console.error(`❌ خطا در تولید یا ارسال فاکتور برای سفارش ${order.id}:`, error);
+            // خطای فاکتور نباید مانع ثبت سفارش شود
           }
-        } catch (error) {
-          console.error('❌ خطا در تولید یا ارسال فاکتور:', error);
-          // خطای فاکتور نباید مانع ثبت سفارش شود
         }
       }
 

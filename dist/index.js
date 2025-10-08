@@ -1500,6 +1500,15 @@ var init_db_storage = __esm({
           return [];
         }
       }
+      async getFaqsByCreator(creatorId) {
+        try {
+          const result = await db.select().from(faqs).where(and(eq(faqs.isActive, true), eq(faqs.createdBy, creatorId))).orderBy(faqs.order);
+          return result;
+        } catch (error) {
+          console.error("Error getting FAQs by creator:", error);
+          return [];
+        }
+      }
       async createFaq(faq, createdBy) {
         try {
           const result = await db.insert(faqs).values({
@@ -2711,6 +2720,9 @@ var init_storage = __esm({
       async getActiveFaqs() {
         return Array.from(this.faqs.values()).filter((faq) => faq.isActive).sort((a, b) => a.order - b.order);
       }
+      async getFaqsByCreator(creatorId) {
+        return Array.from(this.faqs.values()).filter((faq) => faq.isActive && faq.createdBy === creatorId).sort((a, b) => a.order - b.order);
+      }
       async createFaq(faq, createdBy) {
         const id = randomUUID();
         const newFaq = {
@@ -2752,6 +2764,329 @@ var init_storage = __esm({
       }
     };
     storage = process.env.NODE_ENV === "test" ? new MemStorage() : new DbStorage();
+  }
+});
+
+// server/invoice-service.ts
+import puppeteer from "puppeteer";
+import * as fs from "fs";
+import * as path from "path";
+function formatPriceRial(price) {
+  const num = typeof price === "string" ? parseInt(price) : price;
+  return new Intl.NumberFormat("fa-IR").format(num);
+}
+function numberToPersianWords(num) {
+  if (num === 0) return "\u0635\u0641\u0631";
+  const ones = ["", "\u06CC\u06A9", "\u062F\u0648", "\u0633\u0647", "\u0686\u0647\u0627\u0631", "\u067E\u0646\u062C", "\u0634\u0634", "\u0647\u0641\u062A", "\u0647\u0634\u062A", "\u0646\u0647"];
+  const tens = ["", "", "\u0628\u06CC\u0633\u062A", "\u0633\u06CC", "\u0686\u0647\u0644", "\u067E\u0646\u062C\u0627\u0647", "\u0634\u0635\u062A", "\u0647\u0641\u062A\u0627\u062F", "\u0647\u0634\u062A\u0627\u062F", "\u0646\u0648\u062F"];
+  const hundreds = ["", "\u06CC\u06A9\u0635\u062F", "\u062F\u0648\u06CC\u0633\u062A", "\u0633\u06CC\u0635\u062F", "\u0686\u0647\u0627\u0631\u0635\u062F", "\u067E\u0627\u0646\u0635\u062F", "\u0634\u0634\u0635\u062F", "\u0647\u0641\u062A\u0635\u062F", "\u0647\u0634\u062A\u0635\u062F", "\u0646\u0647\u0635\u062F"];
+  const thousands = ["", "\u0647\u0632\u0627\u0631", "\u0645\u06CC\u0644\u06CC\u0648\u0646", "\u0645\u06CC\u0644\u06CC\u0627\u0631\u062F"];
+  if (num < 10) return ones[num];
+  if (num < 20) {
+    const teens = ["\u062F\u0647", "\u06CC\u0627\u0632\u062F\u0647", "\u062F\u0648\u0627\u0632\u062F\u0647", "\u0633\u06CC\u0632\u062F\u0647", "\u0686\u0647\u0627\u0631\u062F\u0647", "\u067E\u0627\u0646\u0632\u062F\u0647", "\u0634\u0627\u0646\u0632\u062F\u0647", "\u0647\u0641\u062F\u0647", "\u0647\u062C\u062F\u0647", "\u0646\u0648\u0632\u062F\u0647"];
+    return teens[num - 10];
+  }
+  if (num < 100) {
+    const ten = Math.floor(num / 10);
+    const one = num % 10;
+    return tens[ten] + (one ? " \u0648 " + ones[one] : "");
+  }
+  if (num < 1e3) {
+    const hundred = Math.floor(num / 100);
+    const rest = num % 100;
+    return hundreds[hundred] + (rest ? " \u0648 " + numberToPersianWords(rest) : "");
+  }
+  let result = "";
+  let level = 0;
+  while (num > 0) {
+    const part = num % 1e3;
+    if (part > 0) {
+      const partWords = numberToPersianWords(part);
+      result = partWords + (thousands[level] ? " " + thousands[level] : "") + (result ? " \u0648 " + result : "");
+    }
+    num = Math.floor(num / 1e3);
+    level++;
+  }
+  return result || "\u0635\u0641\u0631";
+}
+async function generateInvoiceHTML(orderId) {
+  const order = await storage.getOrder(orderId);
+  if (!order) {
+    throw new Error("\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
+  }
+  const orderItems2 = await storage.getOrderItems(orderId);
+  const items = await Promise.all(
+    orderItems2.map(async (item) => {
+      const product = await storage.getProduct(item.productId, order.userId, "user_level_2");
+      return {
+        ...item,
+        productName: product?.name || "\u0645\u062D\u0635\u0648\u0644",
+        productDescription: product?.description,
+        productImage: product?.image
+      };
+    })
+  );
+  const address = order.addressId ? await storage.getAddress(order.addressId) : null;
+  const buyer = await storage.getUser(order.userId);
+  const seller = await storage.getUser(order.sellerId);
+  const isLargeOrder = items.length > 8;
+  const fontSize = isLargeOrder ? "12px" : "14px";
+  const padding = isLargeOrder ? "6px" : "8px";
+  const html = `
+    <!DOCTYPE html>
+    <html dir="rtl" lang="fa">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>\u0641\u0627\u06A9\u062A\u0648\u0631 \u0633\u0641\u0627\u0631\u0634</title>
+      <style>
+        @import url('https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css');
+        
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: Vazirmatn, Arial, sans-serif;
+          background-color: #ffffff;
+          color: #000000;
+          direction: rtl;
+        }
+        
+        .invoice-container {
+          width: ${isLargeOrder ? "595px" : "842px"};
+          margin: 0 auto;
+          border: 2px solid #000;
+          background: white;
+        }
+        
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 20px;
+          border-bottom: 1px solid #000;
+        }
+        
+        .header-title {
+          font-size: 24px;
+          font-weight: bold;
+          text-align: center;
+          flex: 1;
+        }
+        
+        .header-date {
+          text-align: right;
+          font-size: 16px;
+        }
+        
+        .section-header {
+          background-color: #d3d3d3;
+          text-align: center;
+          padding: 10px;
+          font-weight: bold;
+          font-size: 16px;
+          border-bottom: 1px solid #000;
+        }
+        
+        .section-content {
+          padding: 15px;
+          border-bottom: 1px solid #000;
+          text-align: right;
+          font-size: 14px;
+        }
+        
+        .customer-details {
+          line-height: 1.8;
+        }
+        
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        
+        th {
+          background-color: #d3d3d3;
+          border: 1px solid #000;
+          padding: 10px;
+          text-align: center;
+          font-weight: bold;
+          font-size: 14px;
+        }
+        
+        td {
+          border: 1px solid #000;
+          padding: ${padding};
+          font-size: ${fontSize};
+          text-align: center;
+        }
+        
+        .text-right {
+          text-align: right;
+        }
+        
+        .total-section {
+          background-color: #d3d3d3;
+          text-align: left;
+          padding: 12px;
+          font-weight: bold;
+          font-size: 16px;
+          border-top: 1px solid #000;
+        }
+        
+        .total-words {
+          padding: 15px;
+          text-align: right;
+          font-size: 14px;
+          border-bottom: 1px solid #000;
+        }
+        
+        .thank-you {
+          text-align: center;
+          padding: 20px;
+          font-size: 16px;
+          font-weight: bold;
+          color: #333;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="invoice-container">
+        <!-- Header -->
+        <div class="header">
+          <div class="header-date">
+            \u062A\u0627\u0631\u06CC\u062E: ${new Date(order.createdAt).toLocaleDateString("fa-IR")}
+          </div>
+          <h1 class="header-title">\u0641\u0627\u06A9\u062A\u0648\u0631 \u0641\u0631\u0648\u0634</h1>
+          <div style="width: 100px;"></div>
+        </div>
+        
+        <!-- Seller Section -->
+        <div class="section-header">\u0645\u0634\u062E\u0635\u0627\u062A \u0641\u0631\u0648\u0634\u0646\u062F\u0647</div>
+        <div class="section-content">
+          \u0646\u0627\u0645 \u0634\u062E\u0635 / \u0633\u0627\u0632\u0645\u0627\u0646 : ${seller?.firstName && seller?.lastName ? `${seller.firstName} ${seller.lastName}` : "\u0641\u0631\u0648\u0634\u0646\u062F\u0647"}
+        </div>
+        
+        <!-- Customer Section -->
+        <div class="section-header">\u0645\u0634\u062E\u0635\u0627\u062A \u062E\u0631\u06CC\u062F\u0627\u0631</div>
+        <div class="section-content customer-details">
+          <div>\u0646\u0627\u0645 \u0634\u062E\u0635 / \u0633\u0627\u0632\u0645\u0627\u0646 : ${buyer?.firstName && buyer?.lastName ? `${buyer.firstName} ${buyer.lastName}` : "\u0645\u0634\u062A\u0631\u06CC \u06AF\u0631\u0627\u0645\u06CC"}</div>
+          <div>\u0622\u062F\u0631\u0633 - \u06A9\u062F \u067E\u0633\u062A\u06CC - \u062A\u0644\u0641\u0646 : ${[
+    address?.fullAddress || "-",
+    address?.postalCode || "-",
+    buyer?.whatsappNumber || "-"
+  ].join(" - ")}</div>
+        </div>
+        
+        <!-- Items Table -->
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 8%;">\u0631\u062F\u06CC\u0641</th>
+              <th style="width: 44%;">\u0634\u0631\u062D \u06A9\u0627\u0644\u0627 \u06CC\u0627 \u062E\u062F\u0645\u0627\u062A</th>
+              <th style="width: 12%;">\u062A\u0639\u062F\u0627\u062F</th>
+              <th style="width: 18%;">\u0642\u06CC\u0645\u062A \u0648\u0627\u062D\u062F<br />(\u0631\u06CC\u0627\u0644)</th>
+              <th style="width: 18%;">\u0642\u06CC\u0645\u062A \u06A9\u0644<br />(\u0631\u06CC\u0627\u0644)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items.map((item, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td class="text-right">${item.productName}</td>
+                <td>${item.quantity}</td>
+                <td>${formatPriceRial(item.unitPrice)}</td>
+                <td>${formatPriceRial(item.totalPrice)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+        
+        <!-- Total Section -->
+        <div class="total-section">
+          \u062C\u0645\u0639 \u06A9\u0644: ${formatPriceRial(order.totalAmount)}
+        </div>
+        
+        <!-- Total in Words -->
+        <div class="total-words">
+          \u062C\u0645\u0639 \u06A9\u0644 \u0628\u0647 \u062D\u0631\u0648\u0641: ${numberToPersianWords(Number(order.totalAmount) * 10)} \u0631\u06CC\u0627\u0644
+        </div>
+        
+        <!-- Thank You Message -->
+        <div class="thank-you">
+          \u0627\u0632 \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u0645\u062A\u0634\u06A9\u0631\u06CC\u0645 \u0645\u0646\u062A\u0638\u0631 \u0634\u0645\u0627 \u0647\u0633\u062A\u06CC\u0645
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+  return html;
+}
+async function generateInvoiceImage(orderId) {
+  let browser;
+  try {
+    console.log(`\u{1F4C4} \u0634\u0631\u0648\u0639 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${orderId}...`);
+    const html = await generateInvoiceHTML(orderId);
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu"
+      ]
+    });
+    const page = await browser.newPage();
+    await page.setContent(html, {
+      waitUntil: "networkidle0"
+    });
+    const screenshot = await page.screenshot({
+      type: "png",
+      fullPage: true
+    });
+    console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062A\u0648\u0644\u06CC\u062F \u0634\u062F`);
+    return screenshot;
+  } catch (error) {
+    console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631:", error);
+    throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+}
+async function generateAndSaveInvoice(orderId) {
+  try {
+    const imageBuffer = await generateInvoiceImage(orderId);
+    const invoicesDir = path.join(process.cwd(), "public", "invoices");
+    if (!fs.existsSync(invoicesDir)) {
+      fs.mkdirSync(invoicesDir, { recursive: true });
+    }
+    const timestamp2 = Date.now();
+    const filename = `invoice-${orderId}-${timestamp2}.png`;
+    const filepath = path.join(invoicesDir, filename);
+    fs.writeFileSync(filepath, imageBuffer);
+    let publicUrl;
+    if (process.env.REPLIT_DEV_DOMAIN) {
+      publicUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/invoices/${filename}`;
+    } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+      publicUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/invoices/${filename}`;
+    } else {
+      publicUrl = `http://localhost:5000/invoices/${filename}`;
+    }
+    console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F: ${publicUrl}`);
+    return publicUrl;
+  } catch (error) {
+    console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u0648 \u0630\u062E\u06CC\u0631\u0647 \u0641\u0627\u06A9\u062A\u0648\u0631:", error);
+    throw error;
+  }
+}
+var init_invoice_service = __esm({
+  "server/invoice-service.ts"() {
+    "use strict";
+    init_storage();
   }
 });
 
@@ -2816,6 +3151,30 @@ var init_whatsapp_sender = __esm({
           return true;
         } catch (error) {
           console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error);
+          return false;
+        }
+      }
+      async sendWhatsAppImage(token, phoneNumber, message, imageUrl) {
+        try {
+          const formData = new FormData();
+          formData.append("phonenumber", phoneNumber);
+          formData.append("message", message);
+          formData.append("link", imageUrl);
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}`;
+          const response = await fetch(sendUrl, {
+            method: "POST",
+            body: formData
+          });
+          if (response.ok) {
+            console.log(`\u2705 \u0639\u06A9\u0633 \u0628\u0647 ${phoneNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+            return true;
+          } else {
+            const errorText = await response.text();
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u0628\u0647 ${phoneNumber}:`, errorText);
+            return false;
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u0648\u0627\u062A\u0633\u0627\u067E:", error);
           return false;
         }
       }
@@ -3008,12 +3367,14 @@ ${message}
           const keywordCount = depositKeywords.filter(
             (keyword) => normalizedMessage.includes(keyword)
           ).length;
-          if (keywordCount >= 3) {
-            return true;
+          if (keywordCount < 5) {
+            return false;
           }
-          const prompt = `\u0622\u06CC\u0627 \u0645\u062A\u0646 \u0632\u06CC\u0631 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC\u060C \u0627\u0637\u0644\u0627\u0639 \u0648\u0627\u0631\u06CC\u0632\u060C \u06CC\u0627 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A \u0627\u0633\u062A\u061F
+          const prompt = `\u0622\u06CC\u0627 \u0645\u062A\u0646 \u0632\u06CC\u0631 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC\u060C \u0627\u0637\u0644\u0627\u0639 \u0648\u0627\u0631\u06CC\u0632\u060C \u06CC\u0627 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u061F
       
 ${message}
+
+\u062A\u0648\u062C\u0647: \u0641\u0642\u0637 \u0627\u06AF\u0631 \u0645\u0637\u0645\u0626\u0646 \u0647\u0633\u062A\u06CC \u06A9\u0647 \u0627\u06CC\u0646 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0648\u0627\u0642\u0639\u06CC \u0628\u0627 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u060C "\u0628\u0644\u0647" \u0628\u06AF\u0648. \u062F\u0631 \u063A\u06CC\u0631 \u0627\u06CC\u0646 \u0635\u0648\u0631\u062A "\u062E\u06CC\u0631" \u0628\u06AF\u0648.
 
 \u0641\u0642\u0637 \u0628\u0627 "\u0628\u0644\u0647" \u06CC\u0627 "\u062E\u06CC\u0631" \u067E\u0627\u0633\u062E \u0628\u062F\u0647.`;
           const result = await this.model.generateContent(prompt);
@@ -3161,8 +3522,277 @@ ${message}
           };
         }
       }
+      /**
+       * تشخیص اینکه آیا پیام درخواست سفارش محصول است
+       */
+      async isProductOrderRequest(message) {
+        if (!this.model) return false;
+        try {
+          const prompt = `\u0622\u06CC\u0627 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645 \u06CC\u06A9 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0633\u0641\u0627\u0631\u0634 \u0645\u062D\u0635\u0648\u0644 \u0627\u0633\u062A\u061F \u0641\u0642\u0637 "\u0628\u0644\u0647" \u06CC\u0627 "\u062E\u06CC\u0631" \u062C\u0648\u0627\u0628 \u0628\u062F\u0647.
+
+\u067E\u06CC\u0627\u0645: "${message}"
+
+\u0646\u06A9\u062A\u0647: \u0627\u06AF\u0631 \u06A9\u0627\u0631\u0628\u0631 \u0646\u0627\u0645 \u06CC\u06A9 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u06AF\u0641\u062A\u0647\u060C \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u062F \u0628\u062E\u0631\u062F\u060C \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0642\u06CC\u0645\u062A \u06A9\u0631\u062F\u0647\u060C \u06CC\u0627 \u0647\u0631 \u06A9\u0644\u0645\u0647\u200C\u0627\u06CC \u0645\u062B\u0644 "\u0645\u06CC\u062E\u0648\u0627\u0645"\u060C "\u0628\u062F\u0647"\u060C "\u0633\u0641\u0627\u0631\u0634"\u060C "\u062E\u0631\u06CC\u062F" \u0648... \u0628\u0647 \u0647\u0645\u0631\u0627\u0647 \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644 \u0627\u0633\u062A\u060C \u062C\u0648\u0627\u0628 "\u0628\u0644\u0647" \u0627\u0633\u062A.`;
+          const result = await this.model.generateContent(prompt);
+          const response = await result.response;
+          const text2 = response.text().trim();
+          return text2.includes("\u0628\u0644\u0647") || text2.toLowerCase().includes("yes");
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0634\u062E\u06CC\u0635 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0645\u062D\u0635\u0648\u0644:", error);
+          return false;
+        }
+      }
+      /**
+       * استخراج نام محصول از پیام
+       */
+      async extractProductName(message) {
+        if (!this.model) return null;
+        try {
+          const prompt = `\u0627\u0632 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645\u060C \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644\u06CC \u06A9\u0647 \u06A9\u0627\u0631\u0628\u0631 \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u062F \u0631\u0627 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646. \u0641\u0642\u0637 \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633\u060C \u0628\u062F\u0648\u0646 \u062A\u0648\u0636\u06CC\u062D \u0627\u0636\u0627\u0641\u06CC.
+
+\u067E\u06CC\u0627\u0645: "${message}"
+
+\u0627\u06AF\u0631 \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644\u06CC \u067E\u06CC\u062F\u0627 \u0646\u06A9\u0631\u062F\u06CC\u060C \u0641\u0642\u0637 \u06A9\u0644\u0645\u0647 "\u0646\u0627\u0645\u0634\u062E\u0635" \u0628\u0646\u0648\u06CC\u0633.`;
+          const result = await this.model.generateContent(prompt);
+          const response = await result.response;
+          const text2 = response.text().trim();
+          if (text2 === "\u0646\u0627\u0645\u0634\u062E\u0635" || text2.toLowerCase() === "unknown") {
+            return null;
+          }
+          return text2;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644:", error);
+          return null;
+        }
+      }
+      /**
+       * استخراج تعداد از پیام
+       */
+      async extractQuantity(message) {
+        if (!this.model) return null;
+        try {
+          const prompt = `\u0627\u0632 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645\u060C \u062A\u0639\u062F\u0627\u062F \u06CC\u0627 \u0639\u062F\u062F \u0631\u0627 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646. \u0641\u0642\u0637 \u06CC\u06A9 \u0639\u062F\u062F \u0628\u0646\u0648\u06CC\u0633.
+
+\u067E\u06CC\u0627\u0645: "${message}"
+
+\u0627\u06AF\u0631 \u0639\u062F\u062F\u06CC \u067E\u06CC\u062F\u0627 \u0646\u06A9\u0631\u062F\u06CC \u06CC\u0627 \u062A\u0639\u062F\u0627\u062F \u0645\u0634\u062E\u0635 \u0646\u0628\u0648\u062F\u060C \u0641\u0642\u0637 \u0639\u062F\u062F 0 \u0628\u0646\u0648\u06CC\u0633.`;
+          const result = await this.model.generateContent(prompt);
+          const response = await result.response;
+          const text2 = response.text().trim();
+          const persianToEnglish = (str) => {
+            return str.replace(/[۰-۹]/g, (d) => "\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9".indexOf(d).toString()).replace(/[٠-٩]/g, (d) => "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669".indexOf(d).toString());
+          };
+          const numberText = persianToEnglish(text2.replace(/[^0-9۰-۹٠-٩]/g, ""));
+          const quantity = parseInt(numberText);
+          if (isNaN(quantity) || quantity <= 0) {
+            return null;
+          }
+          return quantity;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u062A\u0639\u062F\u0627\u062F:", error);
+          return null;
+        }
+      }
+      /**
+       * تشخیص پاسخ مثبت یا منفی کاربر (برای سوال "محصول دیگه‌ای میخوای؟")
+       */
+      async isPositiveResponse(message) {
+        if (!this.model) return false;
+        try {
+          const normalizeText = (text3) => {
+            return text3.normalize("NFKC").replace(/\u200C|\u200F|\u200E/g, "").replace(/[\u064A]/g, "\u06CC").replace(/[\u0643]/g, "\u06A9").trim().toLowerCase();
+          };
+          const normalizedMessage = normalizeText(message);
+          const negativeKeywords = [
+            "\u0646\u0647",
+            "\u0646\u062E\u06CC\u0631",
+            "\u0646\u0645\u06CC\u062E\u0648\u0627\u0645",
+            "\u0646\u0645\u06CC \u062E\u0648\u0627\u0645",
+            "\u0646\u0645\u06CC\u062E\u0648\u0627\u0647\u0645",
+            "\u0646\u0645\u06CC \u062E\u0648\u0627\u0647\u0645",
+            "\u062E\u06CC\u0631",
+            "\u06A9\u0627\u0641\u06CC\u0647",
+            "\u06A9\u0627\u0641\u06CC \u0627\u0633\u062A",
+            "\u0628\u0633\u0647",
+            "\u0628\u0633 \u0627\u0633\u062A",
+            "\u0647\u0645\u06CC\u0646",
+            "\u0647\u0645\u06CC\u0646\u0627",
+            "\u062A\u06A9\u0645\u06CC\u0644",
+            "\u062B\u0628\u062A",
+            "\u0646\u0647\u0627\u06CC\u06CC",
+            "\u062A\u0645\u0648\u0645",
+            "\u062A\u0645\u0627\u0645",
+            "\u067E\u0631\u062F\u0627\u062E\u062A",
+            "\u062E\u0631\u06CC\u062F",
+            "no",
+            "nope",
+            "enough",
+            "done",
+            "finish",
+            "complete"
+          ];
+          for (const keyword of negativeKeywords) {
+            if (normalizedMessage.includes(keyword)) {
+              console.log(`\u{1F50D} \u06A9\u0644\u0645\u0647 \u06A9\u0644\u06CC\u062F\u06CC \u0645\u0646\u0641\u06CC \u06CC\u0627\u0641\u062A \u0634\u062F: "${keyword}" - \u067E\u0627\u0633\u062E: \u0645\u0646\u0641\u06CC`);
+              return false;
+            }
+          }
+          const positiveKeywords = [
+            "\u0628\u0644\u0647",
+            "\u0622\u0631\u0647",
+            "\u0627\u0631\u0647",
+            "\u0645\u06CC\u062E\u0648\u0627\u0645",
+            "\u0645\u06CC \u062E\u0648\u0627\u0645",
+            "\u0645\u06CC\u062E\u0648\u0627\u0647\u0645",
+            "\u0645\u06CC \u062E\u0648\u0627\u0647\u0645",
+            "\u0628\u0627\u0634\u0647",
+            "\u0628\u0627\u0634\u062F",
+            "\u062D\u062A\u0645\u0627",
+            "\u0627\u0644\u0628\u062A\u0647",
+            "\u0686\u0631\u0627 \u06A9\u0647 \u0646\u0647",
+            "yes",
+            "yeah",
+            "yep",
+            "sure",
+            "ok",
+            "okay"
+          ];
+          for (const keyword of positiveKeywords) {
+            if (normalizedMessage.includes(keyword)) {
+              console.log(`\u{1F50D} \u06A9\u0644\u0645\u0647 \u06A9\u0644\u06CC\u062F\u06CC \u0645\u062B\u0628\u062A \u06CC\u0627\u0641\u062A \u0634\u062F: "${keyword}" - \u067E\u0627\u0633\u062E: \u0645\u062B\u0628\u062A`);
+              return true;
+            }
+          }
+          console.log(`\u{1F916} \u0647\u06CC\u0686 \u06A9\u0644\u0645\u0647 \u06A9\u0644\u06CC\u062F\u06CC \u0645\u0633\u062A\u0642\u06CC\u0645 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F\u060C \u0627\u0632 AI \u0645\u06CC\u200C\u067E\u0631\u0633\u06CC\u0645...`);
+          const prompt = `\u0622\u06CC\u0627 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645 \u06CC\u06A9 \u067E\u0627\u0633\u062E \u0645\u062B\u0628\u062A (\u0628\u0644\u0647\u060C \u0622\u0631\u0647\u060C \u0645\u06CC\u062E\u0648\u0627\u0645\u060C \u062F\u0627\u0631\u0645 \u0648...) \u0627\u0633\u062A\u061F \u0641\u0642\u0637 "\u0628\u0644\u0647" \u06CC\u0627 "\u062E\u06CC\u0631" \u062C\u0648\u0627\u0628 \u0628\u062F\u0647.
+
+\u067E\u06CC\u0627\u0645: "${message}"`;
+          const result = await this.model.generateContent(prompt);
+          const response = await result.response;
+          const text2 = response.text().trim();
+          const isPositive = text2.includes("\u0628\u0644\u0647") || text2.toLowerCase().includes("yes");
+          console.log(`\u{1F916} \u067E\u0627\u0633\u062E AI: ${text2} - \u0646\u062A\u06CC\u062C\u0647: ${isPositive ? "\u0645\u062B\u0628\u062A" : "\u0645\u0646\u0641\u06CC"}`);
+          return isPositive;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0634\u062E\u06CC\u0635 \u067E\u0627\u0633\u062E:", error);
+          return false;
+        }
+      }
+      /**
+       * یافتن FAQ منطبق با سوال کاربر از بین لیست سوالات متداول
+       * @param message پیام کاربر
+       * @param faqs لیست سوالات متداول والد کاربر
+       * @returns FAQ منطبق یا null
+       */
+      async findMatchingFaq(message, faqs2) {
+        if (!this.model || !faqs2 || faqs2.length === 0) {
+          return null;
+        }
+        try {
+          const maxFaqs = 20;
+          const limitedFaqs = faqs2.slice(0, maxFaqs);
+          const faqList = limitedFaqs.map(
+            (faq, index) => `${index + 1}. \u0633\u0648\u0627\u0644: ${faq.question}
+   \u067E\u0627\u0633\u062E: ${faq.answer}`
+          ).join("\n\n");
+          const prompt = `\u062A\u0648 \u06CC\u06A9 \u062F\u0633\u062A\u06CC\u0627\u0631 \u0647\u0648\u0634\u0645\u0646\u062F \u0647\u0633\u062A\u06CC \u06A9\u0647 \u0628\u0627\u06CC\u062F \u0645\u0634\u062E\u0635 \u06A9\u0646\u06CC \u0622\u06CC\u0627 \u067E\u06CC\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u06CC\u06A9\u06CC \u0627\u0632 \u0633\u0648\u0627\u0644\u0627\u062A \u0645\u062A\u062F\u0627\u0648\u0644 \u0632\u06CC\u0631 \u0645\u0637\u0627\u0628\u0642\u062A \u062F\u0627\u0631\u062F \u06CC\u0627 \u0646\u0647.
+
+\u0633\u0648\u0627\u0644\u0627\u062A \u0645\u062A\u062F\u0627\u0648\u0644:
+${faqList}
+
+\u067E\u06CC\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631: "${message}"
+
+\u0627\u06AF\u0631 \u067E\u06CC\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u06CC\u06A9\u06CC \u0627\u0632 \u0633\u0648\u0627\u0644\u0627\u062A \u0628\u0627\u0644\u0627 \u0645\u0637\u0627\u0628\u0642\u062A \u062F\u0627\u0631\u062F (\u062D\u062A\u06CC \u0627\u06AF\u0631 \u0628\u0627 \u06A9\u0644\u0645\u0627\u062A \u0645\u062A\u0641\u0627\u0648\u062A \u0628\u06CC\u0627\u0646 \u0634\u062F\u0647 \u0628\u0627\u0634\u062F)\u060C \u0641\u0642\u0637 \u0634\u0645\u0627\u0631\u0647 \u0622\u0646 \u0633\u0648\u0627\u0644 \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633 (\u0645\u062B\u0644\u0627\u064B "1" \u06CC\u0627 "5").
+\u0627\u06AF\u0631 \u067E\u06CC\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0647\u06CC\u0686\u06A9\u062F\u0627\u0645 \u0627\u0632 \u0633\u0648\u0627\u0644\u0627\u062A \u0628\u0627\u0644\u0627 \u0645\u0637\u0627\u0628\u0642\u062A \u0646\u062F\u0627\u0631\u062F\u060C \u0641\u0642\u0637 \u06A9\u0644\u0645\u0647 "\u0647\u06CC\u0686\u06A9\u062F\u0627\u0645" \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633.
+
+\u062C\u0648\u0627\u0628:`;
+          const result = await this.model.generateContent(prompt);
+          const response = await result.response;
+          const text2 = response.text().trim();
+          console.log(`\u{1F50D} \u0646\u062A\u06CC\u062C\u0647 \u0645\u0637\u0627\u0628\u0642\u062A FAQ: "${text2}"`);
+          const numberMatch = text2.match(/^(\d+)/);
+          if (numberMatch) {
+            const index = parseInt(numberMatch[1]) - 1;
+            if (index >= 0 && index < limitedFaqs.length) {
+              console.log(`\u2705 FAQ \u0645\u0646\u0637\u0628\u0642 \u067E\u06CC\u062F\u0627 \u0634\u062F: "${limitedFaqs[index].question}"`);
+              return limitedFaqs[index];
+            }
+          }
+          console.log(`\u2139\uFE0F \u0647\u06CC\u0686 FAQ \u0645\u0646\u0637\u0628\u0642\u06CC \u067E\u06CC\u062F\u0627 \u0646\u0634\u062F`);
+          return null;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u06CC\u0627\u0641\u062A\u0646 FAQ \u0645\u0646\u0637\u0628\u0642:", error);
+          return null;
+        }
+      }
     };
     geminiService = new GeminiService();
+  }
+});
+
+// server/order-session-service.ts
+var OrderSessionService, orderSessionService;
+var init_order_session_service = __esm({
+  "server/order-session-service.ts"() {
+    "use strict";
+    OrderSessionService = class {
+      sessions = /* @__PURE__ */ new Map();
+      SESSION_TIMEOUT = 10 * 60 * 1e3;
+      // 10 minutes
+      /**
+       * دریافت session کاربر یا ایجاد session جدید
+       */
+      getSession(userId, whatsappNumber) {
+        const existing = this.sessions.get(userId);
+        if (existing && Date.now() - existing.lastInteraction.getTime() < this.SESSION_TIMEOUT) {
+          existing.lastInteraction = /* @__PURE__ */ new Date();
+          return existing;
+        }
+        const newSession = {
+          userId,
+          whatsappNumber,
+          state: "idle",
+          lastInteraction: /* @__PURE__ */ new Date()
+        };
+        this.sessions.set(userId, newSession);
+        return newSession;
+      }
+      /**
+       * بروزرسانی session کاربر
+       */
+      updateSession(userId, updates) {
+        const session = this.sessions.get(userId);
+        if (!session) return void 0;
+        const updated = {
+          ...session,
+          ...updates,
+          lastInteraction: /* @__PURE__ */ new Date()
+        };
+        this.sessions.set(userId, updated);
+        return updated;
+      }
+      /**
+       * پاک کردن session کاربر
+       */
+      clearSession(userId) {
+        this.sessions.delete(userId);
+      }
+      /**
+       * پاک کردن session های منقضی شده
+       */
+      cleanupExpiredSessions() {
+        const now = Date.now();
+        for (const [userId, session] of Array.from(this.sessions.entries())) {
+          if (now - session.lastInteraction.getTime() > this.SESSION_TIMEOUT) {
+            this.sessions.delete(userId);
+          }
+        }
+      }
+    };
+    orderSessionService = new OrderSessionService();
+    setInterval(() => {
+      orderSessionService.cleanupExpiredSessions();
+    }, 5 * 60 * 1e3);
   }
 });
 
@@ -3177,6 +3807,8 @@ var init_whatsapp_service = __esm({
     "use strict";
     init_storage();
     init_gemini_service();
+    init_order_session_service();
+    init_invoice_service();
     WhatsAppMessageService = class {
       intervalId = null;
       isRunning = false;
@@ -3597,6 +4229,7 @@ var init_whatsapp_service = __esm({
        * @param sender شماره واتساپ فرستنده
        * @param message پیام واریزی
        * @param receiverUserId شناسه کاربر سطح 1 که پیام را دریافت کرده
+       * @returns true اگر واریزی بود و موفق پردازش شد، false در غیر اینصورت
        */
       async handleDepositMessage(sender, message, receiverUserId) {
         try {
@@ -3604,11 +4237,11 @@ var init_whatsapp_service = __esm({
           const senderUser = await storage.getUserByWhatsappNumber(sender);
           if (!senderUser) {
             console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${sender} \u06CC\u0627\u0641\u062A \u0646\u0634\u062F`);
-            return;
+            return false;
           }
           if (senderUser.role !== "user_level_2") {
             console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 ${sender} \u0633\u0637\u062D 2 \u0646\u06CC\u0633\u062A`);
-            return;
+            return false;
           }
           const depositInfo = await geminiService.extractDepositInfo(message);
           console.log(`\u{1F4CA} Telemetry - Deposit extraction attempt:`, JSON.stringify({
@@ -3627,9 +4260,8 @@ var init_whatsapp_service = __esm({
           if (!depositInfo.referenceId) missingFields.push("\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC");
           if (!depositInfo.transactionDate) missingFields.push("\u062A\u0627\u0631\u06CC\u062E \u0648\u0627\u0631\u06CC\u0632");
           if (missingFields.length > 0) {
-            console.error(`\u274C \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0636\u0631\u0648\u0631\u06CC \u06CC\u0627\u0641\u062A \u0646\u0634\u062F: ${missingFields.join(", ")}`);
-            await this.sendDepositClarificationMessage(sender, receiverUserId, missingFields);
-            return;
+            console.log(`\u26A0\uFE0F \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0636\u0631\u0648\u0631\u06CC \u06CC\u0627\u0641\u062A \u0646\u0634\u062F: ${missingFields.join(", ")} - \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645 \u0627\u062D\u062A\u0645\u0627\u0644\u0627 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0646\u06CC\u0633\u062A`);
+            return false;
           }
           console.log(`\u2705 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632\u06CC \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount}, \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
           const existingTransaction = await storage.getTransactionByReferenceId(
@@ -3639,7 +4271,7 @@ var init_whatsapp_service = __esm({
           if (existingTransaction) {
             console.log(`\u26A0\uFE0F \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC \u062A\u0634\u062E\u06CC\u0635 \u062F\u0627\u062F\u0647 \u0634\u062F - \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
             await this.sendDuplicateTransactionWarning(sender, receiverUserId, depositInfo.referenceId);
-            return;
+            return true;
           }
           const transaction = await storage.createTransaction({
             userId: senderUser.id,
@@ -3656,8 +4288,10 @@ var init_whatsapp_service = __esm({
           });
           console.log(`\u2705 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount} \u0631\u06CC\u0627\u0644`);
           await this.sendDepositConfirmationMessage(sender, receiverUserId);
+          return true;
         } catch (error) {
           console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u067E\u06CC\u0627\u0645 \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+          return false;
         }
       }
       /**
@@ -3665,6 +4299,7 @@ var init_whatsapp_service = __esm({
        * @param sender شماره واتساپ فرستنده
        * @param imageUrl آدرس عکس رسید
        * @param receiverUserId شناسه کاربر سطح 1 که پیام را دریافت کرده
+       * @returns true اگر واریزی بود و موفق پردازش شد، false در غیر اینصورت
        */
       async handleDepositImageMessage(sender, imageUrl, receiverUserId) {
         try {
@@ -3672,11 +4307,11 @@ var init_whatsapp_service = __esm({
           const senderUser = await storage.getUserByWhatsappNumber(sender);
           if (!senderUser) {
             console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${sender} \u06CC\u0627\u0641\u062A \u0646\u0634\u062F`);
-            return;
+            return false;
           }
           if (senderUser.role !== "user_level_2") {
             console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 ${sender} \u0633\u0637\u062D 2 \u0646\u06CC\u0633\u062A`);
-            return;
+            return false;
           }
           const depositInfo = await geminiService.extractDepositInfoFromImage(imageUrl);
           console.log(`\u{1F4CA} Telemetry - Deposit extraction from image:`, JSON.stringify({
@@ -3694,9 +4329,8 @@ var init_whatsapp_service = __esm({
           if (!depositInfo.referenceId) missingFields.push("\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC");
           if (!depositInfo.transactionDate) missingFields.push("\u062A\u0627\u0631\u06CC\u062E \u0648\u0627\u0631\u06CC\u0632");
           if (missingFields.length > 0) {
-            console.error(`\u274C \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0636\u0631\u0648\u0631\u06CC \u0627\u0632 \u0639\u06A9\u0633 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0646\u0634\u062F: ${missingFields.join(", ")}`);
-            await this.sendDepositClarificationMessage(sender, receiverUserId, missingFields);
-            return;
+            console.log(`\u26A0\uFE0F \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0636\u0631\u0648\u0631\u06CC \u0627\u0632 \u0639\u06A9\u0633 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0646\u0634\u062F: ${missingFields.join(", ")} - \u0627\u062D\u062A\u0645\u0627\u0644\u0627 \u0639\u06A9\u0633 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0646\u06CC\u0633\u062A`);
+            return false;
           }
           console.log(`\u2705 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632\u06CC \u0627\u0632 \u0639\u06A9\u0633 \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount}, \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
           const existingTransaction = await storage.getTransactionByReferenceId(
@@ -3706,7 +4340,7 @@ var init_whatsapp_service = __esm({
           if (existingTransaction) {
             console.log(`\u26A0\uFE0F \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC \u062A\u0634\u062E\u06CC\u0635 \u062F\u0627\u062F\u0647 \u0634\u062F - \u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC: ${depositInfo.referenceId}`);
             await this.sendDuplicateTransactionWarning(sender, receiverUserId, depositInfo.referenceId);
-            return;
+            return true;
           }
           const transaction = await storage.createTransaction({
             userId: senderUser.id,
@@ -3723,8 +4357,10 @@ var init_whatsapp_service = __esm({
           });
           console.log(`\u2705 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0627\u0632 \u0639\u06A9\u0633 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F - \u0645\u0628\u0644\u063A: ${depositInfo.amount} \u0631\u06CC\u0627\u0644`);
           await this.sendDepositConfirmationMessage(sender, receiverUserId);
+          return true;
         } catch (error) {
           console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+          return false;
         }
       }
       /**
@@ -3919,6 +4555,252 @@ ${missingFieldsText}
         }
       }
       /**
+       * مدیریت فرآیند سفارش محصول از طریق واتس‌اپ
+       */
+      async handleProductOrder(sender, message, receiverUserId, whatsappToken) {
+        try {
+          console.log(`\u{1F6D2} \u062F\u0631 \u062D\u0627\u0644 \u067E\u0631\u062F\u0627\u0632\u0634 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0633\u0641\u0627\u0631\u0634 \u0627\u0632 ${sender}...`);
+          const senderUser = await storage.getUserByWhatsappNumber(sender);
+          if (!senderUser) {
+            console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u0634\u0645\u0627\u0631\u0647 ${sender} \u06CC\u0627\u0641\u062A \u0646\u0634\u062F`);
+            return false;
+          }
+          if (senderUser.role !== "user_level_2") {
+            console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 ${sender} \u0633\u0637\u062D 2 \u0646\u06CC\u0633\u062A`);
+            return false;
+          }
+          const session = orderSessionService.getSession(senderUser.id, sender);
+          if (session.state === "idle") {
+            const isOrder = await geminiService.isProductOrderRequest(message);
+            if (!isOrder) {
+              return false;
+            }
+            const productName = await geminiService.extractProductName(message);
+            if (!productName) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0645\u062A\u0648\u062C\u0647 \u0646\u0634\u062F\u0645 \u0686\u0647 \u0645\u062D\u0635\u0648\u0644\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F. \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0648\u0627\u0636\u062D\u200C\u062A\u0631 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.");
+              return true;
+            }
+            const parentUser = await storage.getUser(senderUser.parentUserId || "");
+            if (!parentUser) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u0628\u0639\u062F\u0627\u064B \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.");
+              return true;
+            }
+            const products2 = await storage.getAllProducts(parentUser.id, "user_level_1");
+            const matchedProducts = products2.filter(
+              (p) => p.isActive && (p.name.toLowerCase().includes(productName.toLowerCase()) || p.description && p.description.toLowerCase().includes(productName.toLowerCase()))
+            );
+            if (matchedProducts.length === 0) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, `\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u0645\u062D\u0635\u0648\u0644 "${productName}" \u06CC\u0627\u0641\u062A \u0646\u0634\u062F. \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u062F\u06CC\u06AF\u0631\u06CC \u0631\u0627 \u0627\u0645\u062A\u062D\u0627\u0646 \u06A9\u0646\u06CC\u062F.`);
+              orderSessionService.clearSession(senderUser.id);
+              return true;
+            }
+            if (matchedProducts.length > 1) {
+              const productList = matchedProducts.map((p, i) => `${i + 1}. ${p.name}`).join("\n");
+              await this.sendWhatsAppMessage(whatsappToken, sender, `\u0686\u0646\u062F \u0645\u062D\u0635\u0648\u0644 \u067E\u06CC\u062F\u0627 \u0634\u062F:
+${productList}
+
+\u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u062F\u0642\u06CC\u0642 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.`);
+              orderSessionService.clearSession(senderUser.id);
+              return true;
+            }
+            const product = matchedProducts[0];
+            orderSessionService.updateSession(senderUser.id, {
+              currentProduct: product,
+              state: "asking_quantity"
+            });
+            const price = product.priceAfterDiscount || product.priceBeforeDiscount;
+            await this.sendWhatsAppMessage(whatsappToken, sender, `\u2705 ${product.name}
+\u0642\u06CC\u0645\u062A: ${this.formatAmount(price)} \u0631\u06CC\u0627\u0644
+
+\u0686\u0647 \u062A\u0639\u062F\u0627\u062F\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F`);
+            return true;
+          } else if (session.state === "asking_quantity") {
+            const quantity = await geminiService.extractQuantity(message);
+            if (!quantity || quantity <= 0) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0644\u0637\u0641\u0627\u064B \u062A\u0639\u062F\u0627\u062F \u0631\u0627 \u0628\u0647 \u0635\u0648\u0631\u062A \u0639\u062F\u062F \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F. \u0645\u062B\u0644\u0627\u064B: 2 \u06CC\u0627 \u0633\u0647");
+              return true;
+            }
+            if (!session.currentProduct) {
+              orderSessionService.clearSession(senderUser.id);
+              return false;
+            }
+            if (session.currentProduct.quantity < quantity) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, `\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062A\u0646\u0647\u0627 ${session.currentProduct.quantity} \u0639\u062F\u062F \u0645\u0648\u062C\u0648\u062F \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0639\u062F\u0627\u062F \u06A9\u0645\u062A\u0631\u06CC \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.`);
+              return true;
+            }
+            try {
+              await storage.addToCart(senderUser.id, session.currentProduct.id, quantity);
+              const totalPrice = parseFloat(session.currentProduct.priceAfterDiscount || session.currentProduct.priceBeforeDiscount) * quantity;
+              await this.sendWhatsAppMessage(
+                whatsappToken,
+                sender,
+                `\u2705 ${quantity} \u0639\u062F\u062F ${session.currentProduct.name} \u0628\u0647 \u0633\u0628\u062F \u062E\u0631\u06CC\u062F \u0627\u0636\u0627\u0641\u0647 \u0634\u062F.
+\u062C\u0645\u0639: ${this.formatAmount(totalPrice.toString())} \u0631\u06CC\u0627\u0644
+
+\u0645\u062D\u0635\u0648\u0644 \u062F\u06CC\u06AF\u0647\u200C\u0627\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F`
+              );
+              orderSessionService.updateSession(senderUser.id, {
+                state: "asking_more_products",
+                currentProduct: void 0
+              });
+              return true;
+            } catch (error) {
+              console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0636\u0627\u0641\u0647 \u06A9\u0631\u062F\u0646 \u0628\u0647 \u0633\u0628\u062F \u062E\u0631\u06CC\u062F:", error);
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.");
+              orderSessionService.clearSession(senderUser.id);
+              return true;
+            }
+          } else if (session.state === "asking_more_products") {
+            const wantsMore = await geminiService.isPositiveResponse(message);
+            if (wantsMore) {
+              orderSessionService.updateSession(senderUser.id, { state: "idle" });
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0628\u0627\u0634\u0647! \u0686\u0647 \u0645\u062D\u0635\u0648\u0644\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F");
+              return true;
+            } else {
+              await this.finalizeOrder(senderUser, sender, whatsappToken);
+              return true;
+            }
+          }
+          return false;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u0633\u0641\u0627\u0631\u0634:", error);
+          orderSessionService.clearSession(sender);
+          return false;
+        }
+      }
+      /**
+       * ثبت نهایی سفارش از سبد خرید
+       */
+      async finalizeOrder(user, whatsappNumber, whatsappToken) {
+        try {
+          const cartItems2 = await storage.getCartItemsWithProducts(user.id);
+          if (cartItems2.length === 0) {
+            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u0633\u0628\u062F \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u062E\u0627\u0644\u06CC \u0627\u0633\u062A.");
+            orderSessionService.clearSession(user.id);
+            return;
+          }
+          const itemsBySeller = /* @__PURE__ */ new Map();
+          for (const item of cartItems2) {
+            const product = await storage.getProduct(item.productId, user.id, user.role);
+            if (product) {
+              if (!itemsBySeller.has(product.userId)) {
+                itemsBySeller.set(product.userId, []);
+              }
+              itemsBySeller.get(product.userId).push(item);
+            }
+          }
+          const addresses2 = await storage.getAddressesByUser(user.id);
+          const defaultAddress = addresses2.find((addr) => addr.isDefault) || addresses2[0];
+          if (!defaultAddress) {
+            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u0627\u0632 \u067E\u0646\u0644 \u06A9\u0627\u0631\u0628\u0631\u06CC\u060C \u0622\u062F\u0631\u0633 \u062E\u0648\u062F \u0631\u0627 \u062B\u0628\u062A \u06A9\u0646\u06CC\u062F.");
+            orderSessionService.clearSession(user.id);
+            return;
+          }
+          let totalOrders = 0;
+          let grandTotal = 0;
+          let lastOrderId = "";
+          for (const [sellerId, items] of Array.from(itemsBySeller.entries())) {
+            const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+            grandTotal += totalAmount;
+            const order = await storage.createOrder({
+              userId: user.id,
+              sellerId,
+              totalAmount: totalAmount.toString(),
+              status: "pending",
+              addressId: defaultAddress.id
+            });
+            for (const item of items) {
+              await storage.createOrderItem({
+                orderId: order.id,
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice
+              });
+            }
+            lastOrderId = order.id;
+            totalOrders++;
+          }
+          await storage.clearCart(user.id);
+          const fullAddress = `${defaultAddress.title}
+${defaultAddress.fullAddress || ""}${defaultAddress.postalCode ? "\n\u06A9\u062F \u067E\u0633\u062A\u06CC: " + defaultAddress.postalCode : ""}`;
+          await this.sendWhatsAppMessage(
+            whatsappToken,
+            whatsappNumber,
+            `\u2705 \u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0634\u062F!
+
+\u{1F4E6} \u062A\u0639\u062F\u0627\u062F \u0633\u0641\u0627\u0631\u0634: ${totalOrders}
+
+\u{1F4CD} \u0622\u062F\u0631\u0633 \u0627\u0631\u0633\u0627\u0644:
+${fullAddress}
+
+\u{1F4B0} \u0645\u0628\u0644\u063A \u06A9\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631: ${this.formatAmount(grandTotal.toString())} \u0631\u06CC\u0627\u0644
+
+\u0628\u0631\u0627\u06CC \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u0633\u0641\u0627\u0631\u0634\u060C \u0628\u0647 \u067E\u0646\u0644 \u06A9\u0627\u0631\u0628\u0631\u06CC \u062E\u0648\u062F \u0645\u0631\u0627\u062C\u0639\u0647 \u06A9\u0646\u06CC\u062F.`
+          );
+          if (lastOrderId) {
+            try {
+              console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${lastOrderId}...`);
+              const invoiceUrl = await generateAndSaveInvoice(lastOrderId);
+              await this.sendWhatsAppImage(
+                whatsappToken,
+                whatsappNumber,
+                `\u{1F4C4} \u0641\u0627\u06A9\u062A\u0648\u0631 \u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627`,
+                invoiceUrl
+              );
+              console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+            } catch (error) {
+              console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u06CC\u0627 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631:", error);
+            }
+          }
+          orderSessionService.clearSession(user.id);
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u0646\u0647\u0627\u06CC\u06CC \u0633\u0641\u0627\u0631\u0634:", error);
+          await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u062E\u0637\u0627\u06CC\u06CC \u062F\u0631 \u062B\u0628\u062A \u0633\u0641\u0627\u0631\u0634 \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.");
+          orderSessionService.clearSession(user.id);
+        }
+      }
+      /**
+       * ارسال پیام واتساپ
+       */
+      async sendWhatsAppMessage(token, phoneNumber, message) {
+        try {
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}?phonenumber=${phoneNumber}&message=${encodeURIComponent(message)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (response.ok) {
+            console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u0628\u0647 ${phoneNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0628\u0647 ${phoneNumber}`);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0648\u0627\u062A\u0633\u0627\u067E:", error);
+        }
+      }
+      /**
+       * ارسال عکس به واتساپ
+       */
+      async sendWhatsAppImage(token, phoneNumber, message, imageUrl) {
+        try {
+          const formData = new FormData();
+          formData.append("phonenumber", phoneNumber);
+          formData.append("message", message);
+          formData.append("link", imageUrl);
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}`;
+          const response = await fetch(sendUrl, {
+            method: "POST",
+            body: formData
+          });
+          if (response.ok) {
+            console.log(`\u2705 \u0639\u06A9\u0633 \u0628\u0647 ${phoneNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            const errorText = await response.text();
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u0628\u0647 ${phoneNumber}:`, errorText);
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u0648\u0627\u062A\u0633\u0627\u067E:", error);
+        }
+      }
+      /**
        * یک پاسخ هوشمند برای پیام ورودی ایجاد کرده و آن را از طریق واتس‌اپ ارسال می‌کند.
        * هر کاربر سطح 1 با توکن اختصاصی خود پاسخ می‌دهد
        * @param sender شماره موبایل فرستنده پیام
@@ -3932,22 +4814,28 @@ ${missingFieldsText}
           const imageUrl = geminiService.extractImageUrl(incomingMessage);
           if (imageUrl) {
             console.log(`\u{1F5BC}\uFE0F \u067E\u06CC\u0627\u0645 \u062D\u0627\u0648\u06CC \u0639\u06A9\u0633 \u0627\u0633\u062A\u060C \u062F\u0631 \u062D\u0627\u0644 \u067E\u0631\u062F\u0627\u0632\u0634 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F...`);
-            await this.handleDepositImageMessage(sender, imageUrl, userId);
-            const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-            if (userMessage) {
-              await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+            const depositProcessed = await this.handleDepositImageMessage(sender, imageUrl, userId);
+            if (depositProcessed) {
+              const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+              if (userMessage) {
+                await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+              }
+              return;
             }
-            return;
+            console.log(`\u2139\uFE0F \u0639\u06A9\u0633 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0646\u0628\u0648\u062F\u060C \u0627\u062F\u0627\u0645\u0647 \u0645\u06CC\u200C\u062F\u0647\u06CC\u0645 \u0628\u0627 \u067E\u0627\u0633\u062E \u0639\u0627\u062F\u06CC AI...`);
           }
           const isDeposit = await geminiService.isDepositMessage(incomingMessage);
           if (isDeposit) {
             console.log(`\u{1F4B0} \u067E\u06CC\u0627\u0645 \u062A\u0634\u062E\u06CC\u0635 \u062F\u0627\u062F\u0647 \u0634\u062F \u0628\u0647 \u0639\u0646\u0648\u0627\u0646 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0645\u062A\u0646\u06CC`);
-            await this.handleDepositMessage(sender, incomingMessage, userId);
-            const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
-            if (userMessage) {
-              await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+            const depositProcessed = await this.handleDepositMessage(sender, incomingMessage, userId);
+            if (depositProcessed) {
+              const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+              if (userMessage) {
+                await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+              }
+              return;
             }
-            return;
+            console.log(`\u2139\uFE0F \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632\u06CC \u0646\u0627\u0645\u0648\u0641\u0642 \u0628\u0648\u062F\u060C \u0627\u062F\u0627\u0645\u0647 \u0645\u06CC\u200C\u062F\u0647\u06CC\u0645 \u0628\u0627 \u067E\u0627\u0633\u062E \u0639\u0627\u062F\u06CC AI...`);
           }
           const user = await storage.getUser(userId);
           if (!user) {
@@ -3967,11 +4855,50 @@ ${missingFieldsText}
             whatsappToken = whatsappSettings2.token;
             console.log("\u{1F4F1} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC");
           }
+          const senderUser = await storage.getUserByWhatsappNumber(sender);
+          if (senderUser && senderUser.role === "user_level_2" && senderUser.parentUserId) {
+            console.log(`\u{1F4DA} \u062F\u0631 \u062D\u0627\u0644 \u0628\u0631\u0631\u0633\u06CC \u0633\u0648\u0627\u0644\u0627\u062A \u0645\u062A\u062F\u0627\u0648\u0644 \u0648\u0627\u0644\u062F \u06A9\u0627\u0631\u0628\u0631...`);
+            const parentFaqs = await storage.getFaqsByCreator(senderUser.parentUserId);
+            if (parentFaqs.length > 0) {
+              console.log(`\u{1F4CB} ${parentFaqs.length} \u0633\u0648\u0627\u0644 \u0645\u062A\u062F\u0627\u0648\u0644 \u0627\u0632 \u0648\u0627\u0644\u062F \u067E\u06CC\u062F\u0627 \u0634\u062F`);
+              const matchedFaq = await geminiService.findMatchingFaq(
+                incomingMessage,
+                parentFaqs.map((faq) => ({ id: faq.id, question: faq.question, answer: faq.answer }))
+              );
+              if (matchedFaq) {
+                console.log(`\u2705 FAQ \u0645\u0646\u0637\u0628\u0642 \u067E\u06CC\u062F\u0627 \u0634\u062F: "${matchedFaq.question}"`);
+                await this.sendWhatsAppMessage(whatsappToken, sender, matchedFaq.answer);
+                await storage.createSentMessage({
+                  userId,
+                  recipient: sender,
+                  message: matchedFaq.answer,
+                  status: "sent"
+                });
+                const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+                if (userMessage) {
+                  await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+                }
+                console.log(`\u2705 \u067E\u0627\u0633\u062E FAQ \u0628\u0647 ${sender} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+                return;
+              }
+              console.log(`\u2139\uFE0F \u0647\u06CC\u0686 FAQ \u0645\u0646\u0637\u0628\u0642\u06CC \u067E\u06CC\u062F\u0627 \u0646\u0634\u062F\u060C \u0627\u062F\u0627\u0645\u0647 \u0645\u06CC\u200C\u062F\u0647\u06CC\u0645...`);
+            }
+          }
+          const orderHandled = await this.handleProductOrder(sender, incomingMessage, userId, whatsappToken);
+          if (orderHandled) {
+            console.log(`\u{1F6D2} \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0633\u0641\u0627\u0631\u0634 \u067E\u0631\u062F\u0627\u0632\u0634 \u0634\u062F`);
+            const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
+            if (userMessage) {
+              await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
+            }
+            return;
+          }
           const aiTokenSettings2 = await storage.getAiTokenSettings();
           if (!aiTokenSettings2?.token || !aiTokenSettings2.isActive) {
             console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u06CC\u0627 \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A");
             return;
           }
+          console.log(`\u{1F916} \u0647\u06CC\u0686 FAQ \u06CC\u0627 \u0633\u0641\u0627\u0631\u0634\u06CC \u06CC\u0627\u0641\u062A \u0646\u0634\u062F\u060C \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u067E\u0627\u0633\u062E \u0647\u0648\u0634\u0645\u0646\u062F...`);
           const aiResponse = await geminiService.generateResponse(incomingMessage, userId);
           const maxLength = 200;
           const finalResponse = aiResponse.length > maxLength ? aiResponse.substring(0, maxLength) + "..." : aiResponse;
@@ -4017,17 +4944,19 @@ import express3 from "express";
 // server/routes.ts
 init_storage();
 init_schema();
+init_invoice_service();
+init_whatsapp_sender();
 import express from "express";
 import { createServer } from "http";
 import bcrypt3 from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
-import path from "path";
+import path2 from "path";
 import { fileURLToPath } from "url";
 import { z as z2 } from "zod";
-import fs from "fs";
+import fs2 from "fs";
 var __filename = fileURLToPath(import.meta.url);
-var __dirname = path.dirname(__filename);
+var __dirname = path2.dirname(__filename);
 var jwtSecret;
 if (process.env.JWT_SECRET) {
   jwtSecret = process.env.JWT_SECRET;
@@ -4043,15 +4972,15 @@ if (process.env.JWT_SECRET) {
 }
 var storage_config = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(process.cwd(), "uploads");
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
+    const uploadPath = path2.join(process.cwd(), "uploads");
+    if (!fs2.existsSync(uploadPath)) {
+      fs2.mkdirSync(uploadPath, { recursive: true });
     }
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
+    cb(null, file.fieldname + "-" + uniqueSuffix + path2.extname(file.originalname));
   }
 });
 var upload = multer({
@@ -5502,6 +6431,30 @@ ${newPassword}
         createdOrders.push(order);
       }
       await storage.clearCart(req.user.id);
+      if (createdOrders.length > 0) {
+        const firstOrder = createdOrders[0];
+        try {
+          console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${firstOrder.id}...`);
+          const invoiceUrl = await generateAndSaveInvoice(firstOrder.id);
+          console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u062A\u0648\u0644\u06CC\u062F \u0634\u062F: ${invoiceUrl}`);
+          const user = await storage.getUser(req.user.id);
+          if (user && user.whatsappNumber) {
+            const seller = await storage.getUser(firstOrder.sellerId);
+            const whatsappToken = seller?.whatsappToken;
+            if (whatsappToken) {
+              await whatsAppSender.sendWhatsAppImage(
+                whatsappToken,
+                user.whatsappNumber,
+                `\u{1F4C4} \u0641\u0627\u06A9\u062A\u0648\u0631 \u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627`,
+                invoiceUrl
+              );
+              console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0647 ${user.whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+            }
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u06CC\u0627 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631:", error);
+        }
+      }
       res.status(201).json({
         message: "\u0633\u0641\u0627\u0631\u0634 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0634\u062F",
         orders: createdOrders
@@ -5923,21 +6876,130 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062A\u063A\u06CC\u06CC\u0631 \u062A\u0631\u062A\u06CC\u0628 \u0633\u0648\u0627\u0644 \u0645\u062A\u062F\u0627\u0648\u0644" });
     }
   });
-  app2.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  app2.post("/api/save-invoice", authenticateToken, async (req, res) => {
+    try {
+      const { orderId, imageData } = req.body;
+      if (!orderId || !imageData) {
+        return res.status(400).json({ message: "\u062F\u0627\u062F\u0647\u200C\u0647\u0627\u06CC \u0641\u0627\u06A9\u062A\u0648\u0631 \u0646\u0627\u0642\u0635 \u0627\u0633\u062A" });
+      }
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const user = await storage.getUser(order.userId);
+      if (!user) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const invoiceDir = path2.join(process.cwd(), "invoice");
+      if (!fs2.existsSync(invoiceDir)) {
+        fs2.mkdirSync(invoiceDir, { recursive: true });
+      }
+      const base64Data = imageData.replace(/^data:image\/png;base64,/, "");
+      const imageBuffer = Buffer.from(base64Data, "base64");
+      const timestamp2 = Date.now();
+      const filename = `\u0641\u0627\u06A9\u062A\u0648\u0631-\u0633\u0641\u0627\u0631\u0634-${orderId}-${timestamp2}.png`;
+      const filepath = path2.join(invoiceDir, filename);
+      fs2.writeFileSync(filepath, imageBuffer);
+      console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u06A9\u0627\u0631\u0628\u0631 \u0633\u0637\u062D 2 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F: ${filename}`);
+      if (user.whatsappNumber) {
+        try {
+          let whatsappToken;
+          const seller = await storage.getUser(order.sellerId);
+          if (seller?.role === "user_level_1" && seller?.whatsappToken) {
+            whatsappToken = seller.whatsappToken;
+          } else {
+            const settings = await storage.getWhatsappSettings();
+            whatsappToken = settings?.token || void 0;
+          }
+          if (whatsappToken) {
+            let publicUrl;
+            if (process.env.REPLIT_DEV_DOMAIN) {
+              publicUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/invoice/${encodeURIComponent(filename)}`;
+            } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+              publicUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co/invoice/${encodeURIComponent(filename)}`;
+            } else {
+              publicUrl = `http://localhost:5000/invoice/${encodeURIComponent(filename)}`;
+            }
+            await whatsAppSender.sendWhatsAppImage(
+              whatsappToken,
+              user.whatsappNumber,
+              `\u{1F4C4} \u0641\u0627\u06A9\u062A\u0648\u0631 \u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627
+
+\u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627\u0631\u0647: ${order.orderNumber || order.id.slice(0, 8)}
+
+\u0641\u0627\u06A9\u062A\u0648\u0631 \u0634\u0645\u0627 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0627\u0631\u0633\u0627\u0644 \u0634\u062F.`,
+              publicUrl
+            );
+            console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E ${user.whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+          } else {
+            console.warn("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A\u060C \u0641\u0627\u06A9\u062A\u0648\u0631 \u0627\u0631\u0633\u0627\u0644 \u0646\u0634\u062F");
+          }
+        } catch (whatsappError) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", whatsappError.message);
+        }
+      } else {
+        console.log("\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 \u0634\u0645\u0627\u0631\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0646\u062F\u0627\u0631\u062F\u060C \u0641\u0627\u06A9\u062A\u0648\u0631 \u0627\u0631\u0633\u0627\u0644 \u0646\u0634\u062F");
+      }
+      res.json({
+        message: "\u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F",
+        filename,
+        path: filepath
+      });
+    } catch (error) {
+      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0641\u0627\u06A9\u062A\u0648\u0631:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0641\u0627\u06A9\u062A\u0648\u0631", error: error.message });
+    }
+  });
+  app2.post("/api/test/send-whatsapp-image", authenticateToken, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.whatsappNumber) {
+        return res.status(400).json({ message: "\u0634\u0645\u0627\u0631\u0647 \u0648\u0627\u062A\u0633\u0627\u067E \u06A9\u0627\u0631\u0628\u0631 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A" });
+      }
+      let whatsappToken;
+      if (user.role === "user_level_1" && user.whatsappToken) {
+        whatsappToken = user.whatsappToken;
+      } else {
+        const settings = await storage.getWhatsappSettings();
+        whatsappToken = settings?.token || void 0;
+      }
+      if (!whatsappToken) {
+        return res.status(400).json({ message: "\u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u0627\u067E \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A" });
+      }
+      const testImageUrl = `https://${process.env.REPLIT_DEV_DOMAIN}/uploads/iphone15-pro-max.png`;
+      console.log(`\u{1F4E4} \u0627\u0631\u0633\u0627\u0644 \u062A\u0633\u062A \u0639\u06A9\u0633 \u0628\u0647 ${user.whatsappNumber} \u0628\u0627 URL: ${testImageUrl}`);
+      await whatsAppSender.sendWhatsAppImage(
+        whatsappToken,
+        user.whatsappNumber,
+        "\u{1F9EA} \u0627\u06CC\u0646 \u06CC\u06A9 \u0639\u06A9\u0633 \u062A\u0633\u062A\u06CC \u0627\u0633\u062A",
+        testImageUrl
+      );
+      res.json({
+        message: "\u0639\u06A9\u0633 \u062A\u0633\u062A \u0627\u0631\u0633\u0627\u0644 \u0634\u062F",
+        phoneNumber: user.whatsappNumber,
+        imageUrl: testImageUrl
+      });
+    } catch (error) {
+      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u062A\u0633\u062A:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u062A\u0633\u062A", error: error.message });
+    }
+  });
+  app2.use("/uploads", express.static(path2.join(process.cwd(), "uploads")));
+  app2.use("/invoice", express.static(path2.join(process.cwd(), "invoice")));
   const httpServer = createServer(app2);
   return httpServer;
 }
 
 // server/vite.ts
 import express2 from "express";
-import fs2 from "fs";
-import path3 from "path";
+import fs3 from "fs";
+import path4 from "path";
 import { createServer as createViteServer, createLogger } from "vite";
 
 // vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path2 from "path";
+import path3 from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 var vite_config_default = defineConfig({
   plugins: [
@@ -5951,14 +7013,14 @@ var vite_config_default = defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path2.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path2.resolve(import.meta.dirname, "shared"),
-      "@assets": path2.resolve(import.meta.dirname, "attached_assets")
+      "@": path3.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path3.resolve(import.meta.dirname, "shared"),
+      "@assets": path3.resolve(import.meta.dirname, "attached_assets")
     }
   },
-  root: path2.resolve(import.meta.dirname, "client"),
+  root: path3.resolve(import.meta.dirname, "client"),
   build: {
-    outDir: path2.resolve(import.meta.dirname, "dist/public"),
+    outDir: path3.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true
   },
   server: {
@@ -6007,13 +7069,13 @@ async function setupVite(app2, server) {
   app2.use("*", async (req, res, next) => {
     const url = req.originalUrl;
     try {
-      const clientTemplate = path3.resolve(
+      const clientTemplate = path4.resolve(
         import.meta.dirname,
         "..",
         "client",
         "index.html"
       );
-      let template = await fs2.promises.readFile(clientTemplate, "utf-8");
+      let template = await fs3.promises.readFile(clientTemplate, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`
@@ -6027,21 +7089,22 @@ async function setupVite(app2, server) {
   });
 }
 function serveStatic(app2) {
-  const distPath = path3.resolve(import.meta.dirname, "public");
-  if (!fs2.existsSync(distPath)) {
+  const distPath = path4.resolve(import.meta.dirname, "public");
+  if (!fs3.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`
     );
   }
   app2.use(express2.static(distPath));
   app2.use("*", (_req, res) => {
-    res.sendFile(path3.resolve(distPath, "index.html"));
+    res.sendFile(path4.resolve(distPath, "index.html"));
   });
 }
 
 // server/index.ts
 init_whatsapp_service();
-import path4 from "path";
+init_gemini_service();
+import path5 from "path";
 var app = express3();
 app.use((req, res, next) => {
   if (req.headers["content-type"]?.startsWith("multipart/form-data")) {
@@ -6050,10 +7113,11 @@ app.use((req, res, next) => {
   express3.json()(req, res, next);
 });
 app.use(express3.urlencoded({ extended: false }));
-app.use("/uploads", express3.static(path4.join(process.cwd(), "uploads")));
+app.use("/uploads", express3.static(path5.join(process.cwd(), "uploads")));
+app.use("/invoices", express3.static(path5.join(process.cwd(), "public", "invoices")));
 app.use((req, res, next) => {
   const start = Date.now();
-  const path5 = req.path;
+  const path6 = req.path;
   let capturedJsonResponse = void 0;
   const originalResJson = res.json;
   res.json = function(bodyJson, ...args) {
@@ -6062,8 +7126,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path5.startsWith("/api")) {
-      let logLine = `${req.method} ${path5} ${res.statusCode} in ${duration}ms`;
+    if (path6.startsWith("/api")) {
+      let logLine = `${req.method} ${path6} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -6093,8 +7157,9 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    await geminiService.reinitialize();
     whatsAppMessageService.start();
   });
 })();
