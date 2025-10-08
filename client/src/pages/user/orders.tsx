@@ -125,10 +125,36 @@ export default function OrdersPage() {
         allowTaint: false
       });
       
+      const imageData = canvas.toDataURL('image/png');
+      
+      // دانلود فاکتور برای کاربر
       const link = document.createElement('a');
       link.download = `فاکتور-سفارش-${orderData.orderNumber || orderData.id.slice(0, 8)}.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.href = imageData;
       link.click();
+
+      // ذخیره نسخه‌ای از فاکتور در سرور
+      try {
+        const response = await fetch('/api/save-invoice', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            orderId: orderData.id,
+            imageData: imageData
+          })
+        });
+
+        if (response.ok) {
+          console.log('✅ فاکتور با موفقیت در سرور ذخیره شد');
+        } else {
+          console.error('❌ خطا در ذخیره فاکتور در سرور');
+        }
+      } catch (saveError) {
+        console.error('❌ خطا در ارسال فاکتور به سرور:', saveError);
+      }
     } catch (error) {
       console.error('خطا در تولید تصویر فاکتور:', error);
     } finally {
