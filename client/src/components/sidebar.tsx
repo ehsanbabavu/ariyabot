@@ -73,6 +73,15 @@ export function Sidebar() {
   
   const pendingTransactionsCount = pendingTransactionsData?.pendingTransactionsCount || 0;
 
+  // Get WhatsApp unread messages count for admin and level 1 users
+  const { data: whatsappUnreadData } = useQuery<{ unreadCount: number }>({
+    queryKey: ['/api/messages/whatsapp-unread-count'],
+    enabled: !!user && (user?.role === "admin" || user?.role === "user_level_1"),
+    refetchInterval: 5000, // Refresh every 5 seconds for real-time updates
+  });
+  
+  const whatsappUnreadCount = whatsappUnreadData?.unreadCount || 0;
+
   // Get user's cart items count for level 2 users
   const { data: cartItems = [] } = useQuery<any[]>({
     queryKey: ["/api/cart"],
@@ -132,7 +141,7 @@ export function Sidebar() {
     { path: "/whatsapp-settings", label: "تنظیمات واتس‌اپ", icon: Settings, adminOnly: false },
     { path: "/send-message", label: "ارسال پیام", icon: Send, adminOnly: false },
     { path: "/admin/welcome-message", label: "پیام خوش آمدگویی", icon: MessageCircle, adminOnly: false },
-    { path: "/reports", label: "گزارش‌ها", icon: BarChart3, adminOnly: false },
+    { path: "/whatsapp-chats", label: "چت واتس‌اپ", icon: MessageSquare, adminOnly: false },
   ];
 
   const settingsItems = [
@@ -406,6 +415,15 @@ export function Sidebar() {
                       >
                         <item.icon className="w-4 h-4 ml-2" />
                         {item.label}
+                        {item.path === "/whatsapp-chats" && whatsappUnreadCount > 0 && (
+                          <Badge 
+                            variant="default" 
+                            className="mr-auto text-xs px-2 py-1 min-w-[1.5rem] h-6 flex items-center justify-center bg-green-500 text-white"
+                            data-testid="badge-whatsapp-unread"
+                          >
+                            {whatsappUnreadCount}
+                          </Badge>
+                        )}
                       </Button>
                     </Link>
                   ))}

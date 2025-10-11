@@ -22,6 +22,7 @@ import SendMessage from "@/pages/user/send-message";
 import AddProduct from "@/pages/user/add-product";
 import ProductList from "@/pages/user/product-list";
 import Reports from "@/pages/user/reports";
+import WhatsAppChats from "@/pages/user/whatsapp-chats";
 import SubUsers from "@/pages/user/sub-users";
 import WelcomeMessage from "@/pages/admin/welcome-message";
 import Cart from "@/pages/cart";
@@ -171,6 +172,7 @@ function Router() {
       <Route path="/whatsapp-settings" component={() => <AdminOrLevel1Route component={WhatsappSettings} />} />
       <Route path="/send-message" component={() => <AdminOrLevel1Route component={SendMessage} />} />
       <Route path="/reports" component={() => <AdminOrLevel1Route component={Reports} />} />
+      <Route path="/whatsapp-chats" component={() => <AdminOrLevel1Route component={WhatsAppChats} />} />
       <Route path="/profile" component={() => <ProtectedRoute component={Profile} />} />
       <Route path="/send-ticket" component={() => <ProtectedRoute component={SendTicket} />} />
       <Route path="/my-tickets" component={() => <ProtectedRoute component={MyTickets} />} />
