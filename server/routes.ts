@@ -1308,6 +1308,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/messages/whatsapp-unread-count", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
+    try {
+      const result = await storage.getReceivedMessagesByUserPaginated(req.user!.id, 1, 10000);
+      const unreadCount = result.messages.filter(msg => msg.status === "خوانده نشده").length;
+      res.json({ unreadCount });
+    } catch (error) {
+      res.status(500).json({ message: "خطا در دریافت تعداد پیام‌های خوانده نشده" });
+    }
+  });
+
   app.put("/api/messages/received/:id/read", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
