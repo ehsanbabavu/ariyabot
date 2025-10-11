@@ -362,10 +362,12 @@ class WhatsAppMessageService {
   async sendNameRequestMessage(whatsappNumber: string, fromUser: any) {
     try {
       let whatsappToken: string;
+      let senderId: string;
       
       // انتخاب توکن مناسب برای ارسال
       if (fromUser && fromUser.role === 'user_level_1' && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== '') {
         whatsappToken = fromUser.whatsappToken;
+        senderId = fromUser.id;
       } else {
         const whatsappSettings = await storage.getWhatsappSettings();
         if (!whatsappSettings?.token || !whatsappSettings.isEnabled) {
@@ -373,6 +375,7 @@ class WhatsAppMessageService {
           return false;
         }
         whatsappToken = whatsappSettings.token;
+        senderId = fromUser?.id || 'system';
       }
 
       const nameRequestMessage = `سلام! 👋
@@ -388,6 +391,13 @@ class WhatsAppMessageService {
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        await storage.createSentMessage({
+          userId: senderId,
+          recipient: whatsappNumber,
+          message: nameRequestMessage,
+          status: "sent"
+        });
         console.log(`✅ پیام درخواست نام به ${whatsappNumber} ارسال شد`);
         return true;
       } else {
@@ -539,16 +549,19 @@ class WhatsAppMessageService {
   async sendWelcomeMessage(whatsappNumber: string, firstName: string, fromUser?: any) {
     try {
       let whatsappToken: string;
+      let senderId: string;
       
       // انتخاب توکن مناسب برای ارسال
       if (fromUser && fromUser.role === 'user_level_1' && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== '') {
         whatsappToken = fromUser.whatsappToken;
+        senderId = fromUser.id;
       } else {
         const whatsappSettings = await storage.getWhatsappSettings();
         if (!whatsappSettings?.token || !whatsappSettings.isEnabled) {
           return; // اگر واتس‌اپ غیرفعال است، پیام ارسال نکن
         }
         whatsappToken = whatsappSettings.token;
+        senderId = fromUser?.id || 'system';
       }
 
       // استفاده از پیام خوش آمدگویی سفارشی کاربر یا پیام پیش‌فرض
@@ -573,6 +586,13 @@ class WhatsAppMessageService {
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        await storage.createSentMessage({
+          userId: senderId,
+          recipient: whatsappNumber,
+          message: welcomeMessage,
+          status: "sent"
+        });
         console.log(`✅ پیام خوشامدگویی به ${whatsappNumber} ارسال شد`);
       } else {
         console.error(`❌ خطا در ارسال پیام خوشامدگویی به ${whatsappNumber}`);
@@ -811,6 +831,13 @@ ${missingFieldsText}
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        await storage.createSentMessage({
+          userId: fromUserId,
+          recipient: whatsappNumber,
+          message: clarificationMessage,
+          status: "sent"
+        });
         console.log(`✅ پیام درخواست اطلاعات به ${whatsappNumber} ارسال شد`);
       } else {
         console.error(`❌ خطا در ارسال پیام درخواست اطلاعات به ${whatsappNumber}`);
@@ -856,6 +883,13 @@ ${missingFieldsText}
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        await storage.createSentMessage({
+          userId: fromUserId,
+          recipient: whatsappNumber,
+          message: warningMessage,
+          status: "sent"
+        });
         console.log(`✅ پیام هشدار تراکنش تکراری به ${whatsappNumber} ارسال شد`);
       } else {
         console.error(`❌ خطا در ارسال پیام هشدار به ${whatsappNumber}`);
@@ -898,6 +932,13 @@ ${missingFieldsText}
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        await storage.createSentMessage({
+          userId: fromUserId,
+          recipient: whatsappNumber,
+          message: confirmationMessage,
+          status: "sent"
+        });
         console.log(`✅ پیام تاییدیه واریز به ${whatsappNumber} ارسال شد`);
       } else {
         console.error(`❌ خطا در ارسال پیام تاییدیه واریز به ${whatsappNumber}`);
@@ -943,6 +984,13 @@ ${missingFieldsText}
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        await storage.createSentMessage({
+          userId: fromUserId,
+          recipient: whatsappNumber,
+          message: approvedMessage,
+          status: "sent"
+        });
         console.log(`✅ پیام تایید تراکنش به ${whatsappNumber} ارسال شد`);
       } else {
         console.error(`❌ خطا در ارسال پیام تایید به ${whatsappNumber}`);
@@ -988,6 +1036,13 @@ ${missingFieldsText}
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        await storage.createSentMessage({
+          userId: fromUserId,
+          recipient: whatsappNumber,
+          message: rejectedMessage,
+          status: "sent"
+        });
         console.log(`✅ پیام رد تراکنش به ${whatsappNumber} ارسال شد`);
       } else {
         console.error(`❌ خطا در ارسال پیام رد به ${whatsappNumber}`);
@@ -1031,14 +1086,14 @@ ${missingFieldsText}
         // استخراج نام محصول
         const productName = await geminiService.extractProductName(message);
         if (!productName) {
-          await this.sendWhatsAppMessage(whatsappToken, sender, 'متوجه نشدم چه محصولی می‌خواهید. لطفاً نام محصول را واضح‌تر بنویسید.');
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'متوجه نشدم چه محصولی می‌خواهید. لطفاً نام محصول را واضح‌تر بنویسید.', receiverUserId);
           return true;
         }
 
         // جستجوی محصول در لیست محصولات والد
         const parentUser = await storage.getUser(senderUser.parentUserId || '');
         if (!parentUser) {
-          await this.sendWhatsAppMessage(whatsappToken, sender, 'متأسفانه خطایی رخ داد. لطفاً بعداً تلاش کنید.');
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'متأسفانه خطایی رخ داد. لطفاً بعداً تلاش کنید.', receiverUserId);
           return true;
         }
 
@@ -1050,14 +1105,14 @@ ${missingFieldsText}
         );
 
         if (matchedProducts.length === 0) {
-          await this.sendWhatsAppMessage(whatsappToken, sender, `متأسفانه محصول "${productName}" یافت نشد. لطفاً نام دیگری را امتحان کنید.`);
+          await this.sendWhatsAppMessage(whatsappToken, sender, `متأسفانه محصول "${productName}" یافت نشد. لطفاً نام دیگری را امتحان کنید.`, receiverUserId);
           orderSessionService.clearSession(senderUser.id);
           return true;
         }
 
         if (matchedProducts.length > 1) {
           const productList = matchedProducts.map((p, i) => `${i + 1}. ${p.name}`).join('\n');
-          await this.sendWhatsAppMessage(whatsappToken, sender, `چند محصول پیدا شد:\n${productList}\n\nلطفاً نام دقیق محصول را بنویسید.`);
+          await this.sendWhatsAppMessage(whatsappToken, sender, `چند محصول پیدا شد:\n${productList}\n\nلطفاً نام دقیق محصول را بنویسید.`, receiverUserId);
           orderSessionService.clearSession(senderUser.id);
           return true;
         }
@@ -1096,7 +1151,7 @@ ${missingFieldsText}
           );
         } else {
           // اگر عکس ندارد، فقط پیام متنی ارسال کن
-          await this.sendWhatsAppMessage(whatsappToken, sender, productMessage);
+          await this.sendWhatsAppMessage(whatsappToken, sender, productMessage, receiverUserId);
         }
         
         return true;
@@ -1106,7 +1161,7 @@ ${missingFieldsText}
         // استخراج تعداد از پیام
         const quantity = await geminiService.extractQuantity(message);
         if (!quantity || quantity <= 0) {
-          await this.sendWhatsAppMessage(whatsappToken, sender, 'لطفاً تعداد را به صورت عدد بنویسید. مثلاً: 2 یا سه');
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'لطفاً تعداد را به صورت عدد بنویسید. مثلاً: 2 یا سه', receiverUserId);
           return true;
         }
 
@@ -1117,7 +1172,7 @@ ${missingFieldsText}
 
         // بررسی موجودی
         if (session.currentProduct.quantity < quantity) {
-          await this.sendWhatsAppMessage(whatsappToken, sender, `متأسفانه تنها ${session.currentProduct.quantity} عدد موجود است. لطفاً تعداد کمتری وارد کنید.`);
+          await this.sendWhatsAppMessage(whatsappToken, sender, `متأسفانه تنها ${session.currentProduct.quantity} عدد موجود است. لطفاً تعداد کمتری وارد کنید.`, receiverUserId);
           return true;
         }
 
@@ -1129,7 +1184,8 @@ ${missingFieldsText}
           await this.sendWhatsAppMessage(
             whatsappToken, 
             sender, 
-            `✅ ${quantity} عدد ${session.currentProduct.name} به سبد خرید اضافه شد.\nجمع: ${this.formatAmount(totalPrice.toString())} ریال\n\nمحصول دیگه‌ای می‌خواهید؟`
+            `✅ ${quantity} عدد ${session.currentProduct.name} به سبد خرید اضافه شد.\nجمع: ${this.formatAmount(totalPrice.toString())} ریال\n\nمحصول دیگه‌ای می‌خواهید؟`,
+            receiverUserId
           );
 
           // بروزرسانی session
@@ -1140,7 +1196,7 @@ ${missingFieldsText}
           return true;
         } catch (error) {
           console.error('❌ خطا در اضافه کردن به سبد خرید:', error);
-          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.', receiverUserId);
           orderSessionService.clearSession(senderUser.id);
           return true;
         }
@@ -1153,7 +1209,7 @@ ${missingFieldsText}
         if (wantsMore) {
           // کاربر محصول دیگری می‌خواهد
           orderSessionService.updateSession(senderUser.id, { state: 'idle' });
-          await this.sendWhatsAppMessage(whatsappToken, sender, 'باشه! چه محصولی می‌خواهید؟');
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'باشه! چه محصولی می‌خواهید؟', receiverUserId);
           return true;
         } else {
           // کاربر نمی‌خواهد محصول دیگری بخرد - چک کنیم آدرس داره یا نه
@@ -1165,11 +1221,11 @@ ${missingFieldsText}
               state: 'asking_address_title',
               addressData: {}
             });
-            await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً عنوان آدرس را وارد کنید.\nمثال: منزل، محل کار');
+            await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً عنوان آدرس را وارد کنید.\nمثال: منزل، محل کار', receiverUserId);
             return true;
           } else {
             // آدرس داره - ثبت سفارش
-            await this.finalizeOrder(senderUser, sender, whatsappToken);
+            await this.finalizeOrder(senderUser, sender, whatsappToken, receiverUserId);
             return true;
           }
         }
@@ -1181,7 +1237,7 @@ ${missingFieldsText}
           addressData: { ...session.addressData, title: message }
         });
         orderSessionService.updateSession(senderUser.id, { state: 'asking_address_full' });
-        await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً آدرس کامل را وارد کنید.');
+        await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً آدرس کامل را وارد کنید.', receiverUserId);
         return true;
       }
       
@@ -1191,7 +1247,7 @@ ${missingFieldsText}
           addressData: { ...session.addressData, fullAddress: message }
         });
         orderSessionService.updateSession(senderUser.id, { state: 'asking_address_postal_code' });
-        await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً کد پستی را وارد کنید.');
+        await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً کد پستی را وارد کنید.', receiverUserId);
         return true;
       }
       
@@ -1200,7 +1256,7 @@ ${missingFieldsText}
         const addressData = session.addressData;
         
         if (!addressData?.title || !addressData?.fullAddress) {
-          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.', receiverUserId);
           orderSessionService.clearSession(senderUser.id);
           return true;
         }
@@ -1215,14 +1271,14 @@ ${missingFieldsText}
             isDefault: true, // به عنوان پیش‌فرض تنظیم می‌شود
           });
           
-          await this.sendWhatsAppMessage(whatsappToken, sender, '✅ آدرس شما با موفقیت ثبت شد.');
+          await this.sendWhatsAppMessage(whatsappToken, sender, '✅ آدرس شما با موفقیت ثبت شد.', receiverUserId);
           
           // حالا سفارش را تکمیل کن
-          await this.finalizeOrder(senderUser, sender, whatsappToken);
+          await this.finalizeOrder(senderUser, sender, whatsappToken, receiverUserId);
           return true;
         } catch (error) {
           console.error('❌ خطا در ثبت آدرس:', error);
-          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی در ثبت آدرس رخ داد. لطفاً دوباره تلاش کنید.');
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی در ثبت آدرس رخ داد. لطفاً دوباره تلاش کنید.', receiverUserId);
           orderSessionService.clearSession(senderUser.id);
           return true;
         }
@@ -1239,13 +1295,15 @@ ${missingFieldsText}
   /**
    * ثبت نهایی سفارش از سبد خرید
    */
-  async finalizeOrder(user: any, whatsappNumber: string, whatsappToken: string): Promise<void> {
+  async finalizeOrder(user: any, whatsappNumber: string, whatsappToken: string, receiverUserId?: string): Promise<void> {
     try {
       // دریافت آیتم‌های سبد خرید
       const cartItems = await storage.getCartItemsWithProducts(user.id);
       
+      const userId = receiverUserId || user.parentUserId || user.id;
+      
       if (cartItems.length === 0) {
-        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'سبد خرید شما خالی است.');
+        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'سبد خرید شما خالی است.', userId);
         orderSessionService.clearSession(user.id);
         return;
       }
@@ -1270,7 +1328,7 @@ ${missingFieldsText}
       // چون قبلاً چک شده و در صورت نبود، از کاربر گرفته شده
       if (!defaultAddress) {
         console.error('❌ خطای غیرمنتظره: آدرس یافت نشد');
-        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.', userId);
         orderSessionService.clearSession(user.id);
         return;
       }
@@ -1317,7 +1375,8 @@ ${missingFieldsText}
       await this.sendWhatsAppMessage(
         whatsappToken, 
         whatsappNumber, 
-        `✅ سفارش شما با موفقیت ثبت شد!\n\n📦 تعداد سفارش: ${totalOrders}\n\n📍 آدرس ارسال:\n${fullAddress}\n\n💰 مبلغ کل فاکتور: ${this.formatAmount(grandTotal.toString())} ریال\n\nبرای پیگیری سفارش، به پنل کاربری خود مراجعه کنید.`
+        `✅ سفارش شما با موفقیت ثبت شد!\n\n📦 تعداد سفارش: ${totalOrders}\n\n📍 آدرس ارسال:\n${fullAddress}\n\n💰 مبلغ کل فاکتور: ${this.formatAmount(grandTotal.toString())} ریال\n\nبرای پیگیری سفارش، به پنل کاربری خود مراجعه کنید.`,
+        userId
       );
 
       // تولید و ارسال فاکتور برای همه سفارشات
@@ -1350,7 +1409,7 @@ ${missingFieldsText}
       orderSessionService.clearSession(user.id);
     } catch (error) {
       console.error('❌ خطا در ثبت نهایی سفارش:', error);
-      await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی در ثبت سفارش رخ داد. لطفاً دوباره تلاش کنید.');
+      await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی در ثبت سفارش رخ داد. لطفاً دوباره تلاش کنید.', receiverUserId || user.parentUserId || user.id);
       orderSessionService.clearSession(user.id);
     }
   }
@@ -1358,12 +1417,21 @@ ${missingFieldsText}
   /**
    * ارسال پیام واتساپ
    */
-  private async sendWhatsAppMessage(token: string, phoneNumber: string, message: string): Promise<void> {
+  private async sendWhatsAppMessage(token: string, phoneNumber: string, message: string, userId?: string): Promise<void> {
     try {
       const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}?phonenumber=${phoneNumber}&message=${encodeURIComponent(message)}`;
       const response = await fetch(sendUrl, { method: 'GET' });
       
       if (response.ok) {
+        // ذخیره پیام ارسالی در دیتابیس
+        if (userId) {
+          await storage.createSentMessage({
+            userId: userId,
+            recipient: phoneNumber,
+            message: message,
+            status: "sent"
+          });
+        }
         console.log(`✅ پیام به ${phoneNumber} ارسال شد`);
       } else {
         console.error(`❌ خطا در ارسال پیام به ${phoneNumber}`);
@@ -1493,16 +1561,8 @@ ${missingFieldsText}
           if (matchedFaq) {
             console.log(`✅ FAQ منطبق پیدا شد: "${matchedFaq.question}"`);
             
-            // ارسال پاسخ FAQ
-            await this.sendWhatsAppMessage(whatsappToken, sender, matchedFaq.answer);
-            
-            // ذخیره پیام ارسالی
-            await storage.createSentMessage({
-              userId: userId,
-              recipient: sender,
-              message: matchedFaq.answer,
-              status: "sent"
-            });
+            // ارسال پاسخ FAQ (با ذخیره خودکار در دیتابیس)
+            await this.sendWhatsAppMessage(whatsappToken, sender, matchedFaq.answer, userId);
             
             // تغییر وضعیت پیام به خوانده شده
             const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
