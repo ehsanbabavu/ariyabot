@@ -4,8 +4,13 @@ import { type Product } from "@shared/schema";
 export interface OrderSession {
   userId: string;
   whatsappNumber: string;
-  state: 'idle' | 'searching_product' | 'asking_quantity' | 'asking_more_products' | 'selecting_address' | 'confirming_order';
+  state: 'idle' | 'searching_product' | 'asking_quantity' | 'asking_more_products' | 'asking_address_title' | 'asking_address_full' | 'asking_address_postal_code' | 'selecting_address' | 'confirming_order';
   currentProduct?: Product;
+  addressData?: {
+    title?: string;
+    fullAddress?: string;
+    postalCode?: string;
+  };
   lastInteraction: Date;
 }
 

@@ -2,7 +2,7 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
-## Replit Setup (Fresh GitHub Import - October 8, 2025)
+## Replit Setup (Fresh GitHub Import - October 11, 2025)
 
 This project has been successfully imported from GitHub and configured to run in the Replit environment:
 
@@ -16,6 +16,7 @@ This project has been successfully imported from GitHub and configured to run in
 - **Deployment**: Configured for autoscale deployment with build (`npm run build`) and run (`npm start`) scripts
 - **Vite Configuration**: Already configured with `allowedHosts: true` for Replit proxy compatibility
 - **Workflow**: Single workflow "Server" running `npm run dev` on port 5000
+- **Git Ignore**: Added comprehensive .gitignore for Node.js project
 
 ### Important Notes
 - Gemini AI token should be configured in the admin panel (AI Token Settings) to enable AI-powered features

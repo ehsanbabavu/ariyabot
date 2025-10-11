@@ -1070,7 +1070,35 @@ ${missingFieldsText}
         });
 
         const price = product.priceAfterDiscount || product.priceBeforeDiscount;
-        await this.sendWhatsAppMessage(whatsappToken, sender, `✅ ${product.name}\nقیمت: ${this.formatAmount(price)} ریال\n\nچه تعدادی می‌خواهید؟`);
+        const productMessage = `✅ ${product.name}\nقیمت: ${this.formatAmount(price)} ریال\n\nچه تعدادی می‌خواهید؟`;
+        
+        // اگر محصول عکس دارد، عکس را ارسال کن
+        if (product.image) {
+          // ساخت URL کامل عکس محصول
+          let productImageUrl = product.image;
+          
+          // اگر آدرس نسبی است، URL کامل بساز
+          if (!productImageUrl.startsWith('http')) {
+            if (process.env.REPLIT_DEV_DOMAIN) {
+              productImageUrl = `https://${process.env.REPLIT_DEV_DOMAIN}${productImageUrl}`;
+            } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+              productImageUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co${productImageUrl}`;
+            } else {
+              productImageUrl = `http://localhost:5000${productImageUrl}`;
+            }
+          }
+          
+          await whatsAppSender.sendImage(
+            sender,
+            productMessage,
+            productImageUrl,
+            parentUser.id
+          );
+        } else {
+          // اگر عکس ندارد، فقط پیام متنی ارسال کن
+          await this.sendWhatsAppMessage(whatsappToken, sender, productMessage);
+        }
+        
         return true;
       }
       
@@ -1128,8 +1156,74 @@ ${missingFieldsText}
           await this.sendWhatsAppMessage(whatsappToken, sender, 'باشه! چه محصولی می‌خواهید؟');
           return true;
         } else {
-          // کاربر نمی‌خواهد محصول دیگری بخرد - ثبت سفارش
+          // کاربر نمی‌خواهد محصول دیگری بخرد - چک کنیم آدرس داره یا نه
+          const addresses = await storage.getAddressesByUser(senderUser.id);
+          
+          if (!addresses || addresses.length === 0) {
+            // آدرس نداره - شروع دریافت آدرس
+            orderSessionService.updateSession(senderUser.id, { 
+              state: 'asking_address_title',
+              addressData: {}
+            });
+            await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً عنوان آدرس را وارد کنید.\nمثال: منزل، محل کار');
+            return true;
+          } else {
+            // آدرس داره - ثبت سفارش
+            await this.finalizeOrder(senderUser, sender, whatsappToken);
+            return true;
+          }
+        }
+      }
+      
+      else if (session.state === 'asking_address_title') {
+        // دریافت عنوان آدرس
+        orderSessionService.updateSession(senderUser.id, {
+          addressData: { ...session.addressData, title: message }
+        });
+        orderSessionService.updateSession(senderUser.id, { state: 'asking_address_full' });
+        await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً آدرس کامل را وارد کنید.');
+        return true;
+      }
+      
+      else if (session.state === 'asking_address_full') {
+        // دریافت آدرس کامل
+        orderSessionService.updateSession(senderUser.id, {
+          addressData: { ...session.addressData, fullAddress: message }
+        });
+        orderSessionService.updateSession(senderUser.id, { state: 'asking_address_postal_code' });
+        await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً کد پستی را وارد کنید.');
+        return true;
+      }
+      
+      else if (session.state === 'asking_address_postal_code') {
+        // دریافت کد پستی و ثبت آدرس
+        const addressData = session.addressData;
+        
+        if (!addressData?.title || !addressData?.fullAddress) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
+          orderSessionService.clearSession(senderUser.id);
+          return true;
+        }
+        
+        try {
+          // ثبت آدرس جدید
+          await storage.createAddress({
+            userId: senderUser.id,
+            title: addressData.title,
+            fullAddress: addressData.fullAddress,
+            postalCode: message,
+            isDefault: true, // به عنوان پیش‌فرض تنظیم می‌شود
+          });
+          
+          await this.sendWhatsAppMessage(whatsappToken, sender, '✅ آدرس شما با موفقیت ثبت شد.');
+          
+          // حالا سفارش را تکمیل کن
           await this.finalizeOrder(senderUser, sender, whatsappToken);
+          return true;
+        } catch (error) {
+          console.error('❌ خطا در ثبت آدرس:', error);
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'خطایی در ثبت آدرس رخ داد. لطفاً دوباره تلاش کنید.');
+          orderSessionService.clearSession(senderUser.id);
           return true;
         }
       }
@@ -1172,8 +1266,11 @@ ${missingFieldsText}
       const addresses = await storage.getAddressesByUser(user.id);
       const defaultAddress = addresses.find(addr => addr.isDefault) || addresses[0];
 
+      // اگر به اینجا رسیدیم، حتماً آدرس وجود دارد
+      // چون قبلاً چک شده و در صورت نبود، از کاربر گرفته شده
       if (!defaultAddress) {
-        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'لطفاً ابتدا از پنل کاربری، آدرس خود را ثبت کنید.');
+        console.error('❌ خطای غیرمنتظره: آدرس یافت نشد');
+        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.');
         orderSessionService.clearSession(user.id);
         return;
       }
