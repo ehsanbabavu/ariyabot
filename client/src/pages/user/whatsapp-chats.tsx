@@ -431,15 +431,7 @@ export default function WhatsAppChats() {
           console.error("خطا در ذخیره پیام:", dbError);
         }
 
-        if (uploadedFilename) {
-          try {
-            await createAuthenticatedRequest(`/api/delete-temp/${uploadedFilename}`, {
-              method: "DELETE",
-            });
-          } catch (deleteError) {
-            console.error("خطا در حذف فایل موقت:", deleteError);
-          }
-        }
+        // فایل بعد از 5 دقیقه توسط سرویس cleanup حذف می‌شود
 
         setNewMessage("");
         if (fileInputRef.current) {
@@ -457,15 +449,7 @@ export default function WhatsAppChats() {
       console.error("خطا در ارسال فایل:", error);
       const errorMessage = error instanceof Error ? error.message : "خطا در ارسال فایل";
       
-      if (uploadedFilename) {
-        try {
-          await createAuthenticatedRequest(`/api/delete-temp/${uploadedFilename}`, {
-            method: "DELETE",
-          });
-        } catch (deleteError) {
-          console.error("خطا در حذف فایل موقت:", deleteError);
-        }
-      }
+      // در صورت خطا، فایل بعد از 5 دقیقه توسط سرویس cleanup حذف می‌شود
       
       toast({
         title: "خطا",

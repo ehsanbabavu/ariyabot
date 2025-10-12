@@ -6,9 +6,13 @@ export function getAuthHeaders() {
 export function createAuthenticatedRequest(url: string, options: RequestInit = {}) {
   const authHeaders = getAuthHeaders();
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(options.headers as Record<string, string> || {}),
   };
+  
+  // فقط برای درخواست‌هایی که FormData نیستند، Content-Type را تنظیم کن
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
   
   if (authHeaders.Authorization) {
     headers.Authorization = authHeaders.Authorization;
