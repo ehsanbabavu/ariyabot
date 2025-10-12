@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { whatsAppMessageService } from "./whatsapp-service";
 import { geminiService } from "./gemini-service";
+import { cleanupService } from "./cleanup-service";
 import path from "path";
 
 const app = express();
@@ -87,5 +88,7 @@ app.use((req, res, next) => {
     await geminiService.reinitialize();
     // بعد سرویس پیام‌های واتس‌اپ رو شروع کن
     whatsAppMessageService.start();
+    // سرویس پاکسازی فایل‌های موقت رو شروع کن
+    cleanupService.start();
   });
 })();
