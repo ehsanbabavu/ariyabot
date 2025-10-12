@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   MessageSquare, 
   Send, 
@@ -14,7 +15,9 @@ import {
   Clock,
   CheckCheck,
   Image as ImageIcon,
-  User as UserIcon
+  User as UserIcon,
+  Paperclip,
+  Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
@@ -47,6 +50,9 @@ export default function WhatsAppChats() {
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const fetchUsers = async () => {
@@ -263,6 +269,217 @@ export default function WhatsAppChats() {
     }
   };
 
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedContact) return;
+
+    setIsSending(true);
+    try {
+      const settingsResponse = await createAuthenticatedRequest("/api/whatsapp-settings");
+      if (!settingsResponse.ok) {
+        throw new Error("خطا در دریافت تنظیمات واتس‌اپ");
+      }
+      
+      const settings = await settingsResponse.json();
+      const apiToken = settings.token;
+
+      if (!apiToken) {
+        toast({
+          title: "خطا",
+          description: "توکن API تنظیم نشده. ابتدا تنظیمات را کامل کنید",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('phonenumber', selectedContact.replace('+', ''));
+      formData.append('message', newMessage.trim());
+
+      const apiUrl = `https://api.whatsiplus.com/sendMsg/${apiToken}`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        try {
+          const dbResponse = await createAuthenticatedRequest("/api/messages/sent", {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              recipient: selectedContact,
+              message: newMessage.trim(),
+              status: "sent"
+            }),
+          });
+
+          if (!dbResponse.ok) {
+            console.error("خطا در ذخیره پیام");
+          }
+        } catch (dbError) {
+          console.error("خطا در ذخیره پیام:", dbError);
+        }
+
+        setNewMessage("");
+        toast({
+          title: "موفق",
+          description: "پیام با موفقیت ارسال شد",
+        });
+        fetchMessages();
+      } else {
+        throw new Error("خطا در ارسال پیام");
+      }
+    } catch (error) {
+      console.error("خطا در ارسال پیام:", error);
+      const errorMessage = error instanceof Error ? error.message : "خطا در ارسال";
+      toast({
+        title: "خطا",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedContact) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "خطا",
+        description: "فقط فایل‌های تصویری پشتیبانی می‌شوند",
+        variant: "destructive",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    setIsSending(true);
+    let uploadedFilename: string | null = null;
+
+    try {
+      const settingsResponse = await createAuthenticatedRequest("/api/whatsapp-settings");
+      if (!settingsResponse.ok) {
+        throw new Error("خطا در دریافت تنظیمات واتس‌اپ");
+      }
+      
+      const settings = await settingsResponse.json();
+      const apiToken = settings.token;
+
+      if (!apiToken) {
+        toast({
+          title: "خطا",
+          description: "توکن API تنظیم نشده. ابتدا تنظیمات را کامل کنید",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+
+      const uploadResponse = await createAuthenticatedRequest("/api/upload-temp", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("خطا در آپلود فایل");
+      }
+
+      const uploadData = await uploadResponse.json();
+      uploadedFilename = uploadData.filename;
+      const fileUrl = uploadData.fullUrl;
+
+      const formData = new FormData();
+      formData.append('phonenumber', selectedContact.replace('+', ''));
+      formData.append('message', newMessage.trim() || 'تصویر ارسالی');
+      formData.append('link', fileUrl);
+
+      const apiUrl = `https://api.whatsiplus.com/sendMsg/${apiToken}`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        try {
+          const dbResponse = await createAuthenticatedRequest("/api/messages/sent", {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              recipient: selectedContact,
+              message: `${newMessage.trim() || 'تصویر ارسالی'}`,
+              status: "sent"
+            }),
+          });
+
+          if (!dbResponse.ok) {
+            console.error("خطا در ذخیره پیام");
+          }
+        } catch (dbError) {
+          console.error("خطا در ذخیره پیام:", dbError);
+        }
+
+        if (uploadedFilename) {
+          try {
+            await createAuthenticatedRequest(`/api/delete-temp/${uploadedFilename}`, {
+              method: "DELETE",
+            });
+          } catch (deleteError) {
+            console.error("خطا در حذف فایل موقت:", deleteError);
+          }
+        }
+
+        setNewMessage("");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        toast({
+          title: "موفق",
+          description: "تصویر با موفقیت ارسال شد",
+        });
+        fetchMessages();
+      } else {
+        throw new Error("خطا در ارسال تصویر");
+      }
+    } catch (error) {
+      console.error("خطا در ارسال فایل:", error);
+      const errorMessage = error instanceof Error ? error.message : "خطا در ارسال فایل";
+      
+      if (uploadedFilename) {
+        try {
+          await createAuthenticatedRequest(`/api/delete-temp/${uploadedFilename}`, {
+            method: "DELETE",
+          });
+        } catch (deleteError) {
+          console.error("خطا در حذف فایل موقت:", deleteError);
+        }
+      }
+      
+      toast({
+        title: "خطا",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout title="چت واتس‌اپ">
@@ -312,44 +529,34 @@ export default function WhatsAppChats() {
                       {filteredContacts.map((contact) => (
                         <div
                           key={contact.phoneNumber}
-                          className={`p-4 cursor-pointer transition-colors hover:bg-gray-50 ${
+                          className={`p-3 cursor-pointer transition-colors hover:bg-gray-50 ${
                             selectedContact === contact.phoneNumber ? 'bg-blue-50 border-r-4 border-blue-500' : ''
                           }`}
                           onClick={() => setSelectedContact(contact.phoneNumber)}
                         >
-                          <div className="flex items-start justify-between mb-1">
-                            <div className="flex items-center space-x-2 space-x-reverse">
-                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                          <div className="flex items-center justify-between" dir="rtl">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                                 {contact.userName ? (
-                                  <UserIcon className="w-5 h-5 text-white" />
+                                  <UserIcon className="w-6 h-6 text-white" />
                                 ) : (
-                                  <Phone className="w-5 h-5 text-white" />
+                                  <Phone className="w-6 h-6 text-white" />
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm truncate" dir="rtl">
+                                <div className="font-medium text-sm truncate">
                                   {contact.userName || contact.phoneNumber}
                                 </div>
-                                {contact.userName && (
-                                  <div className="text-xs text-muted-foreground truncate" dir="ltr">
-                                    {contact.phoneNumber}
-                                  </div>
-                                )}
-                                <div className="text-xs text-muted-foreground truncate" dir="rtl">
-                                  {contact.lastMessage}
+                                <div className="text-xs text-muted-foreground truncate" dir="ltr">
+                                  {contact.phoneNumber}
                                 </div>
                               </div>
                             </div>
-                            <div className="flex flex-col items-end space-y-1">
-                              <div className="text-xs text-muted-foreground whitespace-nowrap">
-                                {formatLastMessageTime(contact.lastMessageTime)}
-                              </div>
-                              {contact.unreadCount > 0 && (
-                                <Badge className="bg-green-500 hover:bg-green-600 text-white h-5 px-2">
-                                  {contact.unreadCount}
-                                </Badge>
-                              )}
-                            </div>
+                            {contact.unreadCount > 0 && (
+                              <Badge className="bg-green-500 hover:bg-green-600 text-white h-6 min-w-[24px] flex items-center justify-center">
+                                {contact.unreadCount}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -404,23 +611,32 @@ export default function WhatsAppChats() {
                     </div>
 
                     {/* Messages */}
-                    <ScrollArea className="flex-1 p-4 overflow-y-auto">
-                      <div className="space-y-3">
-                        {selectedContactData.messages.map((message) => (
+                    <div className="flex-1 overflow-y-auto p-4 bg-gray-50" style={{ maxHeight: 'calc(100vh - 20rem)' }}>
+                      <div className="space-y-3 flex flex-col-reverse">
+                        {[...selectedContactData.messages].reverse().map((message) => (
                           <div
                             key={message.id}
-                            className={`flex ${message.isSent ? 'justify-start' : 'justify-end'}`}
+                            className={`flex gap-2 ${message.isSent ? 'justify-start' : 'justify-end'}`}
                             dir="rtl"
                           >
-                            <div className={`w-full ${message.isSent ? 'order-1' : 'order-2'}`}>
+                            {message.isSent && (
+                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                {selectedContactData.userName ? (
+                                  <UserIcon className="w-4 h-4 text-white" />
+                                ) : (
+                                  <Phone className="w-4 h-4 text-white" />
+                                )}
+                              </div>
+                            )}
+                            <div className="flex flex-col max-w-[70%]">
                               <div
                                 className={`rounded-lg p-2.5 ${
                                   message.isSent
                                     ? 'bg-blue-500 text-white rounded-tr-none'
-                                    : 'bg-gray-100 text-gray-900 rounded-tl-none'
+                                    : 'bg-white text-gray-900 rounded-tl-none shadow-sm'
                                 }`}
                               >
-                                <p className="text-xs whitespace-pre-wrap break-words">
+                                <p className="text-sm whitespace-pre-wrap break-words">
                                   {message.message}
                                 </p>
                                 {message.imageUrl && (
@@ -442,20 +658,67 @@ export default function WhatsAppChats() {
                                 )}
                               </div>
                             </div>
+                            {!message.isSent && (
+                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                {selectedContactData.userName ? (
+                                  <UserIcon className="w-4 h-4 text-white" />
+                                ) : (
+                                  <Phone className="w-4 h-4 text-white" />
+                                )}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
-                    </ScrollArea>
+                    </div>
 
-                    {/* Message Input Area (Placeholder) */}
-                    <div className="p-4 border-t bg-gray-50">
-                      <div className="text-center text-sm text-muted-foreground">
-                        برای ارسال پیام جدید، از صفحه 
-                        <a href="/user/send-message" className="text-blue-500 hover:underline mx-1">
-                          ارسال پیام
-                        </a>
-                        استفاده کنید
+                    {/* Message Input Area */}
+                    <div className="p-4 border-t bg-white">
+                      <div className="flex items-end gap-2" dir="rtl">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="flex-shrink-0"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isSending}
+                        >
+                          <Paperclip className="w-4 h-4" />
+                        </Button>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                        />
+                        <Textarea
+                          placeholder="پیام خود را بنویسید..."
+                          value={newMessage}
+                          onChange={(e) => setNewMessage(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSendMessage();
+                            }
+                          }}
+                          className="flex-1 min-h-[40px] max-h-[120px] resize-none"
+                          disabled={isSending}
+                        />
+                        <Button
+                          onClick={handleSendMessage}
+                          disabled={!newMessage.trim() || isSending}
+                          className="flex-shrink-0"
+                        >
+                          {isSending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
+                        </Button>
                       </div>
+                      <p className="text-xs text-muted-foreground mt-2 text-center">
+                        برای ارسال پیام Enter و برای خط جدید Shift+Enter را فشار دهید
+                      </p>
                     </div>
                   </>
                 ) : (
