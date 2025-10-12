@@ -520,6 +520,25 @@ export function Sidebar() {
             </li>
           )}
 
+          {/* User Profile - Only for level 2 users */}
+          {user?.role === "user_level_2" && (
+            <li>
+              <Link href="/profile">
+                <Button
+                  variant={isActive("/profile") ? "default" : "ghost"}
+                  className={cn(
+                    "w-full justify-start",
+                    isActive("/profile") && "bg-primary text-primary-foreground"
+                  )}
+                  data-testid="link-profile"
+                >
+                  <User className="w-5 h-5 ml-2" />
+                  اطلاعات کاربری
+                </Button>
+              </Link>
+            </li>
+          )}
+
           {/* Settings Section - Before Logout */}
           {(user?.role === "admin" || user?.role === "user_level_1") && (
             <li>

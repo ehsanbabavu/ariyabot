@@ -21,11 +21,13 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
+import { useAuth } from "@/hooks/use-auth";
 import type { SentMessage, ReceivedMessage, User } from "@shared/schema";
 
 interface Contact {
   phoneNumber: string;
   userName?: string;
+  userProfilePicture?: string;
   lastMessage: string;
   lastMessageTime: Date;
   unreadCount: number;
@@ -54,6 +56,7 @@ export default function WhatsAppChats() {
   const [isSending, setIsSending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
   const fetchUsers = async () => {
     try {
@@ -110,15 +113,21 @@ export default function WhatsAppChats() {
     return undefined;
   };
 
+  const getUserByPhone = (phone: string): User | undefined => {
+    return users.find(u => u.phone === phone || u.whatsappNumber === phone);
+  };
+
   const contacts = useMemo(() => {
     const contactMap = new Map<string, Contact>();
 
     sentMessages.forEach((msg) => {
       const phone = msg.recipient;
       if (!contactMap.has(phone)) {
+        const user = getUserByPhone(phone);
         contactMap.set(phone, {
           phoneNumber: phone,
           userName: getUserNameByPhone(phone),
+          userProfilePicture: user?.profilePicture || undefined,
           lastMessage: msg.message,
           lastMessageTime: new Date(msg.timestamp),
           unreadCount: 0,
@@ -145,9 +154,11 @@ export default function WhatsAppChats() {
     receivedMessages.forEach((msg) => {
       const phone = msg.sender;
       if (!contactMap.has(phone)) {
+        const user = getUserByPhone(phone);
         contactMap.set(phone, {
           phoneNumber: phone,
           userName: getUserNameByPhone(phone),
+          userProfilePicture: user?.profilePicture || undefined,
           lastMessage: msg.message,
           lastMessageTime: new Date(msg.timestamp),
           unreadCount: 0,
@@ -520,13 +531,21 @@ export default function WhatsAppChats() {
                         >
                           <div className="flex items-center justify-between" dir="rtl">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                {contact.userName ? (
-                                  <UserIcon className="w-6 h-6 text-white" />
-                                ) : (
-                                  <Phone className="w-6 h-6 text-white" />
-                                )}
-                              </div>
+                              {contact.userProfilePicture ? (
+                                <img 
+                                  src={contact.userProfilePicture} 
+                                  alt={contact.userName || contact.phoneNumber}
+                                  className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                  {contact.userName ? (
+                                    <UserIcon className="w-6 h-6 text-white" />
+                                  ) : (
+                                    <Phone className="w-6 h-6 text-white" />
+                                  )}
+                                </div>
+                              )}
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium text-sm truncate">
                                   {contact.userName || contact.phoneNumber}
@@ -565,13 +584,21 @@ export default function WhatsAppChats() {
                           >
                             <ArrowRight className="w-4 h-4" />
                           </Button>
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            {selectedContactData.userName ? (
-                              <UserIcon className="w-5 h-5 text-white" />
-                            ) : (
-                              <Phone className="w-5 h-5 text-white" />
-                            )}
-                          </div>
+                          {selectedContactData.userProfilePicture ? (
+                            <img 
+                              src={selectedContactData.userProfilePicture} 
+                              alt={selectedContactData.userName || selectedContactData.phoneNumber}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                              {selectedContactData.userName ? (
+                                <UserIcon className="w-5 h-5 text-white" />
+                              ) : (
+                                <Phone className="w-5 h-5 text-white" />
+                              )}
+                            </div>
+                          )}
                           <div>
                             <div className="font-semibold" dir="rtl">
                               {selectedContactData.userName || selectedContactData.phoneNumber}
@@ -604,13 +631,17 @@ export default function WhatsAppChats() {
                             dir="rtl"
                           >
                             {message.isSent && (
-                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                {selectedContactData.userName ? (
+                              currentUser?.profilePicture ? (
+                                <img 
+                                  src={currentUser.profilePicture} 
+                                  alt={`${currentUser.firstName} ${currentUser.lastName}`}
+                                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
                                   <UserIcon className="w-4 h-4 text-white" />
-                                ) : (
-                                  <Phone className="w-4 h-4 text-white" />
-                                )}
-                              </div>
+                                </div>
+                              )
                             )}
                             <div className="flex flex-col max-w-[70%]">
                               <div
@@ -643,13 +674,21 @@ export default function WhatsAppChats() {
                               </div>
                             </div>
                             {!message.isSent && (
-                              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                {selectedContactData.userName ? (
-                                  <UserIcon className="w-4 h-4 text-white" />
-                                ) : (
-                                  <Phone className="w-4 h-4 text-white" />
-                                )}
-                              </div>
+                              selectedContactData.userProfilePicture ? (
+                                <img 
+                                  src={selectedContactData.userProfilePicture} 
+                                  alt={selectedContactData.userName || selectedContactData.phoneNumber}
+                                  className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                  {selectedContactData.userName ? (
+                                    <UserIcon className="w-4 h-4 text-white" />
+                                  ) : (
+                                    <Phone className="w-4 h-4 text-white" />
+                                  )}
+                                </div>
+                              )
                             )}
                           </div>
                         ))}
