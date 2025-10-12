@@ -3,8 +3,8 @@ import path from "path";
 
 class CleanupService {
   private intervalId: NodeJS.Timeout | null = null;
-  private readonly CLEANUP_INTERVAL = 60 * 1000; // هر 1 دقیقه
-  private readonly FILE_MAX_AGE = 5 * 60 * 1000; // 5 دقیقه
+  private readonly CLEANUP_INTERVAL = 60 * 60 * 1000; // هر 1 ساعت
+  private readonly FILE_MAX_AGE = 60 * 60 * 1000; // 1 ساعت
 
   start() {
     console.log("🧹 سرویس پاکسازی فایل‌های موقت شروع شد");
