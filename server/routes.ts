@@ -2710,6 +2710,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Temporary file upload endpoint for WhatsApp messages
+  app.post("/api/upload-temp", authenticateToken, upload.single("file"), async (req: AuthRequest, res) => {
+    try {
+      if (!(req as any).file) {
+        return res.status(400).json({ message: "فایل ارسال نشده است" });
+      }
+
+      const file = (req as any).file;
+      const fileUrl = `/uploads/${file.filename}`;
+      const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
+
+      res.json({
+        url: fileUrl,
+        fullUrl: fullUrl,
+        filename: file.filename
+      });
+    } catch (error: any) {
+      console.error("خطا در آپلود فایل:", error);
+      res.status(500).json({ message: "خطا در آپلود فایل" });
+    }
+  });
+
+  // Delete temporary file endpoint
+  app.delete("/api/delete-temp/:filename", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const filename = req.params.filename;
+      const filePath = path.join(process.cwd(), "uploads", filename);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        console.log(`🗑️ فایل موقت حذف شد: ${filename}`);
+        res.json({ message: "فایل با موفقیت حذف شد" });
+      } else {
+        res.status(404).json({ message: "فایل یافت نشد" });
+      }
+    } catch (error: any) {
+      console.error("خطا در حذف فایل:", error);
+      res.status(500).json({ message: "خطا در حذف فایل" });
+    }
+  });
+
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
   

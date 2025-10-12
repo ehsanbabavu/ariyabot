@@ -6,7 +6,7 @@ This is a modern Persian e-commerce and support web application built with a ful
 
 This project has been successfully imported from GitHub and configured to run in the Replit environment:
 
-- **Database**: External PostgreSQL database (DATABASE_URL secret configured), Drizzle schema pushed successfully
+- **Database**: PostgreSQL database (DATABASE_URL secret configured), Drizzle schema pushed successfully
 - **Dependencies**: All npm packages installed (638 packages)
 - **Development Server**: Running on port 5000 (http://0.0.0.0:5000) with Vite dev server
 - **Default Users**: Automatically created on first run
@@ -16,14 +16,15 @@ This project has been successfully imported from GitHub and configured to run in
 - **Deployment**: Configured for autoscale deployment with build (`npm run build`) and run (`npm start`) scripts
 - **Vite Configuration**: Already configured with `allowedHosts: true` for Replit proxy compatibility
 - **Workflow**: Single workflow "Server" running `npm run dev` on port 5000
-- **Git Ignore**: Added comprehensive .gitignore for Node.js project
+- **Git Ignore**: Comprehensive .gitignore added for Node.js project (node_modules, dist, .env, uploads, etc.)
 
 ### Important Notes
-- Gemini AI token should be configured in the admin panel (AI Token Settings) to enable AI-powered features
+- Gemini AI token can be configured in the admin panel (AI Token Settings) to enable AI-powered features
 - WhatsApp integration requires token configuration in admin settings
 - The application runs frontend and backend on the same port (5000) using Vite in development mode
 - JWT_SECRET environment variable is optional for development (uses fixed secret) but required for production
 - ADMIN_PASSWORD environment variable is optional (defaults to "admin123" if not set)
+- GEMINI_API_KEY is optional and can be set for AI features
 
 # User Preferences
 
