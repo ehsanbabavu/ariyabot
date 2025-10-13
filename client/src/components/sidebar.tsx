@@ -160,6 +160,7 @@ export function Sidebar() {
     { path: "/transactions", label: "مدیریت تراکنش‌ها", icon: DollarSign },
     { path: "/customer-chats", label: "چت با مشتریان", icon: MessageSquare },
     { path: "/manage-faqs", label: "مدیریت سوالات متداول", icon: HelpCircle },
+    { path: "/shipping-settings", label: "ترابری", icon: Truck },
   ];
 
   return (

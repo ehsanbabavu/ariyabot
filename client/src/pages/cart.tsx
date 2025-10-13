@@ -15,7 +15,7 @@ import { ShoppingCart, Plus, Minus, Trash2, Package, MapPin, Star, CreditCard, T
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { CartItem, Product, Address } from "@shared/schema";
+import type { CartItem, Product, Address, ShippingSettings } from "@shared/schema";
 
 // Extended cart item with product details
 interface CartItemWithProduct extends CartItem {
@@ -29,6 +29,7 @@ export default function Cart() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [selectedShippingMethod, setSelectedShippingMethod] = useState<string>("");
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
   const [newAddress, setNewAddress] = useState({
     title: "",
@@ -47,6 +48,15 @@ export default function Cart() {
   const { data: addresses = [], isLoading: addressesLoading } = useQuery<Address[]>({
     queryKey: ["/api/addresses"],
     enabled: !!user,
+  });
+
+  // Get seller ID from user (parent user for level 2)
+  const sellerId = user?.parentUserId;
+
+  // Get seller's shipping settings
+  const { data: shippingSettings, isLoading: shippingLoading } = useQuery<ShippingSettings>({
+    queryKey: [`/api/shipping-settings/${sellerId}`],
+    enabled: !!user && user.role === "user_level_2" && !!sellerId,
   });
 
   // Calculate total
@@ -195,8 +205,12 @@ export default function Cart() {
       if (!selectedAddressId) {
         throw new Error("لطفاً آدرس تحویل را انتخاب کنید");
       }
+      if (!selectedShippingMethod) {
+        throw new Error("لطفاً روش ارسال را انتخاب کنید");
+      }
       const response = await apiRequest("POST", "/api/orders", {
-        addressId: selectedAddressId
+        addressId: selectedAddressId,
+        shippingMethod: selectedShippingMethod
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -563,6 +577,117 @@ export default function Cart() {
                 </CardContent>
               </Card>
 
+              {/* Shipping Method Selection */}
+              <Card className="h-fit">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Truck className="h-4 w-4" />
+                    روش ارسال
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  {shippingLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                      <span className="text-xs text-muted-foreground">در حال بارگذاری روش‌های ارسال...</span>
+                    </div>
+                  ) : shippingSettings ? (
+                    <div className="space-y-2">
+                      <Label className="text-sm">انتخاب روش ارسال:</Label>
+                      {(shippingSettings.postPishtazEnabled || shippingSettings.postNormalEnabled || shippingSettings.piykEnabled || shippingSettings.freeShippingEnabled) ? (
+                        <div className="space-y-2">
+                          {shippingSettings.postPishtazEnabled && (
+                            <button
+                              onClick={() => setSelectedShippingMethod('post_pishtaz')}
+                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                                selectedShippingMethod === 'post_pishtaz' 
+                                  ? 'border-primary bg-primary/5' 
+                                  : 'border-gray-200 hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-primary" />
+                                  <span className="font-medium text-sm">ارسال با پست پیشتاز</span>
+                                </div>
+                              </div>
+                            </button>
+                          )}
+                          {shippingSettings.postNormalEnabled && (
+                            <button
+                              onClick={() => setSelectedShippingMethod('post_normal')}
+                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                                selectedShippingMethod === 'post_normal' 
+                                  ? 'border-primary bg-primary/5' 
+                                  : 'border-gray-200 hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-primary" />
+                                  <span className="font-medium text-sm">ارسال با پست معمولی</span>
+                                </div>
+                              </div>
+                            </button>
+                          )}
+                          {shippingSettings.piykEnabled && (
+                            <button
+                              onClick={() => setSelectedShippingMethod('piyk')}
+                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                                selectedShippingMethod === 'piyk' 
+                                  ? 'border-primary bg-primary/5' 
+                                  : 'border-gray-200 hover:border-primary/50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <Truck className="h-4 w-4 text-primary" />
+                                <span className="font-medium text-sm">ارسال با پیک</span>
+                              </div>
+                            </button>
+                          )}
+                          {shippingSettings.freeShippingEnabled && totalAmount >= parseFloat(shippingSettings.freeShippingMinAmount || '0') && (
+                            <button
+                              onClick={() => setSelectedShippingMethod('free')}
+                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                                selectedShippingMethod === 'free' 
+                                  ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
+                                  : 'border-green-200 hover:border-green-500/50'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Truck className="h-4 w-4 text-green-600" />
+                                  <span className="font-medium text-sm text-green-600">ارسال رایگان</span>
+                                </div>
+                                <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950/30 text-green-700">
+                                  رایگان
+                                </Badge>
+                              </div>
+                            </button>
+                          )}
+                          {shippingSettings.freeShippingEnabled && totalAmount < parseFloat(shippingSettings.freeShippingMinAmount || '0') && (
+                            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200">
+                              <p className="text-xs text-blue-700 dark:text-blue-300">
+                                برای ارسال رایگان، حداقل {parseFloat(shippingSettings.freeShippingMinAmount || '0').toLocaleString()} تومان خرید کنید
+                                (کمبود: {(parseFloat(shippingSettings.freeShippingMinAmount || '0') - totalAmount).toLocaleString()} تومان)
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground text-xs">
+                          فروشنده هیچ روش ارسالی را فعال نکرده است
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">
+                      تنظیمات ارسال در دسترس نیست
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Order Summary */}
               <Card className="h-fit">
                 <CardHeader className="pb-2">
@@ -607,7 +732,7 @@ export default function Cart() {
                     className="w-full" 
                     size="sm"
                     onClick={handleProceedToCheckout}
-                    disabled={proceedToCheckoutMutation.isPending || !selectedAddressId}
+                    disabled={proceedToCheckoutMutation.isPending || !selectedAddressId || !selectedShippingMethod}
                     data-testid="button-proceed-checkout"
                   >
                     {proceedToCheckoutMutation.isPending ? (
@@ -626,6 +751,11 @@ export default function Cart() {
                   {!selectedAddressId && cartItems.length > 0 && (
                     <p className="text-xs text-orange-500 text-center bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
                       لطفاً ابتدا آدرس تحویل را انتخاب کنید
+                    </p>
+                  )}
+                  {!selectedShippingMethod && cartItems.length > 0 && (
+                    <p className="text-xs text-orange-500 text-center bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
+                      لطفاً روش ارسال را انتخاب کنید
                     </p>
                   )}
                 </CardContent>

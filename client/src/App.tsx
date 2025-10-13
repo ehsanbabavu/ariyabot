@@ -33,6 +33,7 @@ import Financial from "@/pages/user/financial";
 import SuccessfulTransactions from "@/pages/user/successful-transactions";
 import ChatWithSeller from "@/pages/user/chat-with-seller";
 import CustomerChats from "@/pages/level1/customer-chats";
+import ShippingSettings from "@/pages/level1/shipping-settings";
 import FaqsPage from "@/pages/faqs";
 import AddFaqPage from "@/pages/user/add-faq";
 import ManageFaqsPage from "@/pages/user/manage-faqs";
@@ -186,6 +187,7 @@ function Router() {
       <Route path="/financial" component={() => <Level2Route component={WithLayout(Financial, "امور مالی")} />} />
       <Route path="/transactions" component={() => <AdminOrLevel1Route component={WithLayout(SuccessfulTransactions, "مدیریت تراکنش‌ها")} />} />
       <Route path="/customer-chats" component={() => <Level1Route component={WithLayout(CustomerChats, "مدیریت چت با مشتریان")} />} />
+      <Route path="/shipping-settings" component={() => <AdminOrLevel1Route component={ShippingSettings} />} />
       <Route path="/chat-with-seller" component={() => <Level2Route component={ChatWithSeller} />} />
       <Route path="/faqs" component={() => <ProtectedRoute component={FaqsPage} />} />
       <Route path="/manage-faqs" component={() => <AdminOrLevel1Route component={ManageFaqsPage} />} />
