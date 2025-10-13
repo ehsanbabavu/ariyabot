@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -150,6 +150,10 @@ export interface IStorage {
   updateFaq(id: string, faq: UpdateFaq): Promise<Faq | undefined>;
   deleteFaq(id: string): Promise<boolean>;
   updateFaqOrder(id: string, newOrder: number): Promise<Faq | undefined>;
+  
+  // Shipping Settings
+  getShippingSettings(userId: string): Promise<ShippingSettings | undefined>;
+  updateShippingSettings(userId: string, settings: UpdateShippingSettings): Promise<ShippingSettings>;
 }
 
 export class MemStorage implements IStorage {
@@ -171,6 +175,7 @@ export class MemStorage implements IStorage {
   private transactions: Map<string, Transaction>;
   private internalChats: Map<string, InternalChat>;
   private faqs: Map<string, Faq>;
+  private shippingSettings: Map<string, ShippingSettings>;
 
   constructor() {
     this.users = new Map();
@@ -191,6 +196,7 @@ export class MemStorage implements IStorage {
     this.transactions = new Map();
     this.internalChats = new Map();
     this.faqs = new Map();
+    this.shippingSettings = new Map();
     
     // Create default admin user
     this.initializeAdminUser();
@@ -1238,6 +1244,7 @@ export class MemStorage implements IStorage {
       id,
       orderNumber,
       addressId: insertOrder.addressId || null,
+      shippingMethod: insertOrder.shippingMethod || null,
       status: "pending",
       statusHistory: ["pending"],
       notes: insertOrder.notes || null,
@@ -1659,6 +1666,40 @@ export class MemStorage implements IStorage {
 
     this.faqs.set(id, updatedFaq);
     return updatedFaq;
+  }
+
+  // Shipping Settings
+  async getShippingSettings(userId: string): Promise<ShippingSettings | undefined> {
+    return Array.from(this.shippingSettings.values()).find(s => s.userId === userId);
+  }
+
+  async updateShippingSettings(userId: string, settings: UpdateShippingSettings): Promise<ShippingSettings> {
+    const existing = await this.getShippingSettings(userId);
+    
+    if (existing) {
+      const updated: ShippingSettings = {
+        ...existing,
+        ...settings,
+        updatedAt: new Date(),
+      };
+      this.shippingSettings.set(existing.id, updated);
+      return updated;
+    } else {
+      const id = randomUUID();
+      const newSettings: ShippingSettings = {
+        id,
+        userId,
+        postPishtazEnabled: settings.postPishtazEnabled ?? false,
+        postNormalEnabled: settings.postNormalEnabled ?? false,
+        piykEnabled: settings.piykEnabled ?? false,
+        freeShippingEnabled: settings.freeShippingEnabled ?? false,
+        freeShippingMinAmount: settings.freeShippingMinAmount ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.shippingSettings.set(id, newSettings);
+      return newSettings;
+    }
   }
 }
 

@@ -1979,6 +1979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sellerId,
           totalAmount: orderData.totalAmount.toString(),
           addressId: req.body.addressId || null,
+          shippingMethod: req.body.shippingMethod || null,
           notes: req.body.notes || null
         });
 
@@ -2789,6 +2790,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("خطا در حذف فایل:", error);
       res.status(500).json({ message: "خطا در حذف فایل" });
+    }
+  });
+
+  // Shipping Settings routes - Only for user_level_1
+  app.get("/api/shipping-settings", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
+    try {
+      const settings = await storage.getShippingSettings(req.user!.id);
+      
+      // اگر تنظیماتی وجود نداشت، مقادیر پیش‌فرض رو برگردون
+      if (!settings) {
+        return res.json({
+          postPishtazEnabled: false,
+          postNormalEnabled: false,
+          piykEnabled: false,
+          freeShippingEnabled: false,
+          freeShippingMinAmount: null,
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting shipping settings:", error);
+      res.status(500).json({ message: "خطا در دریافت تنظیمات ترابری" });
+    }
+  });
+
+  app.put("/api/shipping-settings", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
+    try {
+      const settings = await storage.updateShippingSettings(req.user!.id, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating shipping settings:", error);
+      res.status(500).json({ message: "خطا در بروزرسانی تنظیمات ترابری" });
+    }
+  });
+
+  // Get shipping settings for a specific seller (for level 2 users to see available options)
+  app.get("/api/shipping-settings/:sellerId", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { sellerId } = req.params;
+      const settings = await storage.getShippingSettings(sellerId);
+      
+      if (!settings) {
+        return res.json({
+          postPishtazEnabled: false,
+          postNormalEnabled: false,
+          piykEnabled: false,
+          freeShippingEnabled: false,
+          freeShippingMinAmount: null,
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting seller shipping settings:", error);
+      res.status(500).json({ message: "خطا در دریافت تنظیمات ترابری فروشنده" });
     }
   });
 

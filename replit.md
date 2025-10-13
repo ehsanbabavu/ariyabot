@@ -2,12 +2,12 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
-## Replit Setup (Fresh GitHub Import - October 12, 2025)
+## Replit Setup (Fresh GitHub Import - October 13, 2025)
 
 This project has been successfully imported from GitHub and configured to run in the Replit environment:
 
-- **Database**: PostgreSQL database (DATABASE_URL secret configured), Drizzle schema pushed successfully
-- **Dependencies**: All npm packages installed (638 packages)
+- **Database**: PostgreSQL database (DATABASE_URL secret configured), Drizzle schema pushed successfully with `npm run db:push`
+- **Dependencies**: All npm packages installed (node_modules exists with all required packages)
 - **Development Server**: Running on port 5000 (http://0.0.0.0:5000) with Vite dev server
 - **Default Users**: Automatically created on first run
   - Admin: username `ehsan`, password `admin123`
@@ -15,8 +15,8 @@ This project has been successfully imported from GitHub and configured to run in
 - **Test Data**: Pre-loaded with 3 mobile categories and 6 test products
 - **Deployment**: Configured for autoscale deployment with build (`npm run build`) and run (`npm start`) scripts
 - **Vite Configuration**: Already configured with `allowedHosts: true` for Replit proxy compatibility
-- **Workflow**: Single workflow "Server" running `npm run dev` on port 5000
-- **Git Ignore**: Comprehensive .gitignore added for Node.js project (node_modules, dist, .env, uploads, etc.)
+- **Workflow**: Single workflow "Server" running `npm run dev` on port 5000 with webview output
+- **Git Ignore**: Comprehensive .gitignore created for Node.js project (node_modules, dist, .env, uploads, invoices, etc.)
 
 ### Important Notes
 - Gemini AI token can be configured in the admin panel (AI Token Settings) to enable AI-powered features
@@ -54,6 +54,7 @@ Preferred communication style: Simple, everyday language.
     - **Internal Chat**: Unread message badge system with real-time updates and role-based display.
     - **Order Management**: Enhanced order display for level 1 users with customer details, notification bell for new orders, unshipped orders dashboard, and automatic invoice generation with WhatsApp delivery upon order completion.
     - **Transaction Management**: Comprehensive duplicate transaction detection and automatic WhatsApp notifications for approval/rejection.
+    - **Shipping Management**: Level 1 sellers can configure four shipping methods (پست پیشتاز, پست معمولی, پیک, ارسال رایگان) with enable/disable toggles and minimum amount for free shipping. Level 2 buyers select from enabled methods during web checkout and WhatsApp ordering. Shipping method is stored with each order for tracking and reporting.
     - **Security**: JWT authentication with role-based access control.
 
 ## Data Storage Solutions

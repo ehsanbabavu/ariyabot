@@ -184,6 +184,7 @@ export const orders = pgTable("orders", {
   status: text("status").notNull().default("awaiting_payment"), // awaiting_payment, pending, confirmed, preparing, shipped, delivered, cancelled
   statusHistory: text("status_history").array().default([]), // تاریخچه تغییر وضعیت
   orderNumber: text("order_number").notNull().unique(), // شماره سفارش منحصر به فرد
+  shippingMethod: text("shipping_method"), // روش ارسال: post_pishtaz, post_normal, piyk, free
   notes: text("notes"), // یادداشت‌های کاربر
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -226,6 +227,18 @@ export const faqs = pgTable("faqs", {
   order: integer("order").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
   createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const shippingSettings = pgTable("shipping_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id), // کاربر سطح 1 فروشنده
+  postPishtazEnabled: boolean("post_pishtaz_enabled").notNull().default(false),
+  postNormalEnabled: boolean("post_normal_enabled").notNull().default(false),
+  piykEnabled: boolean("piyk_enabled").notNull().default(false),
+  freeShippingEnabled: boolean("free_shipping_enabled").notNull().default(false),
+  freeShippingMinAmount: decimal("free_shipping_min_amount", { precision: 15, scale: 2 }), // مبلغ حداقل برای ارسال رایگان
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -373,6 +386,24 @@ export const updateFaqSchema = createInsertSchema(faqs).omit({
   updatedAt: true,
 }).partial();
 
+export const insertShippingSettingsSchema = createInsertSchema(shippingSettings).omit({
+  id: true,
+  userId: true, // Server controls this field
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  freeShippingMinAmount: z.union([z.string(), z.number(), z.null()]).transform(val => val === null ? null : String(val)),
+});
+
+export const updateShippingSettingsSchema = createInsertSchema(shippingSettings).omit({
+  id: true,
+  userId: true, // Cannot change owner
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  freeShippingMinAmount: z.union([z.string(), z.number(), z.null()]).transform(val => val === null ? null : String(val)),
+}).partial();
+
 export const updateCategoryOrderSchema = z.object({
   categoryId: z.string().uuid(),
   newOrder: z.number().int().min(0),
@@ -444,3 +475,7 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Faq = typeof faqs.$inferSelect;
 export type InsertFaq = z.infer<typeof insertFaqSchema>;
 export type UpdateFaq = z.infer<typeof updateFaqSchema>;
+
+export type ShippingSettings = typeof shippingSettings.$inferSelect;
+export type InsertShippingSettings = z.infer<typeof insertShippingSettingsSchema>;
+export type UpdateShippingSettings = z.infer<typeof updateShippingSettingsSchema>;

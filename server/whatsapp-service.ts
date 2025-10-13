@@ -1224,8 +1224,8 @@ ${missingFieldsText}
             await this.sendWhatsAppMessage(whatsappToken, sender, '📍 لطفاً عنوان آدرس را وارد کنید.\nمثال: منزل، محل کار', receiverUserId);
             return true;
           } else {
-            // آدرس داره - ثبت سفارش
-            await this.finalizeOrder(senderUser, sender, whatsappToken, receiverUserId);
+            // آدرس داره - پرسیدن روش ارسال
+            await this.askShippingMethod(senderUser, sender, whatsappToken, receiverUserId);
             return true;
           }
         }
@@ -1273,8 +1273,8 @@ ${missingFieldsText}
           
           await this.sendWhatsAppMessage(whatsappToken, sender, '✅ آدرس شما با موفقیت ثبت شد.', receiverUserId);
           
-          // حالا سفارش را تکمیل کن
-          await this.finalizeOrder(senderUser, sender, whatsappToken, receiverUserId);
+          // حالا روش ارسال را بپرس
+          await this.askShippingMethod(senderUser, sender, whatsappToken, receiverUserId);
           return true;
         } catch (error) {
           console.error('❌ خطا در ثبت آدرس:', error);
@@ -1283,6 +1283,34 @@ ${missingFieldsText}
           return true;
         }
       }
+      
+      else if (session.state === 'asking_shipping_method') {
+        // دریافت انتخاب روش ارسال
+        const choiceNumber = await this.parseShippingMethodChoice(message);
+        
+        if (!choiceNumber) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'انتخاب نامعتبر. لطفاً شماره روش ارسال را وارد کنید.', receiverUserId);
+          return true;
+        }
+        
+        // پیدا کردن روش ارسال بر اساس شماره انتخابی
+        const availableMethods = session.availableShippingMethods || [];
+        const selectedMethod = availableMethods.find(m => m.num === parseInt(choiceNumber));
+        
+        if (!selectedMethod) {
+          await this.sendWhatsAppMessage(whatsappToken, sender, 'شماره نامعتبر. لطفاً از بین گزینه‌های موجود انتخاب کنید.', receiverUserId);
+          return true;
+        }
+        
+        // ذخیره روش ارسال در session
+        orderSessionService.updateSession(senderUser.id, {
+          selectedShippingMethod: selectedMethod.value
+        });
+        
+        // ثبت سفارش
+        await this.finalizeOrder(senderUser, sender, whatsappToken, receiverUserId);
+        return true;
+      }
 
       return false;
     } catch (error) {
@@ -1290,6 +1318,86 @@ ${missingFieldsText}
       orderSessionService.clearSession(sender);
       return false;
     }
+  }
+
+  /**
+   * پرسیدن روش ارسال از کاربر
+   */
+  async askShippingMethod(user: any, whatsappNumber: string, whatsappToken: string, receiverUserId?: string): Promise<void> {
+    try {
+      // دریافت shipping settings فروشنده
+      const sellerId = user.parentUserId;
+      if (!sellerId) {
+        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.', receiverUserId);
+        orderSessionService.clearSession(user.id);
+        return;
+      }
+
+      const shippingSettings = await storage.getShippingSettings(sellerId);
+      
+      // ساخت لیست روش‌های ارسال فعال
+      const availableMethods: Array<{num: number, name: string, value: string}> = [];
+      let methodNum = 1;
+      
+      if (shippingSettings?.postPishtazEnabled) {
+        availableMethods.push({ num: methodNum++, name: 'پست پیشتاز', value: 'post_pishtaz' });
+      }
+      if (shippingSettings?.postNormalEnabled) {
+        availableMethods.push({ num: methodNum++, name: 'پست معمولی', value: 'post_normal' });
+      }
+      if (shippingSettings?.piykEnabled) {
+        availableMethods.push({ num: methodNum++, name: 'ارسال با پیک', value: 'piyk' });
+      }
+      
+      // بررسی ارسال رایگان
+      const cartItems = await storage.getCartItemsWithProducts(user.id);
+      const totalAmount = cartItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+      
+      if (shippingSettings?.freeShippingEnabled && 
+          shippingSettings.freeShippingMinAmount && 
+          totalAmount >= parseFloat(shippingSettings.freeShippingMinAmount)) {
+        availableMethods.push({ num: methodNum++, name: 'ارسال رایگان 🎁', value: 'free' });
+      }
+      
+      if (availableMethods.length === 0) {
+        await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'متأسفانه هیچ روش ارسالی فعال نیست. لطفاً با فروشنده تماس بگیرید.', receiverUserId);
+        orderSessionService.clearSession(user.id);
+        return;
+      }
+      
+      // ساخت پیام
+      let message = '🚚 لطفاً روش ارسال را انتخاب کنید:\n\n';
+      availableMethods.forEach(method => {
+        message += `${method.num}. ${method.name}\n`;
+      });
+      message += '\nشماره روش مورد نظر را وارد کنید.';
+      
+      // ذخیره روش‌های موجود در session
+      orderSessionService.updateSession(user.id, {
+        state: 'asking_shipping_method',
+        availableShippingMethods: availableMethods
+      });
+      
+      await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, message, receiverUserId);
+    } catch (error) {
+      console.error('❌ خطا در پرسیدن روش ارسال:', error);
+      await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, 'خطایی رخ داد. لطفاً دوباره تلاش کنید.', receiverUserId);
+      orderSessionService.clearSession(user.id);
+    }
+  }
+
+  /**
+   * Parse کردن انتخاب روش ارسال کاربر
+   */
+  async parseShippingMethodChoice(message: string): Promise<string | null> {
+    // استخراج عدد از پیام
+    const numberMatch = message.match(/\d+/);
+    if (!numberMatch) return null;
+    
+    const number = parseInt(numberMatch[0]);
+    if (isNaN(number) || number < 1) return null;
+    
+    return number.toString();
   }
 
   /**
@@ -1338,6 +1446,9 @@ ${missingFieldsText}
       let grandTotal = 0;
       const createdOrders: Array<{id: string, sellerId: string}> = [];
       
+      // دریافت session برای گرفتن روش ارسال
+      const session = orderSessionService.getSession(user.id, whatsappNumber);
+      
       for (const [sellerId, items] of Array.from(itemsBySeller.entries())) {
         const totalAmount = items.reduce((sum: number, item: any) => sum + parseFloat(item.totalPrice), 0);
         grandTotal += totalAmount;
@@ -1348,6 +1459,7 @@ ${missingFieldsText}
           totalAmount: totalAmount.toString(),
           status: 'pending',
           addressId: defaultAddress.id,
+          shippingMethod: session.selectedShippingMethod || null,
         });
 
         // ایجاد order items
