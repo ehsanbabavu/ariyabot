@@ -31,12 +31,49 @@ import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
 import type { Ticket, User as UserType } from "@shared/schema";
 
+interface ConversationMessage {
+  id: string;
+  message: string;
+  createdAt: string;
+  isAdmin: boolean;
+  userName: string;
+}
+
 interface TicketStats {
   total: number;
   unread: number;
   pending: number;
   resolved: number;
 }
+
+// Parse conversation thread from JSON string
+const parseConversationThread = (adminReply: string | null): ConversationMessage[] => {
+  if (!adminReply) return [];
+  
+  try {
+    const parsed = JSON.parse(adminReply);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    // If it's not an array, treat as legacy single response
+    return [{
+      id: `legacy_${Date.now()}`,
+      message: adminReply,
+      createdAt: new Date().toISOString(),
+      isAdmin: true,
+      userName: 'پشتیبانی'
+    }];
+  } catch {
+    // If parsing fails, treat as legacy single response
+    return [{
+      id: `legacy_${Date.now()}`,
+      message: adminReply,
+      createdAt: new Date().toISOString(),
+      isAdmin: true,
+      userName: 'پشتیبانی'
+    }];
+  }
+};
 
 export default function TicketManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,6 +161,11 @@ export default function TicketManagement() {
     },
   });
 
+  // Helper function to get user for ticket
+  const getUserForTicket = (userId: string) => {
+    return users.find(user => user.id === userId);
+  };
+
   // Memoized calculations
   const ticketStats: TicketStats = useMemo(() => {
     return {
@@ -174,10 +216,6 @@ export default function TicketManagement() {
 
     return filtered;
   }, [tickets, searchQuery, activeTab, sortBy, sortOrder]);
-
-  const getUserForTicket = (userId: string) => {
-    return users.find(user => user.id === userId);
-  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -450,22 +488,35 @@ export default function TicketManagement() {
                           )}
                         </div>
 
-                        {ticket.adminReply && (
-                          <div className="bg-muted/50 p-4 rounded-lg mb-4 border-r-4 border-primary">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Reply className="h-4 w-4 text-primary" />
-                              <span className="text-sm font-medium text-foreground">پاسخ مدیر:</span>
-                              {ticket.adminReplyAt && (
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(ticket.adminReplyAt).toLocaleDateString('fa-IR')}
-                                </span>
-                              )}
+                        {ticket.adminReply && (() => {
+                          const messages = parseConversationThread(ticket.adminReply);
+                          return messages.length > 0 && (
+                            <div className="bg-muted/50 p-4 rounded-lg mb-4 border-r-4 border-primary">
+                              <div className="flex items-center gap-2 mb-3">
+                                <MessageSquare className="h-4 w-4 text-primary" />
+                                <span className="text-sm font-medium text-foreground">گفتگو ({messages.length} پیام)</span>
+                              </div>
+                              <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {messages.map((msg) => (
+                                  <div key={msg.id} className={`p-2 rounded ${msg.isAdmin ? 'bg-primary/10' : 'bg-secondary/50'}`}>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-xs font-medium text-foreground">{msg.userName}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {new Date(msg.createdAt).toLocaleDateString('fa-IR', {
+                                          month: 'short',
+                                          day: 'numeric',
+                                          hour: '2-digit',
+                                          minute: '2-digit'
+                                        })}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">{msg.message}</p>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {ticket.adminReply}
-                            </p>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         <div className="flex items-center justify-between pt-4 border-t">
                           <div className="flex items-center gap-2">
@@ -526,6 +577,49 @@ export default function TicketManagement() {
                     }
                   </div>
                 </div>
+
+                {/* Original Message */}
+                <div className="p-4 bg-secondary/30 rounded-lg border-r-4 border-secondary">
+                  <div className="flex items-center gap-2 mb-2">
+                    <User className="h-4 w-4 text-secondary-foreground" />
+                    <span className="text-sm font-medium">پیام کاربر:</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{selectedTicket.message}</p>
+                </div>
+
+                {/* Conversation Thread */}
+                {selectedTicket.adminReply && (() => {
+                  const messages = parseConversationThread(selectedTicket.adminReply);
+                  return messages.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-primary" />
+                        <h4 className="text-sm font-medium">گفتگو ({messages.length} پیام)</h4>
+                      </div>
+                      <div className="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-3 bg-muted/20">
+                        {messages.map((msg) => (
+                          <div 
+                            key={msg.id} 
+                            className={`p-3 rounded-lg ${msg.isAdmin ? 'bg-primary/10 border-r-2 border-primary' : 'bg-secondary/50 border-r-2 border-secondary'}`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-foreground">{msg.userName}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(msg.createdAt).toLocaleDateString('fa-IR', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{msg.message}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <form onSubmit={handleSubmitReply} className="space-y-4">
                   <div>
