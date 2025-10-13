@@ -27,40 +27,45 @@ class CleanupService {
   }
 
   private cleanup() {
-    const uploadsDir = path.join(process.cwd(), "uploads");
+    const uploadDirs = [
+      path.join(process.cwd(), "uploads"),
+      path.join(process.cwd(), "UploadsPicClienet")
+    ];
     
-    if (!fs.existsSync(uploadsDir)) {
-      return;
-    }
-
-    try {
-      const files = fs.readdirSync(uploadsDir);
-      const now = Date.now();
-      let deletedCount = 0;
-
-      files.forEach((file) => {
-        const filePath = path.join(uploadsDir, file);
-        
-        try {
-          const stats = fs.statSync(filePath);
-          const fileAge = now - stats.mtimeMs; // زمان از آخرین تغییر فایل
-
-          if (fileAge > this.FILE_MAX_AGE) {
-            fs.unlinkSync(filePath);
-            deletedCount++;
-            console.log(`🗑️  فایل قدیمی حذف شد: ${file}`);
-          }
-        } catch (error) {
-          console.error(`خطا در بررسی فایل ${file}:`, error);
-        }
-      });
-
-      if (deletedCount > 0) {
-        console.log(`✅ ${deletedCount} فایل قدیمی حذف شد`);
+    uploadDirs.forEach((uploadsDir) => {
+      if (!fs.existsSync(uploadsDir)) {
+        return;
       }
-    } catch (error) {
-      console.error("خطا در پاکسازی فایل‌ها:", error);
-    }
+
+      try {
+        const files = fs.readdirSync(uploadsDir);
+        const now = Date.now();
+        let deletedCount = 0;
+
+        files.forEach((file) => {
+          const filePath = path.join(uploadsDir, file);
+          
+          try {
+            const stats = fs.statSync(filePath);
+            const fileAge = now - stats.mtimeMs; // زمان از آخرین تغییر فایل
+
+            if (fileAge > this.FILE_MAX_AGE) {
+              fs.unlinkSync(filePath);
+              deletedCount++;
+              console.log(`🗑️  فایل قدیمی حذف شد: ${file} از ${path.basename(uploadsDir)}`);
+            }
+          } catch (error) {
+            console.error(`خطا در بررسی فایل ${file}:`, error);
+          }
+        });
+
+        if (deletedCount > 0) {
+          console.log(`✅ ${deletedCount} فایل قدیمی از ${path.basename(uploadsDir)} حذف شد`);
+        }
+      } catch (error) {
+        console.error(`خطا در پاکسازی فایل‌ها از ${path.basename(uploadsDir)}:`, error);
+      }
+    });
   }
 }
 

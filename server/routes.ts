@@ -62,6 +62,35 @@ const upload = multer({
   },
 });
 
+// Multer configuration for WhatsApp chat images
+const whatsapp_storage_config = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(process.cwd(), "UploadsPicClienet");
+    // اطمینان از وجود فولدر UploadsPicClienet
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadWhatsApp = multer({
+  storage: whatsapp_storage_config,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("نوع فایل مجاز نیست"));
+    }
+  },
+});
+
 // Auth middleware  
 interface AuthRequest extends Request {
   user?: User;
@@ -2711,14 +2740,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Temporary file upload endpoint for WhatsApp messages
-  app.post("/api/upload-temp", authenticateToken, upload.single("file"), async (req: AuthRequest, res) => {
+  app.post("/api/upload-temp", authenticateToken, uploadWhatsApp.single("file"), async (req: AuthRequest, res) => {
     try {
       if (!(req as any).file) {
         return res.status(400).json({ message: "فایل ارسال نشده است" });
       }
 
       const file = (req as any).file;
-      const fileUrl = `/uploads/${file.filename}`;
+      const fileUrl = `/UploadsPicClienet/${file.filename}`;
       const fullUrl = `${req.protocol}://${req.get('host')}${fileUrl}`;
 
       res.json({
@@ -2736,11 +2765,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/delete-temp/:filename", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const filename = req.params.filename;
-      const filePath = path.join(process.cwd(), "uploads", filename);
+      // بررسی هر دو پوشه برای حذف فایل
+      const uploadPaths = [
+        path.join(process.cwd(), "uploads", filename),
+        path.join(process.cwd(), "UploadsPicClienet", filename)
+      ];
 
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-        console.log(`🗑️ فایل موقت حذف شد: ${filename}`);
+      let fileDeleted = false;
+      for (const filePath of uploadPaths) {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ فایل موقت حذف شد: ${filename}`);
+          fileDeleted = true;
+          break;
+        }
+      }
+
+      if (fileDeleted) {
         res.json({ message: "فایل با موفقیت حذف شد" });
       } else {
         res.status(404).json({ message: "فایل یافت نشد" });
@@ -2753,6 +2794,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve uploaded files
   app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+  
+  // Serve WhatsApp chat images
+  app.use("/UploadsPicClienet", express.static(path.join(process.cwd(), "UploadsPicClienet")));
   
   // Serve invoice files
   app.use("/invoice", express.static(path.join(process.cwd(), "invoice")));
