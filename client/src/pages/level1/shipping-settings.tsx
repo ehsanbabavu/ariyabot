@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Truck, Package, Gift } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Truck, Package, Gift, Bike } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -73,7 +73,7 @@ export default function ShippingSettingsPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <DashboardLayout title="تنظیمات ترابری">
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">در حال بارگذاری...</div>
         </div>
@@ -82,138 +82,163 @@ export default function ShippingSettingsPage() {
   }
 
   return (
-    <DashboardLayout>
-      <div className="container mx-auto p-6 max-w-4xl">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">تنظیمات ترابری</h1>
-          <p className="text-muted-foreground mt-2">
-            روش‌های ارسال کالا را برای مشتریان خود تعیین کنید
+    <DashboardLayout title="تنظیمات ترابری">
+      <div className="container mx-auto p-6 max-w-5xl">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">تنظیمات ترابری</h1>
+          <p className="text-muted-foreground">
+            روش‌های ارسال کالا را برای مشتریان خود فعال یا غیرفعال کنید
           </p>
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                ارسال با پست
-              </CardTitle>
-              <CardDescription>
-                امکان ارسال کالا از طریق پست (پیشتاز یا معمولی)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <Label>پست پیشتاز</Label>
-                <RadioGroup
-                  value={postPishtazEnabled ? "enabled" : "disabled"}
-                  onValueChange={(value) => setPostPishtazEnabled(value === "enabled")}
-                >
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <RadioGroupItem value="enabled" id="pishtaz-enabled" />
-                    <Label htmlFor="pishtaz-enabled">فعال</Label>
+        {/* Shipping Methods Grid */}
+        <div className="grid md:grid-cols-2 gap-4 mb-6">
+          {/* Post Pishtaz */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                    <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <RadioGroupItem value="disabled" id="pishtaz-disabled" />
-                    <Label htmlFor="pishtaz-disabled">غیرفعال</Label>
+                  <div className="flex-1">
+                    <Label htmlFor="pishtaz" className="text-base font-semibold cursor-pointer">
+                      پست پیشتاز
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      ارسال سریع با پست
+                    </p>
                   </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-3">
-                <Label>پست معمولی</Label>
-                <RadioGroup
-                  value={postNormalEnabled ? "enabled" : "disabled"}
-                  onValueChange={(value) => setPostNormalEnabled(value === "enabled")}
-                >
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <RadioGroupItem value="enabled" id="normal-enabled" />
-                    <Label htmlFor="normal-enabled">فعال</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <RadioGroupItem value="disabled" id="normal-disabled" />
-                    <Label htmlFor="normal-disabled">غیرفعال</Label>
-                  </div>
-                </RadioGroup>
+                </div>
+                <Switch
+                  id="pishtaz"
+                  checked={postPishtazEnabled}
+                  onCheckedChange={setPostPishtazEnabled}
+                />
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Truck className="w-5 h-5" />
-                ارسال با پیک
+          {/* Post Normal */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+                    <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="normal" className="text-base font-semibold cursor-pointer">
+                      پست معمولی
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      ارسال عادی با پست
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="normal"
+                  checked={postNormalEnabled}
+                  onCheckedChange={setPostNormalEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Piyk */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-lg">
+                    <Bike className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="piyk" className="text-base font-semibold cursor-pointer">
+                      ارسال با پیک
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      تحویل با پیک موتوری
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="piyk"
+                  checked={piykEnabled}
+                  onCheckedChange={setPiykEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Free Shipping */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
+                    <Gift className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="free" className="text-base font-semibold cursor-pointer">
+                      ارسال رایگان
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      برای خریدهای بالای مبلغ مشخص
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="free"
+                  checked={freeShippingEnabled}
+                  onCheckedChange={setFreeShippingEnabled}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Free Shipping Min Amount */}
+        {freeShippingEnabled && (
+          <Card className="mb-6 border-2 border-purple-200 dark:border-purple-800">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Gift className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                تنظیمات ارسال رایگان
               </CardTitle>
-              <CardDescription>
-                امکان ارسال کالا از طریق پیک
-              </CardDescription>
             </CardHeader>
             <CardContent>
-              <RadioGroup
-                value={piykEnabled ? "enabled" : "disabled"}
-                onValueChange={(value) => setPiykEnabled(value === "enabled")}
-              >
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <RadioGroupItem value="enabled" id="piyk-enabled" />
-                  <Label htmlFor="piyk-enabled">فعال</Label>
-                </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <RadioGroupItem value="disabled" id="piyk-disabled" />
-                  <Label htmlFor="piyk-disabled">غیرفعال</Label>
-                </div>
-              </RadioGroup>
+              <div className="space-y-2">
+                <Label htmlFor="min-amount" className="text-sm font-medium">
+                  حداقل مبلغ خرید برای ارسال رایگان (تومان)
+                </Label>
+                <Input
+                  id="min-amount"
+                  type="number"
+                  placeholder="مثال: 500000"
+                  value={freeShippingMinAmount}
+                  onChange={(e) => setFreeShippingMinAmount(e.target.value)}
+                  className="max-w-xs"
+                />
+                <p className="text-xs text-muted-foreground">
+                  سفارشاتی که مبلغ آن‌ها از این عدد بیشتر باشد، ارسال رایگان خواهند داشت
+                </p>
+              </div>
             </CardContent>
           </Card>
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gift className="w-5 h-5" />
-                ارسال رایگان
-              </CardTitle>
-              <CardDescription>
-                ارسال رایگان برای خریدهای بالای مبلغ مشخص
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <RadioGroup
-                value={freeShippingEnabled ? "enabled" : "disabled"}
-                onValueChange={(value) => setFreeShippingEnabled(value === "enabled")}
-              >
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <RadioGroupItem value="enabled" id="free-enabled" />
-                  <Label htmlFor="free-enabled">فعال</Label>
-                </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                  <RadioGroupItem value="disabled" id="free-disabled" />
-                  <Label htmlFor="free-disabled">غیرفعال</Label>
-                </div>
-              </RadioGroup>
-
-              {freeShippingEnabled && (
-                <div className="space-y-2">
-                  <Label htmlFor="min-amount">حداقل مبلغ خرید (تومان)</Label>
-                  <Input
-                    id="min-amount"
-                    type="number"
-                    placeholder="مثال: 500000"
-                    value={freeShippingMinAmount}
-                    onChange={(e) => setFreeShippingMinAmount(e.target.value)}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end gap-4">
-            <Button
-              onClick={handleSave}
-              disabled={updateSettingsMutation.isPending}
-            >
-              {updateSettingsMutation.isPending ? "در حال ذخیره..." : "ذخیره تنظیمات"}
-            </Button>
-          </div>
+        {/* Save Button */}
+        <div className="flex justify-end">
+          <Button
+            onClick={handleSave}
+            disabled={updateSettingsMutation.isPending}
+            size="lg"
+            className="min-w-[150px]"
+          >
+            {updateSettingsMutation.isPending ? "در حال ذخیره..." : "ذخیره تنظیمات"}
+          </Button>
         </div>
       </div>
     </DashboardLayout>

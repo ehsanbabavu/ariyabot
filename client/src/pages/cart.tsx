@@ -285,7 +285,9 @@ export default function Cart() {
                     <Badge variant="secondary" className="text-sm">
                       {totalItems} محصول
                     </Badge>
-                    {totalAmount > 500000 && (
+                    {shippingSettings?.freeShippingEnabled && 
+                     shippingSettings?.freeShippingMinAmount && 
+                     totalAmount >= parseFloat(shippingSettings.freeShippingMinAmount) && (
                       <Badge variant="default" className="text-xs bg-green-500 hover:bg-green-600">
                         ارسال رایگان
                       </Badge>

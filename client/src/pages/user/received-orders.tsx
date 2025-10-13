@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, Calendar, MapPin, User, Phone, Edit, Printer } from "lucide-react";
+import { Package, Calendar, MapPin, User, Phone, Edit, Printer, Truck } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { type Order } from "@shared/schema";
 
@@ -62,6 +62,13 @@ const statusLabels = {
   shipped: "ارسال شده", 
   delivered: "تحویل داده شده",
   cancelled: "لغو شده"
+};
+
+const shippingMethodLabels = {
+  post_pishtaz: "پست پیشتاز",
+  post_normal: "پست معمولی",
+  piyk: "پیک",
+  free: "ارسال رایگان"
 };
 
 const statusOptions = [
@@ -449,7 +456,7 @@ export default function ReceivedOrdersPage() {
                   </div>
 
                   {/* Order Details - Horizontal Layout */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Customer Info */}
                     <div className="flex items-start gap-2">
                       <div className="flex-shrink-0">
@@ -503,6 +510,26 @@ export default function ReceivedOrdersPage() {
                               کد پستی: {order.postalCode}
                             </div>
                           )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Shipping Method */}
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0">
+                        <div className="w-7 h-7 bg-purple-100 dark:bg-purple-900 rounded-full flex items-center justify-center">
+                          <Truck className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm mb-1">
+                          نوع ارسال
+                        </h4>
+                        <div className="text-sm text-gray-600 dark:text-gray-300" data-testid={`shipping-method-${order.id}`}>
+                          {order.shippingMethod 
+                            ? shippingMethodLabels[order.shippingMethod as keyof typeof shippingMethodLabels] || 'نامشخص'
+                            : 'تعیین نشده'
+                          }
                         </div>
                       </div>
                     </div>

@@ -30,7 +30,8 @@ import {
   Package,
   Wallet,
   DollarSign,
-  HelpCircle
+  HelpCircle,
+  Truck
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
