@@ -261,6 +261,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Don't fail user registration if trial subscription creation fails
       }
 
+      // ارسال اعلان به مدیر برای کاربر جدید
+      try {
+        const whatsappSettings = await storage.getWhatsappSettings();
+        if (whatsappSettings?.notifications?.includes('new_user') && whatsappSettings.isEnabled && whatsappSettings.token) {
+          const adminUser = await storage.getUserByUsername("ehsan");
+          if (adminUser && adminUser.phone) {
+            const message = `👤 کاربر جدید ثبت‌نام کرد\n\nنام: ${user.firstName} ${user.lastName}\nنام کاربری: ${user.username}\nشماره: ${user.phone}`;
+            await whatsAppSender.sendMessage(adminUser.phone, message, adminUser.id);
+          }
+        }
+      } catch (notificationError) {
+        console.error("خطا در ارسال اعلان کاربر جدید:", notificationError);
+      }
+
       // Generate JWT
       const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: "7d" });
 
@@ -948,6 +962,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const ticket = await storage.createTicket(validatedData);
+      
+      // ارسال اعلان به مدیر برای تیکت جدید
+      try {
+        const whatsappSettings = await storage.getWhatsappSettings();
+        if (whatsappSettings?.notifications?.includes('new_ticket') && whatsappSettings.isEnabled && whatsappSettings.token) {
+          const adminUser = await storage.getUserByUsername("ehsan");
+          if (adminUser && adminUser.phone) {
+            const ticketUser = await storage.getUser(req.user!.id);
+            const message = `🎫 تیکت جدید ثبت شد\n\nکاربر: ${ticketUser?.firstName} ${ticketUser?.lastName}\nموضوع: ${ticket.subject}\nاولویت: ${ticket.priority === 'high' ? 'بالا' : ticket.priority === 'medium' ? 'متوسط' : 'پایین'}`;
+            await whatsAppSender.sendMessage(adminUser.phone, message, adminUser.id);
+          }
+        }
+      } catch (notificationError) {
+        console.error("خطا در ارسال اعلان تیکت جدید:", notificationError);
+      }
+      
       res.json(ticket);
     } catch (error) {
       if (error instanceof z.ZodError) {

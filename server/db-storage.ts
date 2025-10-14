@@ -55,7 +55,7 @@ export class DbStorage implements IStorage {
           firstName: "احسان",
           lastName: "مدیر",
           email: "ehsan@admin.com",
-          phone: "09123456789",
+          phone: "989135621232",
           password: hashedPassword,
           role: "admin",
         });
