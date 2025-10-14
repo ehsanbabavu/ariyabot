@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight } from "lucide-react";
+import loginVideo from "@assets/YouCut_20250930_005437820_1759181322984.mp4";
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
@@ -129,21 +130,22 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-          <div className="mb-6">
-            <Link href="/login" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm mb-4">
-              <ArrowRight className="w-4 h-4 ml-1" />
-              بازگشت به ورود
-            </Link>
-            <h2 className="text-2xl font-bold text-gray-800">بازگردانی رمز عبور</h2>
-            <p className="text-sm text-gray-600 mt-2">
-              {step === 1
-                ? "نام کاربری خود را وارد کنید تا کد بازیابی به واتس‌اپ شما ارسال شود"
-                : "کد ارسال شده به واتس‌اپ و رمز عبور جدید را وارد کنید"}
-            </p>
-          </div>
+    <div className="min-h-screen flex">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-4 md:p-8 bg-gray-50">
+        <div className="w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+            <div className="mb-6">
+              <Link href="/login" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm mb-4">
+                <ArrowRight className="w-4 h-4 ml-1" />
+                بازگشت به ورود
+              </Link>
+              <h2 className="text-2xl font-bold text-gray-800">بازگردانی رمز عبور</h2>
+              <p className="text-sm text-gray-600 mt-2">
+                {step === 1
+                  ? "نام کاربری خود را وارد کنید تا کد بازیابی به واتس‌اپ شما ارسال شود"
+                  : "کد ارسال شده به واتس‌اپ و رمز عبور جدید را وارد کنید"}
+              </p>
+            </div>
 
           {step === 1 ? (
             <form onSubmit={handleRequestOtp} className="space-y-5">
@@ -239,6 +241,24 @@ export default function ResetPassword() {
             </form>
           )}
         </div>
+      </div>
+    </div>
+
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 items-center justify-center p-8 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10 text-center">
+          <video 
+            src={loginVideo} 
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="max-w-md w-full mx-auto rounded-2xl shadow-2xl mb-6"
+          />
+          <h2 className="text-white text-2xl font-bold">به سیستم جامع مدیریت کاربران آریا بات خوش امدید</h2>
+        </div>
+        <div className="absolute top-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mt-24"></div>
+        <div className="absolute bottom-0 right-0 w-72 h-72 bg-white/10 rounded-full -mr-36 -mb-36"></div>
       </div>
     </div>
   );

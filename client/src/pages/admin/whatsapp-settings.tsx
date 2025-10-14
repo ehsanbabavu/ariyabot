@@ -140,7 +140,6 @@ export default function WhatsappSettings() {
   const notificationOptions = [
     { id: "new_ticket", label: "تیکت جدید", icon: Bell },
     { id: "new_user", label: "کاربر جدید", icon: Shield },
-    { id: "new_product", label: "محصول جدید", icon: Activity },
   ];
 
   const isLevel1User = user?.role === 'user_level_1';
