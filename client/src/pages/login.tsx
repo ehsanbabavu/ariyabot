@@ -58,6 +58,7 @@ export default function Login() {
                   placeholder="نام کاربری یا ایمیل"
                   className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                   required
+                  autoComplete="username"
                   data-testid="input-email-or-username"
                 />
               </div>
@@ -74,6 +75,7 @@ export default function Login() {
                   placeholder="رمز عبور"
                   className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                   required
+                  autoComplete="current-password"
                   data-testid="input-password"
                 />
               </div>

@@ -146,6 +146,7 @@ export default function Register() {
                   placeholder="رمز عبور"
                   className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                   required
+                  autoComplete="new-password"
                   data-testid="input-password"
                 />
               </div>
@@ -161,6 +162,7 @@ export default function Register() {
                   placeholder="تکرار رمز عبور"
                   className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                   required
+                  autoComplete="new-password"
                   data-testid="input-confirmPassword"
                 />
               </div>

@@ -169,9 +169,8 @@ export default function ResetPassword() {
 
               <Button
                 type="button"
-                variant="outline"
                 onClick={() => setLocation("/")}
-                className="w-full h-10 text-sm font-medium rounded-lg mt-3"
+                className="w-full h-10 text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 mt-3"
               >
                 بازگشت به صفحه اصلی
               </Button>
