@@ -90,7 +90,7 @@ export default function Login() {
                     مرا به خاطر بسپار
                   </Label>
                 </div>
-                <Link href="#" className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
+                <Link href="/reset-password" className="text-sm text-blue-600 hover:text-blue-700 hover:underline">
                   بازگردانی رمز عبور!
                 </Link>
               </div>

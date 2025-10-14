@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import Login from "@/pages/login";
 import Register from "@/pages/register";
+import ResetPassword from "@/pages/reset-password";
 import Dashboard from "@/pages/dashboard";
 import UserDashboard from "@/pages/user/dashboard";
 import UserManagement from "@/pages/admin/user-management";
@@ -159,6 +160,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/" component={() => user ? 
         user.role === "admin" 
           ? <ProtectedRoute component={Dashboard} /> 

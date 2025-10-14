@@ -1,0 +1,245 @@
+import { useState } from "react";
+import { Link, useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowRight } from "lucide-react";
+
+export default function ResetPassword() {
+  const [, setLocation] = useLocation();
+  const [step, setStep] = useState<1 | 2>(1);
+  const [username, setUsername] = useState("");
+  const [otp, setOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!username) {
+      toast({
+        title: "خطا",
+        description: "نام کاربری الزامی است",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/request-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "موفق",
+          description: data.message,
+        });
+        setStep(2);
+      } else {
+        toast({
+          title: "خطا",
+          description: data.message || "خطا در ارسال کد",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "خطا",
+        description: "خطا در اتصال به سرور",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!otp || !newPassword || !confirmPassword) {
+      toast({
+        title: "خطا",
+        description: "تمام فیلدها الزامی هستند",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "خطا",
+        description: "رمز عبور و تکرار آن باید یکسان باشند",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "خطا",
+        description: "رمز عبور باید حداقل 6 کاراکتر باشد",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, otp, newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "موفق",
+          description: data.message,
+        });
+        setTimeout(() => setLocation("/login"), 2000);
+      } else {
+        toast({
+          title: "خطا",
+          description: data.message || "خطا در تغییر رمز عبور",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "خطا",
+        description: "خطا در اتصال به سرور",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 via-purple-50 to-indigo-50">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
+          <div className="mb-6">
+            <Link href="/login" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm mb-4">
+              <ArrowRight className="w-4 h-4 ml-1" />
+              بازگشت به ورود
+            </Link>
+            <h2 className="text-2xl font-bold text-gray-800">بازگردانی رمز عبور</h2>
+            <p className="text-sm text-gray-600 mt-2">
+              {step === 1
+                ? "نام کاربری خود را وارد کنید تا کد بازیابی به واتس‌اپ شما ارسال شود"
+                : "کد ارسال شده به واتس‌اپ و رمز عبور جدید را وارد کنید"}
+            </p>
+          </div>
+
+          {step === 1 ? (
+            <form onSubmit={handleRequestOtp} className="space-y-5">
+              <div>
+                <Label htmlFor="username" className="text-gray-700 font-medium mb-1.5 block text-sm">
+                  نام کاربری
+                </Label>
+                <Input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="نام کاربری خود را وارد کنید"
+                  className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full h-10 text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                disabled={isLoading}
+              >
+                {isLoading ? "در حال ارسال..." : "ارسال کد به واتس‌اپ"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-5">
+              <div>
+                <Label htmlFor="otp" className="text-gray-700 font-medium mb-1.5 block text-sm">
+                  کد بازیابی (6 رقمی)
+                </Label>
+                <Input
+                  id="otp"
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="کد 6 رقمی ارسال شده"
+                  maxLength={6}
+                  className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm text-center text-xl tracking-widest"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="newPassword" className="text-gray-700 font-medium mb-1.5 block text-sm">
+                  رمز عبور جدید
+                </Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="رمز عبور جدید (حداقل 6 کاراکتر)"
+                  className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="confirmPassword" className="text-gray-700 font-medium mb-1.5 block text-sm">
+                  تکرار رمز عبور جدید
+                </Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="رمز عبور جدید را دوباره وارد کنید"
+                  className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                  required
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  className="flex-1 h-10 text-sm font-medium rounded-lg"
+                  disabled={isLoading}
+                >
+                  بازگشت
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 h-10 text-sm font-medium bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "در حال تغییر..." : "تغییر رمز عبور"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

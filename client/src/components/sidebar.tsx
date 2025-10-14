@@ -146,6 +146,7 @@ export function Sidebar() {
   ];
 
   const settingsItems = [
+    { path: "/whatsapp-settings", label: "تنظیمات واتس‌اپ", icon: MessageSquare, adminOnly: true },
     { path: "/ai-token", label: "توکن هوش مصنوعی", icon: Bot, adminOnly: true },
     { path: "/profile", label: "اطلاعات کاربری", icon: User, adminOnly: false },
   ];
