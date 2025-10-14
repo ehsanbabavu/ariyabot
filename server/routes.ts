@@ -221,7 +221,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const userData = {
         ...req.body,
-        username: username
+        username: username,
+        // اگر شماره واتس‌اپ نیومده، از شماره تلفن استفاده کن
+        whatsappNumber: req.body.whatsappNumber || req.body.phone
       };
       
       const validatedData = insertUserSchema.parse(userData);
@@ -595,8 +597,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "کاربر یافت نشد" });
       }
 
-      // First delete user subscriptions (to avoid foreign key constraint)
-      // Get ALL user subscriptions for this specific user
+      // Delete user subscriptions (to avoid foreign key constraint)
       const userSubscriptions = await storage.getUserSubscriptionsByUserId(id);
       for (const subscription of userSubscriptions) {
         await storage.deleteUserSubscription(subscription.id);
@@ -613,6 +614,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const product of userProducts) {
         await storage.deleteProduct(product.id, id, user.role);
       }
+
+      // Delete user addresses
+      const userAddresses = await storage.getAddressesByUser(id);
+      for (const address of userAddresses) {
+        await storage.deleteAddress(address.id, id);
+      }
+
+      // Note: Other related data (messages, chats, transactions, OTPs, shipping settings)
+      // will be handled by database CASCADE delete constraints
 
       // Finally delete the user
       const success = await storage.deleteUser(id);
