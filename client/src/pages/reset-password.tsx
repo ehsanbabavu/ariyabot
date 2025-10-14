@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight } from "lucide-react";
 import loginVideo from "@assets/YouCut_20250930_005437820_1759181322984.mp4";
 
 export default function ResetPassword() {
@@ -135,10 +134,6 @@ export default function ResetPassword() {
         <div className="w-full max-w-sm">
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
             <div className="mb-6">
-              <Link href="/login" className="inline-flex items-center text-blue-600 hover:text-blue-700 text-sm mb-4">
-                <ArrowRight className="w-4 h-4 ml-1" />
-                بازگشت به ورود
-              </Link>
               <h2 className="text-2xl font-bold text-gray-800">بازگردانی رمز عبور</h2>
               <p className="text-sm text-gray-600 mt-2">
                 {step === 1
@@ -170,6 +165,15 @@ export default function ResetPassword() {
                 disabled={isLoading}
               >
                 {isLoading ? "در حال ارسال..." : "ارسال کد به واتس‌اپ"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setLocation("/")}
+                className="w-full h-10 text-sm font-medium rounded-lg mt-3"
+              >
+                بازگشت به صفحه اصلی
               </Button>
             </form>
           ) : (

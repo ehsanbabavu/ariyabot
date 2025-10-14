@@ -47,11 +47,17 @@ export default function Register() {
       return;
     }
 
+    // فرمت کردن شماره موبایل: اگر با 0 شروع شد، 0 رو حذف کن و 98 اضافه کن، اگر 98 داشت همون رو بفرست
+    let formattedPhone = formData.phone.trim();
+    if (formattedPhone.startsWith('0')) {
+      formattedPhone = '98' + formattedPhone.slice(1);
+    }
+
     register({
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
-      phone: formData.phone,
+      phone: formattedPhone,
       password: formData.password,
     });
   };
