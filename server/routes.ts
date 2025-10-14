@@ -207,10 +207,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
-      // Generate username from email if not provided
+      // Generate username from phone number
+      let username = req.body.username;
+      if (!username && req.body.phone) {
+        // اگر شماره با 98 شروع شد، 98 رو با 0 عوض کن
+        username = req.body.phone.startsWith('98') 
+          ? '0' + req.body.phone.substring(2) 
+          : req.body.phone;
+      } else if (!username) {
+        // اگر شماره نبود از ایمیل استفاده کن
+        username = req.body.email.split('@')[0] + Math.random().toString(36).substr(2, 4);
+      }
+
       const userData = {
         ...req.body,
-        username: req.body.username || req.body.email.split('@')[0] + Math.random().toString(36).substr(2, 4)
+        username: username
       };
       
       const validatedData = insertUserSchema.parse(userData);

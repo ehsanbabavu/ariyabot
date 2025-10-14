@@ -90,9 +90,9 @@ class WhatsAppMessageService {
         user.whatsappToken.trim() !== ''
       );
 
-      // اگر هیچ کاربری توکن ندارد، از تنظیمات عمومی (برای ادمین) استفاده کن
+      // توکن عمومی (مدیر) فقط برای ارسال گزارشات استفاده می‌شود - نه برای دریافت پیام
       if (usersWithTokens.length === 0) {
-        await this.fetchMessagesForGlobalToken();
+        console.log("⚠️ هیچ کاربر سطح 1 با توکن شخصی یافت نشد");
         return;
       }
 
@@ -216,124 +216,6 @@ class WhatsAppMessageService {
     }
   }
 
-  /**
-   * دریافت پیام‌ها با استفاده از توکن عمومی (برای ادمین)
-   */
-  async fetchMessagesForGlobalToken() {
-    try {
-      // دریافت تنظیمات واتس‌اپ عمومی
-      const settings = await storage.getWhatsappSettings();
-      
-      if (!settings || !settings.token || !settings.isEnabled) {
-        console.log("⚠️ تنظیمات واتس‌اپ فعال نیست یا توکن موجود نیست");
-        return;
-      }
-
-      // دریافت پیام‌ها از WhatsiPlus API
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(`https://api.whatsiplus.com/receivedMessages/${settings.token}?page=1`, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'WhatsApp-Service/1.0',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        console.error("❌ خطا در دریافت پیام‌ها از توکن عمومی:", response.status, response.statusText);
-        return;
-      }
-
-      const data: WhatsiPlusResponse = await response.json();
-      
-      if (!data.data || data.data.length === 0) {
-        return;
-      }
-
-      let newMessagesCount = 0;
-      
-      // پیدا کردن ادمین برای ذخیره پیام‌ها
-      const adminUsers = await storage.getAllUsers();
-      const admin = adminUsers.find(user => user.role === 'admin');
-      
-      if (!admin) {
-        console.error("❌ هیچ کاربر ادمین یافت نشد");
-        return;
-      }
-
-      // ذخیره پیام‌های جدید برای ادمین
-      for (const message of data.data) {
-        try {
-          // تعیین محتوای پیام: اگر file باشه از mediaUrl استفاده کن، وگرنه از message
-          let messageContent = '';
-          let imageUrl: string | null = null;
-          
-          if (message.type === 'file' && message.mediaUrl) {
-            // برای فایل‌ها، آدرس عکس رو به عنوان محتوا استفاده می‌کنیم
-            messageContent = message.mediaUrl;
-            imageUrl = message.mediaUrl;
-            console.log(`🖼️ پیام نوع file دریافت شد با آدرس: ${imageUrl}`);
-          } else if (message.message) {
-            // برای پیام‌های متنی
-            messageContent = message.message;
-            // چک می‌کنیم آیا توی متن لینک عکس هست
-            imageUrl = geminiService.extractImageUrl(message.message);
-            if (imageUrl) {
-              console.log(`🖼️ آدرس عکس از متن پیام استخراج شد: ${imageUrl}`);
-            }
-          }
-          
-          // بررسی اینکه پیام خالی نباشد
-          if (!messageContent || messageContent.trim() === '') {
-            continue;
-          }
-          
-          const existingMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(message.id, admin.id);
-          
-          if (!existingMessage) {
-            const isUserInRegistrationProcess = await this.handleAutoRegistration(message.from, messageContent, admin.id);
-
-            await storage.createReceivedMessage({
-              userId: admin.id,
-              whatsiPlusId: message.id,
-              sender: message.from,
-              message: messageContent,
-              imageUrl: imageUrl,
-              status: "خوانده نشده",
-              originalDate: message.date
-            });
-
-            // پاسخ خودکار فقط اگر کاربر ثبت‌نام کامل شده باشد
-            if (geminiService.isActive() && !isUserInRegistrationProcess) {
-              await this.handleAutoResponse(message.from, messageContent, message.id, admin.id);
-            }
-            
-            newMessagesCount++;
-          }
-        } catch (error) {
-          console.error("❌ خطا در ذخیره پیام:", error);
-        }
-      }
-
-      if (newMessagesCount > 0) {
-        console.log(`📨 ${newMessagesCount} پیام جدید از توکن عمومی دریافت و ذخیره شد`);
-        this.lastFetchTime = new Date();
-      }
-
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
-        console.error("⏱️ Timeout: درخواست پیام‌ها بیش از حد انتظار طول کشید");
-      } else {
-        console.error("❌ خطا در دریافت پیام‌های واتس‌اپ:", error.message || error);
-      }
-    }
-  }
 
   /**
    * تجزیه نام و نام خانوادگی از پیام کاربر
