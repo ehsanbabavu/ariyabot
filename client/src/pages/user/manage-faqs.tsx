@@ -38,6 +38,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -101,7 +102,7 @@ export default function ManageFaqsPage() {
 
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      const response = await apiRequest("PUT", `/api/faqs/${id}`, { isActive: !isActive });
+      const response = await apiRequest("PUT", `/api/faqs/${id}`, { isActive });
       return response.json();
     },
     onSuccess: () => {
@@ -251,41 +252,20 @@ export default function ManageFaqsPage() {
                     
                     {/* وضعیت */}
                     <TableCell data-testid={`cell-status-${faq.id}`}>
-                      <div className="flex gap-4 items-center">
-                        <label className="flex items-center gap-1 cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`status-${faq.id}`}
-                            checked={faq.isActive}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              if (e.target.checked && !faq.isActive) {
-                                toggleActiveMutation.mutate({ id: faq.id, isActive: false });
-                              }
-                            }}
-                            disabled={toggleActiveMutation.isPending}
-                            className="w-3 h-3"
-                            data-testid={`radio-active-${faq.id}`}
-                          />
-                          <span className="text-xs text-green-600">فعال</span>
-                        </label>
-                        <label className="flex items-center gap-1 cursor-pointer">
-                          <input
-                            type="radio"
-                            name={`status-${faq.id}`}
-                            checked={!faq.isActive}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              if (e.target.checked && faq.isActive) {
-                                toggleActiveMutation.mutate({ id: faq.id, isActive: true });
-                              }
-                            }}
-                            disabled={toggleActiveMutation.isPending}
-                            className="w-3 h-3"
-                            data-testid={`radio-inactive-${faq.id}`}
-                          />
-                          <span className="text-xs text-gray-500">غیرفعال</span>
-                        </label>
+                      <div className="flex items-center gap-2" dir="ltr">
+                        <Switch
+                          id={`status-${faq.id}`}
+                          checked={faq.isActive}
+                          onCheckedChange={(checked) => {
+                            toggleActiveMutation.mutate({ id: faq.id, isActive: checked });
+                          }}
+                          disabled={toggleActiveMutation.isPending}
+                          data-testid={`switch-active-${faq.id}`}
+                          className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
+                        />
+                        <span className="text-xs text-muted-foreground" dir="rtl">
+                          {faq.isActive ? "فعال" : "غیرفعال"}
+                        </span>
                       </div>
                     </TableCell>
                     

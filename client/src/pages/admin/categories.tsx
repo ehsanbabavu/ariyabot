@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { 
   DndContext, 
   closestCenter,
@@ -169,46 +170,25 @@ function SortableCategory({ category, onEdit, onDelete, onToggleActive, expanded
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Active/Inactive Radio Buttons */}
-            <div className="flex items-center gap-1" data-testid={`radio-group-status-${category.id}`}>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input
-                  type="radio"
-                  name={`status-${category.id}`}
-                  checked={category.isActive}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    // Direct inline status change without opening dialog
-                    onToggleActive(category.id, true);
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  disabled={isPending}
-                  className="w-3 h-3"
-                  data-testid={`radio-active-${category.id}`}
-                />
-                <span className="text-xs text-green-600">فعال</span>
-              </label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input
-                  type="radio"
-                  name={`status-${category.id}`}
-                  checked={!category.isActive}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    // Direct inline status change without opening dialog
-                    onToggleActive(category.id, false);
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                  disabled={isPending}
-                  className="w-3 h-3"
-                  data-testid={`radio-inactive-${category.id}`}
-                />
-                <span className="text-xs text-gray-500">غیرفعال</span>
-              </label>
+            {/* Active/Inactive Switch */}
+            <div className="flex items-center gap-2" dir="ltr" data-testid={`switch-group-status-${category.id}`}>
+              <Switch
+                id={`status-${category.id}`}
+                checked={category.isActive}
+                onCheckedChange={(checked) => {
+                  onToggleActive(category.id, checked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                disabled={isPending}
+                data-testid={`switch-active-${category.id}`}
+                className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
+              />
+              <span className="text-xs text-muted-foreground" dir="rtl">
+                {category.isActive ? "فعال" : "غیرفعال"}
+              </span>
             </div>
             
             <Button

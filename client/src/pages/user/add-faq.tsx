@@ -18,6 +18,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertFaqSchema } from "@shared/schema";
@@ -184,29 +185,20 @@ export default function AddFaqPage() {
                         آیا این سوال در صفحه عمومی نمایش داده شود؟
                       </FormDescription>
                       <FormControl>
-                        <div className="flex gap-6 items-center">
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="faq-status"
-                              checked={field.value === true}
-                              onChange={() => field.onChange(true)}
-                              className="w-4 h-4"
-                              data-testid="radio-faq-active"
+                        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <span className="text-sm font-medium">نمایش در صفحه عمومی</span>
+                          <div className="flex items-center gap-2" dir="ltr">
+                            <Switch
+                              id="faq-status"
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-faq-active"
+                              className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
                             />
-                            <span className="text-sm text-green-600">فعال</span>
-                          </label>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="faq-status"
-                              checked={field.value === false}
-                              onChange={() => field.onChange(false)}
-                              className="w-4 h-4"
-                              data-testid="radio-faq-inactive"
-                            />
-                            <span className="text-sm text-gray-500">غیرفعال</span>
-                          </label>
+                            <span className="text-sm text-muted-foreground" dir="rtl">
+                              {field.value ? "فعال" : "غیرفعال"}
+                            </span>
+                          </div>
                         </div>
                       </FormControl>
                       <FormMessage />

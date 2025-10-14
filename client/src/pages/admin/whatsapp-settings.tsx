@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -260,17 +260,21 @@ export default function WhatsappSettings() {
 
               {/* Enable Toggle - Show for non-personal (admin) settings */}
               {!isPersonal && (
-                <div className="flex items-center justify-between py-2">
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Checkbox
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <Label htmlFor="isEnabled" className="text-sm font-medium cursor-pointer">
+                    فعال‌سازی سرویس واتس‌اپ
+                  </Label>
+                  <div className="flex items-center gap-2" dir="ltr">
+                    <Switch
                       id="isEnabled"
                       checked={formData.isEnabled}
                       onCheckedChange={(checked) => setFormData({ ...formData, isEnabled: checked as boolean })}
-                      data-testid="checkbox-whatsapp-enabled"
+                      data-testid="switch-whatsapp-enabled"
+                      className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
                     />
-                    <Label htmlFor="isEnabled" className="text-sm font-medium">
-                      فعال‌سازی سرویس واتس‌اپ
-                    </Label>
+                    <span className="text-sm text-muted-foreground" dir="rtl">
+                      {formData.isEnabled ? "فعال" : "غیرفعال"}
+                    </span>
                   </div>
                 </div>
               )}
@@ -285,18 +289,27 @@ export default function WhatsappSettings() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     {notificationOptions.map((option) => {
                       const IconComponent = option.icon;
+                      const isChecked = formData.notifications.includes(option.id);
                       return (
-                        <div key={option.id} className="flex items-center space-x-2 space-x-reverse p-2 border rounded-lg hover:bg-gray-50">
-                          <Checkbox
-                            id={option.id}
-                            checked={formData.notifications.includes(option.id)}
-                            onCheckedChange={(checked) => handleNotificationChange(option.id, checked as boolean)}
-                            data-testid={`checkbox-notification-${option.id}`}
-                          />
-                          <IconComponent className="w-3 h-3 text-gray-500" />
-                          <Label htmlFor={option.id} className="text-xs cursor-pointer">
-                            {option.label}
-                          </Label>
+                        <div key={option.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center gap-2">
+                            <IconComponent className="w-4 h-4 text-gray-500" />
+                            <Label htmlFor={option.id} className="text-sm cursor-pointer">
+                              {option.label}
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2" dir="ltr">
+                            <Switch
+                              id={option.id}
+                              checked={isChecked}
+                              onCheckedChange={(checked) => handleNotificationChange(option.id, checked as boolean)}
+                              data-testid={`switch-notification-${option.id}`}
+                              className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
+                            />
+                            <span className="text-xs text-muted-foreground" dir="rtl">
+                              {isChecked ? "فعال" : "غیرفعال"}
+                            </span>
+                          </div>
                         </div>
                       );
                     })}

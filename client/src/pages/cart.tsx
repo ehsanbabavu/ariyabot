@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { ShoppingCart, Plus, Minus, Trash2, Package, MapPin, Star, CreditCard, Truck, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -529,18 +530,22 @@ export default function Cart() {
                             <p className="text-xs text-muted-foreground mt-1">کد پستی 10 رقمی (اختیاری)</p>
                           </div>
                           
-                          <div className="flex items-center space-x-2 bg-muted/50 p-2 rounded-lg">
-                            <Input
-                              type="checkbox"
-                              id="isDefault"
-                              checked={newAddress.isDefault}
-                              onChange={(e) => setNewAddress({...newAddress, isDefault: e.target.checked})}
-                              className="w-4 h-4"
-                              data-testid="checkbox-default-address"
-                            />
-                            <Label htmlFor="isDefault" className="text-sm cursor-pointer">
+                          <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
+                            <Label htmlFor="isDefault" className="text-sm font-medium cursor-pointer">
                               تنظیم به عنوان آدرس پیش‌فرض
                             </Label>
+                            <div className="flex items-center gap-2" dir="ltr">
+                              <Switch
+                                id="isDefault"
+                                checked={newAddress.isDefault}
+                                onCheckedChange={(checked) => setNewAddress({...newAddress, isDefault: checked})}
+                                data-testid="switch-default-address"
+                                className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
+                              />
+                              <span className="text-sm text-muted-foreground" dir="rtl">
+                                {newAddress.isDefault ? "فعال" : "غیرفعال"}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         
