@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql, desc, and, gte, or, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings } from "@shared/schema";
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings } from "@shared/schema";
+import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp } from "@shared/schema";
 import { type IStorage } from "./storage";
 import bcrypt from "bcryptjs";
 
@@ -1684,6 +1684,75 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error updating shipping settings:", error);
       throw error;
+    }
+  }
+
+  // Password Reset OTP methods
+  async createPasswordResetOtp(userId: string, otp: string, expiresAt: Date): Promise<PasswordResetOtp> {
+    try {
+      const result = await db.insert(passwordResetOtps)
+        .values({
+          userId,
+          otp,
+          expiresAt,
+          isUsed: false,
+          createdAt: new Date(),
+        })
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating password reset OTP:", error);
+      throw error;
+    }
+  }
+
+  async getValidPasswordResetOtp(userId: string, otp: string): Promise<PasswordResetOtp | undefined> {
+    try {
+      const result = await db.select()
+        .from(passwordResetOtps)
+        .where(
+          and(
+            eq(passwordResetOtps.userId, userId),
+            eq(passwordResetOtps.otp, otp),
+            eq(passwordResetOtps.isUsed, false),
+            gte(passwordResetOtps.expiresAt, new Date())
+          )
+        )
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error getting valid password reset OTP:", error);
+      return undefined;
+    }
+  }
+
+  async markOtpAsUsed(id: string): Promise<boolean> {
+    try {
+      const result = await db.update(passwordResetOtps)
+        .set({ isUsed: true })
+        .where(eq(passwordResetOtps.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error marking OTP as used:", error);
+      return false;
+    }
+  }
+
+  async deleteExpiredOtps(): Promise<void> {
+    try {
+      await db.delete(passwordResetOtps)
+        .where(
+          or(
+            eq(passwordResetOtps.isUsed, true),
+            gte(new Date(), passwordResetOtps.expiresAt)
+          )
+        );
+    } catch (error) {
+      console.error("Error deleting expired OTPs:", error);
     }
   }
 

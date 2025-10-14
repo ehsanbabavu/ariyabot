@@ -201,6 +201,9 @@ const serializeConversationThread = (thread: ConversationMessage[]): string => {
 };
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Rate limiting map for password reset requests (username -> {count, resetTime})
+  const passwordResetAttempts = new Map<string, { count: number; resetTime: number }>();
+  
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -312,6 +315,122 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/me", authenticateToken, async (req: AuthRequest, res) => {
     res.json({ user: { ...req.user!, password: undefined } });
+  });
+
+  // Password reset routes
+  app.post("/api/auth/request-password-reset", async (req, res) => {
+    try {
+      const { username } = req.body;
+      
+      if (!username) {
+        return res.status(400).json({ message: "نام کاربری الزامی است" });
+      }
+
+      // Rate limiting: محدودیت 3 درخواست در 15 دقیقه برای هر کاربر
+      const now = Date.now();
+      const userAttempts = passwordResetAttempts.get(username);
+      
+      if (userAttempts) {
+        if (now - userAttempts.resetTime < 15 * 60 * 1000) {
+          if (userAttempts.count >= 3) {
+            return res.status(429).json({ message: "تعداد درخواست‌های شما بیش از حد مجاز است. لطفاً 15 دقیقه دیگر تلاش کنید" });
+          }
+          userAttempts.count++;
+        } else {
+          // Reset counter after 15 minutes
+          passwordResetAttempts.set(username, { count: 1, resetTime: now });
+        }
+      } else {
+        passwordResetAttempts.set(username, { count: 1, resetTime: now });
+      }
+
+      // پیدا کردن کاربر
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        // برای امنیت، پیام یکسانی برمی‌گردانیم حتی اگر کاربر وجود نداشته باشد
+        return res.json({ message: "اگر کاربری با این نام کاربری وجود داشته باشد، کد بازیابی به واتس‌اپ ارسال می‌شود" });
+      }
+
+      // بررسی وجود شماره واتس‌اپ
+      if (!user.whatsappNumber) {
+        return res.status(400).json({ message: "شماره واتس‌اپ برای این کاربر ثبت نشده است" });
+      }
+
+      // تولید کد 6 رقمی امن با crypto
+      const crypto = await import("crypto");
+      const otp = crypto.randomInt(100000, 1000000).toString();
+      
+      // تاریخ انقضا (5 دقیقه)
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+      
+      // ذخیره OTP در دیتابیس
+      await storage.createPasswordResetOtp(user.id, otp, expiresAt);
+      
+      // ارسال کد به واتس‌اپ
+      const whatsAppSender = (await import("./whatsapp-sender")).whatsAppSender;
+      const message = `کد بازیابی رمز عبور شما: ${otp}\n\nاین کد تا 5 دقیقه دیگر معتبر است.`;
+      
+      // دریافت تنظیمات واتس‌اپ مدیر برای ارسال
+      const adminSettings = await storage.getWhatsappSettings();
+      
+      if (!adminSettings || !adminSettings.token || !adminSettings.isEnabled) {
+        return res.status(400).json({ message: "سرویس ارسال پیام واتس‌اپ فعال نیست" });
+      }
+      
+      const sent = await whatsAppSender.sendMessage(user.whatsappNumber, message, user.id);
+      
+      if (!sent) {
+        return res.status(500).json({ message: "خطا در ارسال کد به واتس‌اپ" });
+      }
+      
+      res.json({ message: "کد بازیابی به شماره واتس‌اپ شما ارسال شد" });
+    } catch (error) {
+      console.error("Error in password reset request:", error);
+      res.status(500).json({ message: "خطا در درخواست بازیابی رمز عبور" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { username, otp, newPassword } = req.body;
+      
+      if (!username || !otp || !newPassword) {
+        return res.status(400).json({ message: "تمام فیلدها الزامی هستند" });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "رمز عبور باید حداقل 6 کاراکتر باشد" });
+      }
+
+      // پیدا کردن کاربر
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      // بررسی معتبر بودن OTP
+      const validOtp = await storage.getValidPasswordResetOtp(user.id, otp);
+      
+      if (!validOtp) {
+        return res.status(400).json({ message: "کد نامعتبر یا منقضی شده است" });
+      }
+
+      // هش کردن رمز عبور جدید
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      
+      // بروزرسانی رمز عبور
+      await storage.updateUserPassword(user.id, hashedPassword);
+      
+      // علامت‌گذاری OTP به عنوان استفاده شده
+      await storage.markOtpAsUsed(validOtp.id);
+      
+      res.json({ message: "رمز عبور با موفقیت تغییر کرد" });
+    } catch (error) {
+      console.error("Error in password reset:", error);
+      res.status(500).json({ message: "خطا در تغییر رمز عبور" });
+    }
   });
 
   // User management routes (Admin only)
@@ -1573,7 +1692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single category (UUID constrained)
-  app.get("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+  app.get("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdminOrUserLevel1, async (req: AuthRequest, res) => {
     try {
       const category = await storage.getCategory(req.params.id, req.user!.id, req.user!.role);
       if (!category) {
@@ -1586,7 +1705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update category (UUID constrained)
-  app.put("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+  app.put("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdminOrUserLevel1, async (req: AuthRequest, res) => {
     try {
       const updates = req.body;
       // Server-side control: prevent modification of createdBy
@@ -1602,7 +1721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reorder categories (must be before :id routes)
-  app.put("/api/categories/reorder", authenticateToken, requireAdmin, async (req, res) => {
+  app.put("/api/categories/reorder", authenticateToken, requireAdminOrUserLevel1, async (req, res) => {
     try {
       const updates = z.array(updateCategoryOrderSchema).parse(req.body);
       
@@ -1628,7 +1747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete category (UUID constrained)
-  app.delete("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+  app.delete("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdminOrUserLevel1, async (req: AuthRequest, res) => {
     try {
       const success = await storage.deleteCategory(req.params.id, req.user!.id, req.user!.role);
       if (!success) {

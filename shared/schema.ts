@@ -243,6 +243,15 @@ export const shippingSettings = pgTable("shipping_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const passwordResetOtps = pgTable("password_reset_otps", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  otp: text("otp").notNull(), // کد 6 رقمی
+  isUsed: boolean("is_used").notNull().default(false), // آیا استفاده شده
+  expiresAt: timestamp("expires_at").notNull(), // زمان انقضا (5 دقیقه)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -404,6 +413,11 @@ export const updateShippingSettingsSchema = createInsertSchema(shippingSettings)
   freeShippingMinAmount: z.union([z.string(), z.number(), z.null()]).transform(val => val === null ? null : String(val)),
 }).partial();
 
+export const insertPasswordResetOtpSchema = createInsertSchema(passwordResetOtps).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const updateCategoryOrderSchema = z.object({
   categoryId: z.string().uuid(),
   newOrder: z.number().int().min(0),
@@ -479,3 +493,6 @@ export type UpdateFaq = z.infer<typeof updateFaqSchema>;
 export type ShippingSettings = typeof shippingSettings.$inferSelect;
 export type InsertShippingSettings = z.infer<typeof insertShippingSettingsSchema>;
 export type UpdateShippingSettings = z.infer<typeof updateShippingSettingsSchema>;
+
+export type PasswordResetOtp = typeof passwordResetOtps.$inferSelect;
+export type InsertPasswordResetOtp = z.infer<typeof insertPasswordResetOtpSchema>;
