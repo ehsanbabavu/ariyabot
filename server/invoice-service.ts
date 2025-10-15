@@ -250,22 +250,28 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
           <thead>
             <tr>
               <th style="width: 8%;">ردیف</th>
-              <th style="width: 44%;">شرح کالا یا خدمات</th>
-              <th style="width: 12%;">تعداد</th>
-              <th style="width: 18%;">قیمت واحد<br />(ریال)</th>
-              <th style="width: 18%;">قیمت کل<br />(ریال)</th>
+              <th style="width: 36%;">شرح کالا یا خدمات</th>
+              <th style="width: 10%;">تعداد</th>
+              <th style="width: 15%;">قیمت واحد<br />(ریال)</th>
+              <th style="width: 15%;">ارزش افزوده<br />(ریال)</th>
+              <th style="width: 16%;">قیمت کل<br />(ریال)</th>
             </tr>
           </thead>
           <tbody>
-            ${items.map((item, index) => `
+            ${items.map((item, index) => {
+              const itemSubtotal = parseFloat(item.totalPrice);
+              const itemVat = vatPercentage > 0 ? Math.round(itemSubtotal * (vatPercentage / 100)) : 0;
+              const itemTotal = itemSubtotal + itemVat;
+              return `
               <tr>
                 <td>${index + 1}</td>
                 <td class="text-right">${item.productName}</td>
                 <td>${item.quantity}</td>
                 <td>${formatPriceRial(item.unitPrice)}</td>
-                <td>${formatPriceRial(item.totalPrice)}</td>
+                <td>${vatPercentage > 0 ? formatPriceRial(itemVat) : '-'}</td>
+                <td>${formatPriceRial(itemTotal)}</td>
               </tr>
-            `).join('')}
+            `}).join('')}
           </tbody>
         </table>
         
