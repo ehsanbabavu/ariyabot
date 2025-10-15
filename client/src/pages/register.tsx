@@ -5,13 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import loginIllustration from "@assets/stock_images/modern_login_illustr_e75fa17f.jpg";
+import loginVideo from "@assets/YouCut_20250930_005437820_1759181322984.mp4";
 
 export default function Register() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    email: "",
     phone: "",
     password: "",
     confirmPassword: "",
@@ -29,7 +28,7 @@ export default function Register() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password) {
+    if (!formData.firstName || !formData.lastName || !formData.phone || !formData.password) {
       toast({
         title: "خطا",
         description: "لطفاً تمام فیلدها را پر کنید",
@@ -56,7 +55,6 @@ export default function Register() {
     register({
       firstName: formData.firstName,
       lastName: formData.lastName,
-      email: formData.email,
       phone: formattedPhone,
       password: formData.password,
     });
@@ -106,21 +104,6 @@ export default function Register() {
               </div>
               
               <div>
-                <Label htmlFor="email" className="text-gray-700 font-medium mb-1.5 block text-sm">ایمیل</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="ایمیل"
-                  className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
-                  required
-                  data-testid="input-email"
-                />
-              </div>
-              
-              <div>
                 <Label htmlFor="phone" className="text-gray-700 font-medium mb-1.5 block text-sm">شماره تلفن</Label>
                 <Input
                   id="phone"
@@ -135,36 +118,37 @@ export default function Register() {
                 />
               </div>
               
-              <div>
-                <Label htmlFor="password" className="text-gray-700 font-medium mb-1.5 block text-sm">رمز عبور</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="رمز عبور"
-                  className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
-                  required
-                  autoComplete="new-password"
-                  data-testid="input-password"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="confirmPassword" className="text-gray-700 font-medium mb-1.5 block text-sm">تکرار رمز عبور</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="تکرار رمز عبور"
-                  className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
-                  required
-                  autoComplete="new-password"
-                  data-testid="input-confirmPassword"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="password" className="text-gray-700 font-medium mb-1.5 block text-sm">رمز عبور</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="رمز عبور"
+                    className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                    required
+                    autoComplete="new-password"
+                    data-testid="input-password"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword" className="text-gray-700 font-medium mb-1.5 block text-sm">تکرار رمز عبور</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="تکرار رمز عبور"
+                    className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
+                    required
+                    autoComplete="new-password"
+                    data-testid="input-confirmPassword"
+                  />
+                </div>
               </div>
               
               <Button 
@@ -190,10 +174,13 @@ export default function Register() {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-purple-600 to-indigo-700 items-center justify-center p-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 text-center">
-          <img 
-            src={loginIllustration} 
-            alt="Register Illustration" 
-            className="max-w-xs w-full mx-auto rounded-2xl shadow-2xl mb-6"
+          <video 
+            src={loginVideo} 
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="max-w-md w-full mx-auto rounded-2xl shadow-2xl mb-6"
           />
           <h2 className="text-white text-3xl font-bold mb-3">به جمع ما بپیوندید!</h2>
           <p className="text-white/90 text-base">حساب کاربری خود را ایجاد کنید</p>

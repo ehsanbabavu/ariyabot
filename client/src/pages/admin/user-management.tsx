@@ -121,7 +121,6 @@ export default function UserManagement() {
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.firstName.toLowerCase().includes(search.toLowerCase()) ||
                          user.lastName.toLowerCase().includes(search.toLowerCase()) ||
-                         user.email.toLowerCase().includes(search.toLowerCase()) ||
                          (user.username && user.username.toLowerCase().includes(search.toLowerCase()));
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -239,7 +238,6 @@ export default function UserManagement() {
                   <TableRow className="bg-muted">
                     <TableHead className="text-right">نام کاربری</TableHead>
                     <TableHead className="text-right">نام</TableHead>
-                    <TableHead className="text-right">ایمیل</TableHead>
                     <TableHead className="text-right">شماره تلفن</TableHead>
                     <TableHead className="text-right">نوع اشتراک</TableHead>
                     <TableHead className="text-right">روزهای باقیمانده</TableHead>
@@ -255,9 +253,6 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell className="font-medium" data-testid={`text-user-name-${user.id}`}>
                         {user.firstName} {user.lastName}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground" data-testid={`text-user-email-${user.id}`}>
-                        {user.email}
                       </TableCell>
                       <TableCell className="text-muted-foreground" data-testid={`text-user-phone-${user.id}`}>
                         {user.phone}

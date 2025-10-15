@@ -34,7 +34,7 @@ export default function Login() {
     if (loginError) {
       toast({
         title: "خطا در ورود",
-        description: "نام کاربری/ایمیل یا رمز عبور اشتباه است",
+        description: "نام کاربری یا رمز عبور اشتباه است",
         variant: "destructive",
       });
     }
@@ -48,14 +48,14 @@ export default function Login() {
             <form onSubmit={handleSubmit} className="space-y-5" data-testid="form-login">
               <div>
                 <Label htmlFor="emailOrUsername" className="text-gray-700 font-medium mb-1.5 block text-sm">
-                  نام کاربری یا ایمیل
+                  نام کاربری
                 </Label>
                 <Input
                   id="emailOrUsername"
                   type="text"
                   value={emailOrUsername}
                   onChange={(e) => setEmailOrUsername(e.target.value)}
-                  placeholder="نام کاربری یا ایمیل"
+                  placeholder="نام کاربری"
                   className="h-10 px-3 rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-sm"
                   required
                   autoComplete="username"

@@ -31,7 +31,8 @@ import {
   Wallet,
   DollarSign,
   HelpCircle,
-  Truck
+  Truck,
+  Receipt
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -163,6 +164,7 @@ export function Sidebar() {
     { path: "/customer-chats", label: "چت با مشتریان", icon: MessageSquare },
     { path: "/manage-faqs", label: "مدیریت سوالات متداول", icon: HelpCircle },
     { path: "/shipping-settings", label: "ترابری", icon: Truck },
+    { path: "/vat-settings", label: "ارزش افزوده", icon: Receipt },
   ];
 
   return (
