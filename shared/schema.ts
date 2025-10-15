@@ -252,10 +252,21 @@ export const passwordResetOtps = pgTable("password_reset_otps", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const vatSettings = pgTable("vat_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id), // کاربر سطح 1 فروشنده
+  vatPercentage: decimal("vat_percentage", { precision: 5, scale: 2 }).notNull().default("9"), // درصد ارزش افزوده (پیش‌فرض 9%)
+  isEnabled: boolean("is_enabled").notNull().default(false), // فعال/غیرفعال
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   createdAt: true,
+}).extend({
+  email: z.string().email("ایمیل معتبر وارد کنید").optional(),
 });
 
 // Schema for level 2 users where email and username are optional (username auto-generated from phone)
@@ -418,6 +429,24 @@ export const insertPasswordResetOtpSchema = createInsertSchema(passwordResetOtps
   createdAt: true,
 });
 
+export const insertVatSettingsSchema = createInsertSchema(vatSettings).omit({
+  id: true,
+  userId: true, // Server controls this field
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  vatPercentage: z.union([z.string(), z.number()]).transform(val => String(val)),
+});
+
+export const updateVatSettingsSchema = createInsertSchema(vatSettings).omit({
+  id: true,
+  userId: true, // Cannot change owner
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  vatPercentage: z.union([z.string(), z.number()]).transform(val => String(val)),
+}).partial();
+
 export const updateCategoryOrderSchema = z.object({
   categoryId: z.string().uuid(),
   newOrder: z.number().int().min(0),
@@ -496,3 +525,7 @@ export type UpdateShippingSettings = z.infer<typeof updateShippingSettingsSchema
 
 export type PasswordResetOtp = typeof passwordResetOtps.$inferSelect;
 export type InsertPasswordResetOtp = z.infer<typeof insertPasswordResetOtpSchema>;
+
+export type VatSettings = typeof vatSettings.$inferSelect;
+export type InsertVatSettings = z.infer<typeof insertVatSettingsSchema>;
+export type UpdateVatSettings = z.infer<typeof updateVatSettingsSchema>;

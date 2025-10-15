@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql, desc, and, gte, or, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps } from "@shared/schema";
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp } from "@shared/schema";
+import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings } from "@shared/schema";
 import { type IStorage } from "./storage";
 import bcrypt from "bcryptjs";
 
@@ -1748,11 +1748,63 @@ export class DbStorage implements IStorage {
         .where(
           or(
             eq(passwordResetOtps.isUsed, true),
-            gte(new Date(), passwordResetOtps.expiresAt)
+            sql`${passwordResetOtps.expiresAt} < NOW()`
           )
         );
     } catch (error) {
       console.error("Error deleting expired OTPs:", error);
+    }
+  }
+
+  // VAT Settings
+  async getVatSettings(userId: string): Promise<VatSettings | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(vatSettings)
+        .where(eq(vatSettings.userId, userId))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error getting VAT settings:", error);
+      return undefined;
+    }
+  }
+
+  async updateVatSettings(userId: string, settings: UpdateVatSettings): Promise<VatSettings> {
+    try {
+      // بررسی وجود تنظیمات قبلی
+      const existing = await this.getVatSettings(userId);
+      
+      if (existing) {
+        // بروزرسانی تنظیمات موجود
+        const result = await db.update(vatSettings)
+          .set({
+            ...settings,
+            updatedAt: new Date(),
+          })
+          .where(eq(vatSettings.userId, userId))
+          .returning();
+        
+        return result[0];
+      } else {
+        // ایجاد تنظیمات جدید
+        const result = await db.insert(vatSettings)
+          .values({
+            userId,
+            vatPercentage: settings.vatPercentage ?? "9",
+            isEnabled: settings.isEnabled ?? false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .returning();
+        
+        return result[0];
+      }
+    } catch (error) {
+      console.error("Error updating VAT settings:", error);
+      throw error;
     }
   }
 

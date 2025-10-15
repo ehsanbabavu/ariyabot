@@ -2144,10 +2144,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create separate order for each seller
       for (const [sellerId, orderData] of Array.from(ordersBySeller.entries())) {
+        // دریافت تنظیمات VAT فروشنده
+        const vatSettings = await storage.getVatSettings(sellerId);
+        const vatPercentage = vatSettings?.isEnabled ? parseFloat(vatSettings.vatPercentage) : 0;
+        
+        // محاسبه VAT و مبلغ نهایی
+        const subtotal = orderData.totalAmount;
+        const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+        const totalWithVat = subtotal + vatAmount;
+        
         const order = await storage.createOrder({
           userId: req.user!.id,
           sellerId,
-          totalAmount: orderData.totalAmount.toString(),
+          totalAmount: totalWithVat.toString(),
           addressId: req.body.addressId || null,
           shippingMethod: req.body.shippingMethod || null,
           notes: req.body.notes || null
@@ -2253,9 +2262,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const orderItems = await storage.getOrderItemsWithProducts(order.id);
       
+      // دریافت تنظیمات VAT فروشنده
+      const vatSettings = await storage.getVatSettings(order.sellerId);
+      
       res.json({
         ...order,
-        items: orderItems
+        items: orderItems,
+        vatSettings: vatSettings || { vatPercentage: "0", isEnabled: false }
       });
     } catch (error) {
       res.status(500).json({ message: "خطا در دریافت جزئیات سفارش" });
@@ -3016,6 +3029,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error getting seller shipping settings:", error);
       res.status(500).json({ message: "خطا در دریافت تنظیمات ترابری فروشنده" });
+    }
+  });
+
+  // VAT Settings routes - Only for user_level_1
+  app.get("/api/vat-settings", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
+    try {
+      const settings = await storage.getVatSettings(req.user!.id);
+      
+      // اگر تنظیماتی وجود نداشت، مقادیر پیش‌فرض رو برگردون
+      if (!settings) {
+        return res.json({
+          vatPercentage: "9",
+          isEnabled: false,
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting VAT settings:", error);
+      res.status(500).json({ message: "خطا در دریافت تنظیمات ارزش افزوده" });
+    }
+  });
+
+  app.put("/api/vat-settings", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
+    try {
+      const settings = await storage.updateVatSettings(req.user!.id, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating VAT settings:", error);
+      res.status(500).json({ message: "خطا در بروزرسانی تنظیمات ارزش افزوده" });
+    }
+  });
+
+  // Get VAT settings for a specific seller (for level 2 users and reports)
+  app.get("/api/vat-settings/:sellerId", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { sellerId } = req.params;
+      const settings = await storage.getVatSettings(sellerId);
+      
+      if (!settings) {
+        return res.json({
+          vatPercentage: "9",
+          isEnabled: false,
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting VAT settings for seller:", error);
+      res.status(500).json({ message: "خطا در دریافت تنظیمات ارزش افزوده" });
     }
   });
 

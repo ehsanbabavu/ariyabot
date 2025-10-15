@@ -65,6 +65,7 @@ Preferred communication style: Simple, everyday language.
     - **Order Management**: Enhanced order display for level 1 users with customer details, notification bell for new orders, unshipped orders dashboard, and automatic invoice generation with WhatsApp delivery upon order completion.
     - **Transaction Management**: Comprehensive duplicate transaction detection and automatic WhatsApp notifications for approval/rejection.
     - **Shipping Management**: Level 1 sellers can configure four shipping methods (پست پیشتاز, پست معمولی, پیک, ارسال رایگان) with enable/disable toggles and minimum amount for free shipping. Level 2 buyers select from enabled methods during web checkout and WhatsApp ordering. Shipping method is stored with each order for tracking and reporting.
+    - **VAT Management (October 15, 2025)**: Level 1 sellers can configure Value Added Tax (ارزش افزوده) with customizable percentage rate (default 9%) and enable/disable toggle. VAT is automatically calculated and applied to order totals during checkout and displayed separately in invoices (showing subtotal, VAT amount, and total). VAT settings are seller-specific and stored per userId.
     - **Password Reset System**: Secure OTP-based password recovery via WhatsApp with crypto.randomInt for secure 6-digit code generation, 5-minute expiration, one-time use validation, and rate limiting (3 attempts per 15 minutes per user).
     - **Security**: JWT authentication with role-based access control, secure password reset with OTP validation.
 

@@ -83,6 +83,15 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
   // دریافت اطلاعات فروشنده
   const seller = await storage.getUser(order.sellerId);
 
+  // دریافت تنظیمات VAT فروشنده
+  const vatSettings = await storage.getVatSettings(order.sellerId);
+  const vatPercentage = vatSettings?.isEnabled ? parseFloat(vatSettings.vatPercentage) : 0;
+  
+  // محاسبه subtotal از مجموع قیمت آیتم‌ها (بدون VAT)
+  const subtotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+  const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+  const totalWithVat = subtotal + vatAmount;
+
   const isLargeOrder = items.length > 8;
   const fontSize = isLargeOrder ? '12px' : '14px';
   const padding = isLargeOrder ? '6px' : '8px';
@@ -262,12 +271,20 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         
         <!-- Total Section -->
         <div class="total-section">
-          جمع کل: ${formatPriceRial(order.totalAmount)}
+          جمع فاکتور: ${formatPriceRial(subtotal)} ریال
         </div>
+        ${vatPercentage > 0 ? `
+        <div class="total-section">
+          ارزش افزوده (${vatPercentage}%): ${formatPriceRial(vatAmount)} ریال
+        </div>
+        <div class="total-section" style="font-weight: bold; background-color: #f0f0f0;">
+          مبلغ قابل پرداخت: ${formatPriceRial(totalWithVat)} ریال
+        </div>
+        ` : ''}
         
         <!-- Total in Words -->
         <div class="total-words">
-          جمع کل به حروف: ${numberToPersianWords(Number(order.totalAmount) * 10)} ریال
+          ${vatPercentage > 0 ? 'مبلغ قابل پرداخت' : 'جمع کل'} به حروف: ${numberToPersianWords((vatPercentage > 0 ? totalWithVat : subtotal) * 10)} ریال
         </div>
         
         <!-- Thank You Message -->
