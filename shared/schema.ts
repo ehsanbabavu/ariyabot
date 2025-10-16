@@ -257,6 +257,11 @@ export const vatSettings = pgTable("vat_settings", {
   userId: varchar("user_id").notNull().unique().references(() => users.id), // کاربر سطح 1 فروشنده
   vatPercentage: decimal("vat_percentage", { precision: 5, scale: 2 }).notNull().default("9"), // درصد ارزش افزوده (پیش‌فرض 9%)
   isEnabled: boolean("is_enabled").notNull().default(false), // فعال/غیرفعال
+  companyName: text("company_name"), // نام شرکت
+  address: text("address"), // آدرس
+  phoneNumber: varchar("phone_number", { length: 20 }), // شماره تلفن ثابت
+  nationalId: varchar("national_id", { length: 20 }), // شناسه ملی
+  economicCode: varchar("economic_code", { length: 20 }), // کد اقتصادی
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -436,6 +441,19 @@ export const insertVatSettingsSchema = createInsertSchema(vatSettings).omit({
   updatedAt: true,
 }).extend({
   vatPercentage: z.union([z.string(), z.number()]).transform(val => String(val)),
+  companyName: z.string().optional(),
+  address: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  nationalId: z.string().optional(),
+  economicCode: z.string().optional(),
+}).refine((data) => {
+  // اگر ارزش افزوده فعال باشد، باید تمام فیلدها پر شوند
+  if (data.isEnabled) {
+    return !!(data.companyName && data.address && data.phoneNumber && data.nationalId && data.economicCode);
+  }
+  return true;
+}, {
+  message: "هنگام فعال‌سازی ارزش افزوده، تمام فیلدهای اطلاعات شرکت باید پر شوند",
 });
 
 export const updateVatSettingsSchema = createInsertSchema(vatSettings).omit({
@@ -445,7 +463,20 @@ export const updateVatSettingsSchema = createInsertSchema(vatSettings).omit({
   updatedAt: true,
 }).extend({
   vatPercentage: z.union([z.string(), z.number()]).transform(val => String(val)),
-}).partial();
+  companyName: z.string().optional(),
+  address: z.string().optional(),
+  phoneNumber: z.string().optional(),
+  nationalId: z.string().optional(),
+  economicCode: z.string().optional(),
+}).partial().refine((data) => {
+  // اگر ارزش افزوده فعال باشد، باید تمام فیلدها پر شوند
+  if (data.isEnabled) {
+    return !!(data.companyName && data.address && data.phoneNumber && data.nationalId && data.economicCode);
+  }
+  return true;
+}, {
+  message: "هنگام فعال‌سازی ارزش افزوده، تمام فیلدهای اطلاعات شرکت باید پر شوند",
+});
 
 export const updateCategoryOrderSchema = z.object({
   categoryId: z.string().uuid(),

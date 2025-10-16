@@ -3054,6 +3054,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/vat-settings", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
     try {
+      // اگر ارزش افزوده فعال است، تمام فیلدهای شرکت باید پر شوند
+      if (req.body.isEnabled) {
+        const requiredFields = ['companyName', 'address', 'phoneNumber', 'nationalId', 'economicCode'];
+        const missingFields = requiredFields.filter(field => !req.body[field]);
+        
+        if (missingFields.length > 0) {
+          return res.status(400).json({ 
+            message: "هنگام فعال‌سازی ارزش افزوده، تمام فیلدهای اطلاعات شرکت باید پر شوند" 
+          });
+        }
+      }
+      
       const settings = await storage.updateVatSettings(req.user!.id, req.body);
       res.json(settings);
     } catch (error) {

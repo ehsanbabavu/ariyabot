@@ -232,7 +232,11 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         <!-- Seller Section -->
         <div class="section-header">مشخصات فروشنده</div>
         <div class="section-content">
-          نام شخص / سازمان : ${seller?.firstName && seller?.lastName ? `${seller.firstName} ${seller.lastName}` : 'فروشنده'}
+          ${vatSettings?.isEnabled && vatSettings.companyName ? 
+            `${vatSettings.companyName} - ${vatSettings.phoneNumber || ''} - ${vatSettings.economicCode || ''} - ${vatSettings.nationalId || ''} - ${vatSettings.address || ''}`
+            :
+            `نام شخص / سازمان : ${seller?.firstName && seller?.lastName ? `${seller.firstName} ${seller.lastName}` : 'فروشنده'}`
+          }
         </div>
         
         <!-- Customer Section -->
@@ -273,21 +277,13 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
                 <td>${formatPriceRial(itemTotal)}</td>
               </tr>
             `}).join('')}
+            <tr style="background-color: #d3d3d3; font-weight: bold;">
+              <td colspan="4" class="text-right" style="padding: 12px;"></td>
+              <td>${vatPercentage > 0 ? formatPriceRial(vatAmount) : '-'}</td>
+              <td>${formatPriceRial(vatPercentage > 0 ? totalWithVat : subtotal)}</td>
+            </tr>
           </tbody>
         </table>
-        
-        <!-- Total Section -->
-        <div class="total-section">
-          جمع فاکتور: ${formatPriceRial(subtotal)} ریال
-        </div>
-        ${vatPercentage > 0 ? `
-        <div class="total-section">
-          ارزش افزوده (${vatPercentage}%): ${formatPriceRial(vatAmount)} ریال
-        </div>
-        <div class="total-section" style="font-weight: bold; background-color: #f0f0f0;">
-          مبلغ قابل پرداخت: ${formatPriceRial(totalWithVat)} ریال
-        </div>
-        ` : ''}
         
         <!-- Total in Words -->
         <div class="total-words">
