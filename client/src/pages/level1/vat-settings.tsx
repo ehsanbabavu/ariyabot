@@ -15,6 +15,11 @@ export default function VatSettingsPage() {
   const queryClient = useQueryClient();
   const [vatPercentage, setVatPercentage] = useState<string>("9");
   const [isEnabled, setIsEnabled] = useState<boolean>(false);
+  const [companyName, setCompanyName] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+  const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [nationalId, setNationalId] = useState<string>("");
+  const [economicCode, setEconomicCode] = useState<string>("");
 
   const { data: vatSettings, isLoading } = useQuery<VatSettings>({
     queryKey: ["/api/vat-settings"],
@@ -25,18 +30,34 @@ export default function VatSettingsPage() {
       if (data) {
         setVatPercentage(data.vatPercentage);
         setIsEnabled(data.isEnabled);
+        setCompanyName(data.companyName || "");
+        setAddress(data.address || "");
+        setPhoneNumber(data.phoneNumber || "");
+        setNationalId(data.nationalId || "");
+        setEconomicCode(data.economicCode || "");
       }
       return data;
     },
   });
 
   const updateVatMutation = useMutation({
-    mutationFn: async (data: { vatPercentage: string; isEnabled: boolean }) => {
+    mutationFn: async (data: { 
+      vatPercentage: string; 
+      isEnabled: boolean;
+      companyName?: string;
+      address?: string;
+      phoneNumber?: string;
+      nationalId?: string;
+      economicCode?: string;
+    }) => {
       const response = await createAuthenticatedRequest("/api/vat-settings", {
         method: "PUT",
         body: JSON.stringify(data),
       });
-      if (!response.ok) throw new Error("خطا در بروزرسانی تنظیمات ارزش افزوده");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "خطا در بروزرسانی تنظیمات ارزش افزوده");
+      }
       return response.json();
     },
     onSuccess: () => {
@@ -46,10 +67,10 @@ export default function VatSettingsPage() {
         description: "تنظیمات ارزش افزوده با موفقیت ذخیره شد",
       });
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "خطا",
-        description: "خطا در ذخیره تنظیمات ارزش افزوده",
+        description: error.message || "خطا در ذخیره تنظیمات ارزش افزوده",
         variant: "destructive",
       });
     },
@@ -68,107 +89,154 @@ export default function VatSettingsPage() {
       return;
     }
 
+    // اگر ارزش افزوده فعال است، باید تمام فیلدها پر شوند
+    if (isEnabled) {
+      if (!companyName || !address || !phoneNumber || !nationalId || !economicCode) {
+        toast({
+          title: "خطا",
+          description: "هنگام فعال‌سازی ارزش افزوده، تمام فیلدهای اطلاعات شرکت باید پر شوند",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     updateVatMutation.mutate({
       vatPercentage: vatPercentage,
       isEnabled: isEnabled,
+      companyName: companyName,
+      address: address,
+      phoneNumber: phoneNumber,
+      nationalId: nationalId,
+      economicCode: economicCode,
     });
   };
 
   return (
     <DashboardLayout title="تنظیمات ارزش افزوده">
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground">تنظیمات ارزش افزوده (VAT)</h2>
-          <p className="text-muted-foreground">درصد ارزش افزوده را برای فاکتورها و گزارشات خود تنظیم کنید</p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>تنظیمات ارزش افزوده</CardTitle>
-            <CardDescription>
-              با فعال کردن این گزینه، ارزش افزوده به همه فاکتورها و گزارشات شما اضافه خواهد شد
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-8">در حال بارگذاری...</div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                  <div className="space-y-1">
-                    <Label htmlFor="vat-enabled" className="text-base font-semibold">
-                      فعال/غیرفعال کردن ارزش افزوده
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {isEnabled ? "ارزش افزوده فعال است و به فاکتورها اضافه می‌شود" : "ارزش افزوده غیرفعال است"}
-                    </p>
-                  </div>
-                  <Switch
-                    id="vat-enabled"
-                    checked={isEnabled}
-                    onCheckedChange={setIsEnabled}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="vat-percentage">درصد ارزش افزوده (%)</Label>
-                  <div className="flex items-center space-x-2 space-x-reverse">
-                    <Input
-                      id="vat-percentage"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="100"
-                      value={vatPercentage}
-                      onChange={(e) => setVatPercentage(e.target.value)}
-                      className="max-w-xs"
-                      disabled={!isEnabled}
-                    />
-                    <span className="text-muted-foreground">٪</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    درصد پیش‌فرض ارزش افزوده در ایران ۹٪ است
+      <Card>
+        <CardContent className="pt-6">
+          {isLoading ? (
+            <div className="text-center py-8">در حال بارگذاری...</div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="vat-enabled" className="text-sm font-medium">
+                    فعال/غیرفعال کردن ارزش افزوده
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {isEnabled ? "ارزش افزوده فعال است" : "ارزش افزوده غیرفعال است"}
                   </p>
                 </div>
+                <Switch
+                  id="vat-enabled"
+                  checked={isEnabled}
+                  onCheckedChange={setIsEnabled}
+                />
+              </div>
 
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    disabled={updateVatMutation.isPending}
-                    className="min-w-[120px]"
-                  >
-                    {updateVatMutation.isPending ? "در حال ذخیره..." : "ذخیره تنظیمات"}
-                  </Button>
+              <div className="space-y-1.5">
+                <Label htmlFor="vat-percentage" className="text-sm">درصد ارزش افزوده (%)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="vat-percentage"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={vatPercentage}
+                    onChange={(e) => setVatPercentage(e.target.value)}
+                    className="max-w-[200px]"
+                    disabled={!isEnabled}
+                  />
+                  <span className="text-sm text-muted-foreground">٪</span>
                 </div>
-              </form>
-            )}
-          </CardContent>
-        </Card>
+              </div>
 
-        <Card className="bg-blue-50 dark:bg-blue-950">
-          <CardHeader>
-            <CardTitle className="text-blue-900 dark:text-blue-100">
-              نحوه محاسبه ارزش افزوده
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-blue-800 dark:text-blue-200">
-            <p>
-              <strong>ارزش افزوده (VAT)</strong> بر اساس درصد تنظیم شده به مبلغ نهایی سفارشات اضافه می‌شود.
-            </p>
-            <div className="bg-white dark:bg-blue-900 p-4 rounded-lg space-y-2">
-              <p><strong>مثال:</strong></p>
-              <p>مبلغ کالاها: ۱,۰۰۰,۰۰۰ تومان</p>
-              <p>ارزش افزوده ({vatPercentage}٪): {(parseFloat(vatPercentage || "0") * 10000).toLocaleString("fa-IR")} تومان</p>
-              <p className="font-bold border-t pt-2">
-                جمع کل: {(1000000 + parseFloat(vatPercentage || "0") * 10000).toLocaleString("fa-IR")} تومان
-              </p>
-            </div>
-            <p className="text-xs">
-              توجه: این مبلغ در تمام فاکتورها، گزارشات مالی و لیست سفارشات نمایش داده خواهد شد.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+              {isEnabled && (
+                <div className="space-y-3 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div className="text-xs font-medium text-amber-900 dark:text-amber-100">
+                    اطلاعات شرکت (اجباری) *
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="company-name" className="text-xs">نام شرکت</Label>
+                      <Input
+                        id="company-name"
+                        type="text"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        placeholder="نام شرکت"
+                        className="bg-white dark:bg-gray-800 h-9 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone-number" className="text-xs">شماره تلفن ثابت</Label>
+                      <Input
+                        id="phone-number"
+                        type="text"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="02112345678"
+                        className="bg-white dark:bg-gray-800 h-9 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="national-id" className="text-xs">شناسه ملی</Label>
+                      <Input
+                        id="national-id"
+                        type="text"
+                        value={nationalId}
+                        onChange={(e) => setNationalId(e.target.value)}
+                        placeholder="شناسه ملی"
+                        className="bg-white dark:bg-gray-800 h-9 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="economic-code" className="text-xs">کد اقتصادی</Label>
+                      <Input
+                        id="economic-code"
+                        type="text"
+                        value={economicCode}
+                        onChange={(e) => setEconomicCode(e.target.value)}
+                        placeholder="کد اقتصادی"
+                        className="bg-white dark:bg-gray-800 h-9 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label htmlFor="address" className="text-xs">آدرس</Label>
+                      <Input
+                        id="address"
+                        type="text"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="آدرس کامل شرکت"
+                        className="bg-white dark:bg-gray-800 h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="submit"
+                  disabled={updateVatMutation.isPending}
+                  size="sm"
+                >
+                  {updateVatMutation.isPending ? "در حال ذخیره..." : "ذخیره تنظیمات"}
+                </Button>
+              </div>
+            </form>
+          )}
+        </CardContent>
+      </Card>
     </DashboardLayout>
   );
 }
