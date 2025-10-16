@@ -643,16 +643,19 @@ export default function OrdersPage() {
                   <th style={{ width: '8%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
                     ردیف
                   </th>
-                  <th style={{ width: '44%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '36%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
                     شرح کالا یا خدمات
                   </th>
-                  <th style={{ width: '12%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '10%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
                     تعداد
                   </th>
-                  <th style={{ width: '18%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '15%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
                     قیمت واحد<br />(ریال)
                   </th>
-                  <th style={{ width: '18%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '15%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                    ارزش افزوده<br />(ریال)
+                  </th>
+                  <th style={{ width: '16%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
                     قیمت کل<br />(ریال)
                   </th>
                 </tr>
@@ -663,6 +666,13 @@ export default function OrdersPage() {
                   const isLargeOrder = invoiceData.items!.length > 8;
                   const fontSize = isLargeOrder ? '12px' : '14px';
                   const padding = isLargeOrder ? '6px' : '8px';
+                  
+                  const vatPercentage = (invoiceData as any).vatSettings?.isEnabled 
+                    ? parseFloat((invoiceData as any).vatSettings.vatPercentage) 
+                    : 0;
+                  const itemSubtotal = parseFloat(item.totalPrice);
+                  const itemVat = vatPercentage > 0 ? Math.round(itemSubtotal * (vatPercentage / 100)) : 0;
+                  const itemTotal = itemSubtotal + itemVat;
                   
                   return (
                     <tr key={item.id}>
@@ -679,7 +689,10 @@ export default function OrdersPage() {
                         {formatPriceRial(item.unitPrice)}
                       </td>
                       <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize }}>
-                        {formatPriceRial(item.totalPrice)}
+                        {vatPercentage > 0 ? formatPriceRial(itemVat) : '-'}
+                      </td>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize }}>
+                        {formatPriceRial(itemTotal)}
                       </td>
                     </tr>
                   );
@@ -688,26 +701,64 @@ export default function OrdersPage() {
             </table>
             
             {/* Total Section */}
-            <div style={{
-              backgroundColor: '#d3d3d3',
-              textAlign: 'left',
-              padding: '12px',
-              fontWeight: 'bold',
-              fontSize: '16px',
-              borderTop: '1px solid #000'
-            }}>
-              جمع کل: {formatPriceRial(invoiceData.totalAmount)}
-            </div>
-            
-            {/* Total in Words */}
-            <div style={{
-              padding: '15px',
-              textAlign: 'right',
-              fontSize: '14px',
-              borderBottom: '1px solid #000'
-            }}>
-              جمع کل به حروف: {numberToPersianWords(Number(invoiceData.totalAmount) * 10)} ریال
-            </div>
+            {(() => {
+              const vatPercentage = (invoiceData as any).vatSettings?.isEnabled 
+                ? parseFloat((invoiceData as any).vatSettings.vatPercentage) 
+                : 0;
+              const subtotal = invoiceData.items?.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0) || 0;
+              const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+              const totalWithVat = subtotal + vatAmount;
+              
+              return (
+                <>
+                  <div style={{
+                    backgroundColor: '#d3d3d3',
+                    textAlign: 'left',
+                    padding: '12px',
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    borderTop: '1px solid #000'
+                  }}>
+                    جمع فاکتور: {formatPriceRial(subtotal)}
+                  </div>
+                  
+                  {vatPercentage > 0 && (
+                    <>
+                      <div style={{
+                        backgroundColor: '#d3d3d3',
+                        textAlign: 'left',
+                        padding: '12px',
+                        fontWeight: 'bold',
+                        fontSize: '16px',
+                        borderTop: '1px solid #000'
+                      }}>
+                        ارزش افزوده ({vatPercentage}%): {formatPriceRial(vatAmount)}
+                      </div>
+                      <div style={{
+                        backgroundColor: '#f0f0f0',
+                        textAlign: 'left',
+                        padding: '12px',
+                        fontWeight: 'bold',
+                        fontSize: '16px',
+                        borderTop: '1px solid #000'
+                      }}>
+                        مبلغ قابل پرداخت: {formatPriceRial(totalWithVat)}
+                      </div>
+                    </>
+                  )}
+                  
+                  {/* Total in Words */}
+                  <div style={{
+                    padding: '15px',
+                    textAlign: 'right',
+                    fontSize: '14px',
+                    borderBottom: '1px solid #000'
+                  }}>
+                    {vatPercentage > 0 ? 'مبلغ قابل پرداخت' : 'جمع کل'} به حروف: {numberToPersianWords((vatPercentage > 0 ? totalWithVat : subtotal) * 10)} ریال
+                  </div>
+                </>
+              );
+            })()}
             
             {/* Thank You Message */}
             <div style={{
