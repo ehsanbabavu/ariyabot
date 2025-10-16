@@ -13,7 +13,7 @@ This project has been successfully imported from GitHub and configured to run in
   - Admin: username `ehsan`, password `admin123`
   - Test Seller: username `test_seller`, password `test123`
 - **Test Data**: Pre-loaded with 3 mobile categories and 6 test products
-- **Deployment**: Configured for autoscale deployment with build (`npm run build`) and run (`npm start`) scripts
+- **Deployment**: Configured for VM deployment with build (`npm run build`) and run (`npm start`) scripts
 - **Vite Configuration**: Pre-configured with `allowedHosts: true` for Replit proxy compatibility
 - **Workflow**: Single workflow "Server" running `npm run dev` on port 5000 with webview output
 - **TypeScript**: All LSP diagnostics resolved, project compiles successfully
@@ -22,7 +22,7 @@ This project has been successfully imported from GitHub and configured to run in
 1. All npm dependencies installed (638 packages)
 2. Database schema pushed using Drizzle ORM (`npm run db:push`)
 3. Development workflow configured and running on port 5000
-4. Deployment settings configured for autoscale with build and run scripts
+4. Deployment settings configured for VM with build and run scripts
 5. All TypeScript compilation errors resolved
 6. Application verified and running successfully with Persian RTL layout
 
