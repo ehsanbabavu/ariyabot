@@ -52,6 +52,7 @@ function numberToPersianWords(num: number): string {
 
 /**
  * تولید HTML فاکتور برای یک سفارش
+ * شامل ستون ارزش افزوده بین قیمت واحد و قیمت کل
  */
 async function generateInvoiceHTML(orderId: string): Promise<string> {
   // دریافت جزئیات کامل سفارش
