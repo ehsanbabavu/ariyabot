@@ -230,17 +230,17 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         </div>
         
         <!-- Seller Section -->
-        <div class="section-header">مشخصات فروشنده</div>
+        <div class="section-header" style="text-align: right;">مشخصات فروشنده</div>
         <div class="section-content">
           ${vatSettings?.isEnabled ? 
-            `${vatSettings.companyName || ''} - ${vatSettings.phoneNumber || ''} - ${vatSettings.nationalId || ''} - ${vatSettings.economicCode || ''} - ${vatSettings.address || ''}`
+            `نام شرکت: ${vatSettings.companyName || '-'} - شناسه ملی: ${vatSettings.nationalId || '-'} - کد اقتصادی: ${vatSettings.economicCode || '-'} - تلفن: ${vatSettings.phoneNumber || '-'} - آدرس: ${vatSettings.address || '-'}`
             :
             `نام شخص / سازمان : ${seller?.firstName && seller?.lastName ? `${seller.firstName} ${seller.lastName}` : 'فروشنده'}`
           }
         </div>
         
         <!-- Customer Section -->
-        <div class="section-header">مشخصات خریدار</div>
+        <div class="section-header" style="text-align: right;">مشخصات خریدار</div>
         <div class="section-content customer-details">
           <div>نام شخص / سازمان : ${buyer?.firstName && buyer?.lastName ? `${buyer.firstName} ${buyer.lastName}` : 'مشتری گرامی'}</div>
           <div>آدرس - کد پستی - تلفن : ${[
@@ -279,8 +279,8 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
             `}).join('')}
             <tr style="background-color: #d3d3d3; font-weight: bold;">
               <td colspan="4" class="text-right" style="padding: 12px;"></td>
-              <td>${vatPercentage > 0 ? formatPriceRial(vatAmount) : '-'}</td>
-              <td>${formatPriceRial(vatPercentage > 0 ? totalWithVat : subtotal)}</td>
+              <td>${vatPercentage > 0 ? formatPriceRial(vatAmount).replace(' ریال', '') : '-'}</td>
+              <td>${formatPriceRial(vatPercentage > 0 ? totalWithVat : subtotal).replace(' ریال', '')}</td>
             </tr>
           </tbody>
         </table>
@@ -289,6 +289,17 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         <div class="total-words">
           ${vatPercentage > 0 ? 'مبلغ قابل پرداخت' : 'جمع کل'} به حروف: ${numberToPersianWords((vatPercentage > 0 ? totalWithVat : subtotal) * 10)} ریال
         </div>
+        
+        ${vatPercentage > 0 ? `
+        <!-- Company Stamp/Signature -->
+        <div style="position: relative; padding: 20px 0;">
+          <div style="position: absolute; bottom: 0; left: 20px; width: 150px; height: 100px; border: 2px solid #666; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px;">
+            <div style="font-size: 12px; color: #666;">
+              مهر و امضا شرکت
+            </div>
+          </div>
+        </div>
+        ` : ''}
         
         <!-- Thank You Message -->
         <div class="thank-you">
