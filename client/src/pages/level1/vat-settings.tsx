@@ -20,6 +20,8 @@ export default function VatSettingsPage() {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [nationalId, setNationalId] = useState<string>("");
   const [economicCode, setEconomicCode] = useState<string>("");
+  const [stampImage, setStampImage] = useState<string>("");
+  const [uploadingStamp, setUploadingStamp] = useState<boolean>(false);
 
   const { data: vatSettings, isLoading } = useQuery<VatSettings>({
     queryKey: ["/api/vat-settings"],
@@ -35,6 +37,7 @@ export default function VatSettingsPage() {
         setPhoneNumber(data.phoneNumber || "");
         setNationalId(data.nationalId || "");
         setEconomicCode(data.economicCode || "");
+        setStampImage(data.stampImage || "");
       }
       return data;
     },
@@ -49,6 +52,7 @@ export default function VatSettingsPage() {
       phoneNumber?: string;
       nationalId?: string;
       economicCode?: string;
+      stampImage?: string;
     }) => {
       const response = await createAuthenticatedRequest("/api/vat-settings", {
         method: "PUT",
@@ -109,7 +113,68 @@ export default function VatSettingsPage() {
       phoneNumber: phoneNumber,
       nationalId: nationalId,
       economicCode: economicCode,
+      stampImage: stampImage,
     });
+  };
+
+  const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // بررسی نوع فایل
+    if (!file.type.startsWith('image/png')) {
+      toast({
+        title: "خطا",
+        description: "فقط فایل‌های PNG مجاز هستند",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // بررسی حجم فایل (حداکثر 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "خطا",
+        description: "حجم فایل نباید بیشتر از 2 مگابایت باشد",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingStamp(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('stampImage', file);
+
+      const response = await createAuthenticatedRequest('/api/vat-settings/upload-stamp', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          // حذف Content-Type برای FormData
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('خطا در آپلود عکس مهر و امضا');
+      }
+
+      const data = await response.json();
+      setStampImage(data.stampImagePath);
+      
+      toast({
+        title: "موفقیت",
+        description: "عکس مهر و امضا با موفقیت آپلود شد",
+      });
+    } catch (error) {
+      toast({
+        title: "خطا",
+        description: "خطا در آپلود عکس مهر و امضا",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingStamp(false);
+    }
   };
 
   return (
@@ -219,6 +284,33 @@ export default function VatSettingsPage() {
                         placeholder="آدرس کامل شرکت"
                         className="bg-white dark:bg-gray-800 h-9 text-sm"
                       />
+                    </div>
+
+                    <div className="space-y-1.5 md:col-span-2">
+                      <Label htmlFor="stamp-image" className="text-xs">عکس مهر و امضا شرکت (PNG)</Label>
+                      <div className="flex items-center gap-3">
+                        <Input
+                          id="stamp-image"
+                          type="file"
+                          accept="image/png"
+                          onChange={handleStampUpload}
+                          disabled={uploadingStamp}
+                          className="bg-white dark:bg-gray-800 h-9 text-sm"
+                        />
+                        {stampImage && (
+                          <img 
+                            src={stampImage} 
+                            alt="مهر و امضا" 
+                            className="h-16 w-auto border border-gray-300 rounded"
+                          />
+                        )}
+                      </div>
+                      {uploadingStamp && (
+                        <p className="text-xs text-blue-600">در حال آپلود...</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        فقط فایل PNG با حداکثر حجم 2 مگابایت مجاز است
+                      </p>
                     </div>
                   </div>
                 </div>

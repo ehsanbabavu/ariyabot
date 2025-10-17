@@ -561,7 +561,6 @@ export default function OrdersPage() {
               color: '#000000',
               fontSize: invoiceData.items && invoiceData.items.length > 8 ? '13px' : '14px',
               lineHeight: '1.4',
-              border: '2px solid #000',
               padding: '0'
             }}
           >
@@ -746,38 +745,47 @@ export default function OrdersPage() {
               );
             })()}
             
-            {/* Company Stamp/Signature - Only when VAT is enabled */}
-            {(invoiceData as any).vatSettings?.isEnabled && (
-              <div style={{ position: 'relative', padding: '20px 0' }}>
+            {/* Thank You Message */}
+            <div style={{
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px'
+            }}>
+              <div style={{
+                flex: 1,
+                textAlign: 'center',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: '#333'
+              }}>
+                از خرید شما متشکریم
+              </div>
+              {(invoiceData as any).vatSettings?.isEnabled && (
                 <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: '20px',
                   width: '150px',
-                  height: '100px',
-                  border: '2px solid #666',
+                  height: '80px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   textAlign: 'center',
-                  padding: '10px'
+                  padding: '10px',
+                  marginLeft: '20px'
                 }}>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    مهر و امضا شرکت
-                  </div>
+                  {(invoiceData as any).vatSettings?.stampImage ? (
+                    <img 
+                      src={(invoiceData as any).vatSettings.stampImage} 
+                      alt="مهر و امضا" 
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <div style={{ fontSize: '12px', color: '#666' }}>
+                      مهر و امضا شرکت
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
-            
-            {/* Thank You Message */}
-            <div style={{
-              textAlign: 'center',
-              padding: '20px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#333'
-            }}>
-              از خرید شما متشکریم منتظر شما هستیم
+              )}
             </div>
           </div>
         )}
