@@ -2,9 +2,9 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
-## Replit Setup (Fresh GitHub Import - October 16, 2025)
+## Replit Setup (Fresh GitHub Clone - October 17, 2025)
 
-This project has been successfully imported from GitHub and configured to run in the Replit environment:
+This project has been successfully cloned from GitHub and configured to run in the Replit environment:
 
 - **Database**: PostgreSQL database provisioned and schema pushed successfully via `npm run db:push`
 - **Dependencies**: All npm packages installed successfully (638 packages)
@@ -16,16 +16,16 @@ This project has been successfully imported from GitHub and configured to run in
 - **Deployment**: Configured for VM deployment with build (`npm run build`) and run (`npm start`) scripts
 - **Vite Configuration**: Pre-configured with `allowedHosts: true` for Replit proxy compatibility
 - **Workflow**: Single workflow "Server" running `npm run dev` on port 5000 with webview output
-- **TypeScript**: All LSP diagnostics resolved, project compiles successfully
+- **Application Status**: Running successfully with Persian RTL login page
 
-### Setup Steps Completed (Fresh GitHub Import - October 16, 2025)
-1. Database already provisioned (PostgreSQL)
-2. All npm dependencies installed (638 packages)
+### Setup Steps Completed (Fresh GitHub Clone - October 17, 2025)
+1. Database environment already configured via Replit (PostgreSQL helium database)
+2. All npm dependencies installed successfully (638 packages)
 3. Database schema pushed using Drizzle ORM (`npm run db:push`)
-4. TypeScript LSP errors resolved after dependency installation
-5. Development workflow "Server" configured and running on port 5000
-6. Deployment settings configured for VM with build and run scripts
-7. Application verified and running successfully with Persian RTL login page
+4. Development workflow "Server" configured and running on port 5000
+5. Deployment settings configured for VM deployment type with build and run scripts
+6. Application verified and running successfully with Persian RTL login page
+7. Import process completed successfully
 
 ### Important Notes
 - **Security**: Change ADMIN_PASSWORD environment variable before production deployment (defaults to "admin123")

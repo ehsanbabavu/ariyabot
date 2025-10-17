@@ -232,8 +232,8 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         <!-- Seller Section -->
         <div class="section-header">مشخصات فروشنده</div>
         <div class="section-content">
-          ${vatSettings?.isEnabled && vatSettings.companyName ? 
-            `${vatSettings.companyName} - ${vatSettings.phoneNumber || ''} - ${vatSettings.economicCode || ''} - ${vatSettings.nationalId || ''} - ${vatSettings.address || ''}`
+          ${vatSettings?.isEnabled ? 
+            `${vatSettings.companyName || ''} - ${vatSettings.phoneNumber || ''} - ${vatSettings.nationalId || ''} - ${vatSettings.economicCode || ''} - ${vatSettings.address || ''}`
             :
             `نام شخص / سازمان : ${seller?.firstName && seller?.lastName ? `${seller.firstName} ${seller.lastName}` : 'فروشنده'}`
           }
