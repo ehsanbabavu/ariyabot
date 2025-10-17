@@ -572,13 +572,13 @@ export default function OrdersPage() {
               padding: '20px',
               borderBottom: '1px solid #000'
             }}>
-              <div style={{ textAlign: 'right', fontSize: '16px' }}>
-                تاریخ: {new Date(invoiceData.createdAt!).toLocaleDateString('fa-IR')}
-              </div>
+              <div style={{ width: '100px' }}></div>
               <h1 style={{ fontSize: '24px', fontWeight: 'bold', textAlign: 'center', flex: 1 }}>
                 فاکتور فروش
               </h1>
-              <div style={{ width: '100px' }}></div>
+              <div style={{ textAlign: 'left', fontSize: '16px' }}>
+                تاریخ: {new Date(invoiceData.createdAt!).toLocaleDateString('fa-IR')}
+              </div>
             </div>
             
             {/* Seller Section Header */}
@@ -629,36 +629,31 @@ export default function OrdersPage() {
               fontSize: '14px',
               lineHeight: '1.8'
             }}>
-              <div>نام شخص / سازمان : {invoiceData.buyerFirstName && invoiceData.buyerLastName 
+              نام شخص / سازمان : {invoiceData.buyerFirstName && invoiceData.buyerLastName 
                 ? `${invoiceData.buyerFirstName} ${invoiceData.buyerLastName}` 
-                : 'مشتری گرامی'}</div>
-              <div>آدرس - کد پستی - تلفن : {[
-                invoiceData.fullAddress || '-',
-                invoiceData.postalCode || '-',
-                invoiceData.buyerPhone || '-'
-              ].join(' - ')}</div>
+                : 'مشتری گرامی'} - آدرس : {invoiceData.fullAddress || '-'} - کد پستی : {invoiceData.postalCode || '-'} - تلفن : {invoiceData.buyerPhone || '-'}
             </div>
             
             {/* Items Table */}
             <table style={{ width: '100%', borderCollapse: 'collapse', margin: '0' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '8%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '8%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px', verticalAlign: 'middle' }}>
                     ردیف
                   </th>
-                  <th style={{ width: '36%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '36%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px', verticalAlign: 'middle' }}>
                     شرح کالا یا خدمات
                   </th>
-                  <th style={{ width: '10%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '10%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px', verticalAlign: 'middle' }}>
                     تعداد
                   </th>
-                  <th style={{ width: '15%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '15%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px', verticalAlign: 'middle' }}>
                     قیمت واحد<br />(ریال)
                   </th>
-                  <th style={{ width: '15%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '15%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px', verticalAlign: 'middle' }}>
                     ارزش افزوده<br />(ریال)
                   </th>
-                  <th style={{ width: '16%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>
+                  <th style={{ width: '16%', backgroundColor: '#d3d3d3', border: '1px solid #000', padding: '10px', textAlign: 'center', fontWeight: 'bold', fontSize: '14px', verticalAlign: 'middle' }}>
                     قیمت کل<br />(ریال)
                   </th>
                 </tr>
@@ -679,22 +674,22 @@ export default function OrdersPage() {
                   
                   return (
                     <tr key={item.id}>
-                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize }}>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize, verticalAlign: 'middle' }}>
                         {index + 1}
                       </td>
-                      <td style={{ textAlign: 'right', border: '1px solid #000', padding, fontSize }}>
+                      <td style={{ textAlign: 'right', border: '1px solid #000', padding, fontSize, verticalAlign: 'middle' }}>
                         {item.productName}
                       </td>
-                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize }}>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize, verticalAlign: 'middle' }}>
                         {item.quantity}
                       </td>
-                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize }}>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize, verticalAlign: 'middle' }}>
                         {formatPriceRial(item.unitPrice)}
                       </td>
-                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize }}>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize, verticalAlign: 'middle' }}>
                         {vatPercentage > 0 ? formatPriceRial(itemVat) : '-'}
                       </td>
-                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize }}>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding, fontSize, verticalAlign: 'middle' }}>
                         {formatPriceRial(itemTotal)}
                       </td>
                     </tr>
@@ -711,11 +706,11 @@ export default function OrdersPage() {
                   
                   return (
                     <tr style={{ backgroundColor: '#d3d3d3', fontWeight: 'bold' }}>
-                      <td colSpan={4} style={{ textAlign: 'right', border: '1px solid #000', padding: '12px' }}></td>
-                      <td style={{ textAlign: 'center', border: '1px solid #000', padding: '12px' }}>
+                      <td colSpan={4} style={{ textAlign: 'right', border: '1px solid #000', padding: '12px', verticalAlign: 'middle' }}></td>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding: '12px', verticalAlign: 'middle' }}>
                         {vatPercentage > 0 ? formatPriceRial(vatAmount).replace(' ریال', '') : '-'}
                       </td>
-                      <td style={{ textAlign: 'center', border: '1px solid #000', padding: '12px' }}>
+                      <td style={{ textAlign: 'center', border: '1px solid #000', padding: '12px', verticalAlign: 'middle' }}>
                         {formatPriceRial(vatPercentage > 0 ? totalWithVat : subtotal).replace(' ریال', '')}
                       </td>
                     </tr>
@@ -751,7 +746,8 @@ export default function OrdersPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '20px'
+              padding: '20px',
+              minHeight: '60px'
             }}>
               <div style={{
                 flex: 1,
@@ -764,23 +760,46 @@ export default function OrdersPage() {
               </div>
               {(invoiceData as any).vatSettings?.isEnabled && (
                 <div style={{
+                  position: 'absolute',
+                  left: '40px',
+                  top: '-80px',
                   width: '150px',
-                  height: '80px',
+                  height: '150px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   textAlign: 'center',
-                  padding: '10px',
-                  marginLeft: '20px'
+                  zIndex: 10,
+                  pointerEvents: 'none'
                 }}>
                   {(invoiceData as any).vatSettings?.stampImage ? (
-                    <img 
-                      src={(invoiceData as any).vatSettings.stampImage} 
-                      alt="مهر و امضا" 
-                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
-                    />
+                    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                      <img 
+                        src={(invoiceData as any).vatSettings.stampImage} 
+                        alt="مهر و امضا" 
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'contain',
+                          opacity: 0.5,
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                        }}
+                      />
+                      <div style={{ 
+                        position: 'absolute',
+                        top: '60%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        fontSize: '12px', 
+                        color: '#333',
+                        fontWeight: 'bold',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        مهر و امضا شرکت
+                      </div>
+                    </div>
                   ) : (
-                    <div style={{ fontSize: '12px', color: '#666' }}>
+                    <div style={{ fontSize: '14px', color: '#999', opacity: 0.3 }}>
                       مهر و امضا شرکت
                     </div>
                   )}
