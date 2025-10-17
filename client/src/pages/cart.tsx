@@ -437,50 +437,48 @@ export default function Cart() {
 
             {/* Checkout Summary and Address - Full Width */}
             <div className="space-y-4">
-              {/* Address Selection */}
-              <Card className="h-fit">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <MapPin className="h-4 w-4" />
-                    آدرس تحویل
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-0">
+              {/* Address and Shipping Method - Side by Side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Address Selection */}
+                <Card className="h-full">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                      <MapPin className="h-3.5 w-3.5" />
+                      آدرس تحویل
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pt-0 pb-3">
                   {addressesLoading ? (
-                    <div className="space-y-2">
-                      <Label className="text-sm">انتخاب آدرس:</Label>
-                      <div className="flex items-center gap-2">
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
-                        <span className="text-xs text-muted-foreground">در حال بارگذاری آدرس‌ها...</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
+                      <span className="text-xs text-muted-foreground">در حال بارگذاری...</span>
                     </div>
                   ) : addresses.length > 0 ? (
-                    <div className="space-y-2">
-                      <Label className="text-sm">انتخاب آدرس:</Label>
+                    <>
                       <Select value={selectedAddressId} onValueChange={setSelectedAddressId}>
-                        <SelectTrigger data-testid="select-address" className="text-sm h-9">
+                        <SelectTrigger data-testid="select-address" className="text-xs h-8">
                           <SelectValue placeholder="آدرس تحویل را انتخاب کنید" />
                         </SelectTrigger>
                         <SelectContent>
                           {addresses.map((address) => (
-                            <SelectItem key={address.id} value={address.id}>
-                              {address.title} - {address.fullAddress.substring(0, 30)}...
+                            <SelectItem key={address.id} value={address.id} className="text-xs">
+                              {address.title} - {address.fullAddress.substring(0, 25)}...
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
+                    </>
                   ) : (
                     <p className="text-muted-foreground text-xs">
-                      هیچ آدرسی ثبت نشده است. لطفاً آدرس جدید اضافه کنید.
+                      هیچ آدرسی ثبت نشده است
                     </p>
                   )}
                   
                   <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full text-xs h-8" data-testid="button-add-address">
+                      <Button variant="outline" className="w-full text-xs h-7" data-testid="button-add-address">
                         <Plus className="h-3 w-3 ml-1" />
-                        اضافه کردن آدرس جدید
+                        افزودن آدرس
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-lg">
@@ -582,111 +580,105 @@ export default function Cart() {
                     </DialogContent>
                   </Dialog>
                 </CardContent>
-              </Card>
+                </Card>
 
-              {/* Shipping Method Selection */}
-              <Card className="h-fit">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Truck className="h-4 w-4" />
-                    روش ارسال
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-0">
+                {/* Shipping Method Selection */}
+                <Card className="h-full">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                      <Truck className="h-3.5 w-3.5" />
+                      روش ارسال
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 pt-0 pb-3">
                   {shippingLoading ? (
                     <div className="flex items-center gap-2">
                       <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary"></div>
-                      <span className="text-xs text-muted-foreground">در حال بارگذاری روش‌های ارسال...</span>
+                      <span className="text-xs text-muted-foreground">در حال بارگذاری...</span>
                     </div>
                   ) : shippingSettings ? (
-                    <div className="space-y-2">
-                      <Label className="text-sm">انتخاب روش ارسال:</Label>
+                    <>
                       {(shippingSettings.postPishtazEnabled || shippingSettings.postNormalEnabled || shippingSettings.piykEnabled || shippingSettings.freeShippingEnabled) ? (
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {shippingSettings.postPishtazEnabled && (
                             <button
                               onClick={() => setSelectedShippingMethod('post_pishtaz')}
-                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                              className={`w-full p-2 rounded-md border transition-all text-right ${
                                 selectedShippingMethod === 'post_pishtaz' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-gray-200 hover:border-primary/50'
                               }`}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Package className="h-4 w-4 text-primary" />
-                                  <span className="font-medium text-sm">ارسال با پست پیشتاز</span>
-                                </div>
+                              <div className="flex items-center gap-1.5">
+                                <Package className="h-3.5 w-3.5 text-primary" />
+                                <span className="font-medium text-xs">پست پیشتاز</span>
                               </div>
                             </button>
                           )}
                           {shippingSettings.postNormalEnabled && (
                             <button
                               onClick={() => setSelectedShippingMethod('post_normal')}
-                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                              className={`w-full p-2 rounded-md border transition-all text-right ${
                                 selectedShippingMethod === 'post_normal' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-gray-200 hover:border-primary/50'
                               }`}
                             >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Package className="h-4 w-4 text-primary" />
-                                  <span className="font-medium text-sm">ارسال با پست معمولی</span>
-                                </div>
+                              <div className="flex items-center gap-1.5">
+                                <Package className="h-3.5 w-3.5 text-primary" />
+                                <span className="font-medium text-xs">پست معمولی</span>
                               </div>
                             </button>
                           )}
                           {shippingSettings.piykEnabled && (
                             <button
                               onClick={() => setSelectedShippingMethod('piyk')}
-                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                              className={`w-full p-2 rounded-md border transition-all text-right ${
                                 selectedShippingMethod === 'piyk' 
                                   ? 'border-primary bg-primary/5' 
                                   : 'border-gray-200 hover:border-primary/50'
                               }`}
                             >
-                              <div className="flex items-center gap-2">
-                                <Truck className="h-4 w-4 text-primary" />
-                                <span className="font-medium text-sm">ارسال با پیک</span>
+                              <div className="flex items-center gap-1.5">
+                                <Truck className="h-3.5 w-3.5 text-primary" />
+                                <span className="font-medium text-xs">ارسال با پیک</span>
                               </div>
                             </button>
                           )}
                           {shippingSettings.freeShippingEnabled && totalAmount >= parseFloat(shippingSettings.freeShippingMinAmount || '0') && (
                             <button
                               onClick={() => setSelectedShippingMethod('free')}
-                              className={`w-full p-3 rounded-lg border-2 transition-all text-right ${
+                              className={`w-full p-2 rounded-md border transition-all text-right ${
                                 selectedShippingMethod === 'free' 
                                   ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
                                   : 'border-green-200 hover:border-green-500/50'
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Truck className="h-4 w-4 text-green-600" />
-                                  <span className="font-medium text-sm text-green-600">ارسال رایگان</span>
+                                <div className="flex items-center gap-1.5">
+                                  <Truck className="h-3.5 w-3.5 text-green-600" />
+                                  <span className="font-medium text-xs text-green-600">ارسال رایگان</span>
                                 </div>
-                                <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950/30 text-green-700">
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-green-50 dark:bg-green-950/30 text-green-700">
                                   رایگان
                                 </Badge>
                               </div>
                             </button>
                           )}
                           {shippingSettings.freeShippingEnabled && totalAmount < parseFloat(shippingSettings.freeShippingMinAmount || '0') && (
-                            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200">
-                              <p className="text-xs text-blue-700 dark:text-blue-300">
-                                برای ارسال رایگان، حداقل {parseFloat(shippingSettings.freeShippingMinAmount || '0').toLocaleString()} تومان خرید کنید
-                                (کمبود: {(parseFloat(shippingSettings.freeShippingMinAmount || '0') - totalAmount).toLocaleString()} تومان)
+                            <div className="p-2 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200">
+                              <p className="text-[10px] text-blue-700 dark:text-blue-300 leading-tight">
+                                حداقل {parseFloat(shippingSettings.freeShippingMinAmount || '0').toLocaleString()} تومان برای ارسال رایگان
                               </p>
                             </div>
                           )}
                         </div>
                       ) : (
                         <p className="text-muted-foreground text-xs">
-                          فروشنده هیچ روش ارسالی را فعال نکرده است
+                          روش ارسالی فعال نیست
                         </p>
                       )}
-                    </div>
+                    </>
                   ) : (
                     <p className="text-muted-foreground text-xs">
                       تنظیمات ارسال در دسترس نیست
@@ -694,50 +686,50 @@ export default function Cart() {
                   )}
                 </CardContent>
               </Card>
+              </div>
 
               {/* Order Summary */}
               <Card className="h-fit">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ShoppingCart className="h-4 w-4" />
+                <CardHeader className="pb-2 pt-3">
+                  <CardTitle className="flex items-center gap-1.5 text-sm font-semibold">
+                    <ShoppingCart className="h-3.5 w-3.5" />
                     خلاصه سفارش
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3 pt-0">
-                  <div className="flex items-center justify-between py-1 px-2 bg-muted/30 rounded text-sm">
+                <CardContent className="space-y-2 pt-0 pb-3">
+                  <div className="flex items-center justify-between py-1 px-2 bg-muted/30 rounded">
                     <div className="flex items-center gap-1">
                       <Package className="h-3 w-3 text-primary" />
-                      <span className="font-medium">تعداد محصولات</span>
+                      <span className="font-medium text-xs">تعداد محصولات</span>
                     </div>
-                    <Badge variant="secondary" className="text-xs" data-testid="text-total-items">
+                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5" data-testid="text-total-items">
                       {totalItems} عدد
                     </Badge>
                   </div>
                   
-                  <Separator />
+                  <Separator className="my-1" />
                   
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">جمع کل سبد خرید:</span>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs font-medium">جمع کل:</span>
                     <div className="text-left">
-                      <span className="text-base font-bold text-primary" data-testid="text-total-amount">
+                      <span className="text-sm font-bold text-primary" data-testid="text-total-amount">
                         {totalAmount.toLocaleString()}
                       </span>
-                      <span className="text-xs text-muted-foreground mr-1">تومان</span>
+                      <span className="text-[10px] text-muted-foreground mr-1">تومان</span>
                     </div>
                   </div>
 
                   {totalAmount > 500000 && (
-                    <div className="bg-green-50 dark:bg-green-950/20 p-2 rounded text-center">
+                    <div className="bg-green-50 dark:bg-green-950/20 p-1.5 rounded text-center">
                       <div className="flex items-center justify-center gap-1 text-green-700 dark:text-green-400">
                         <Truck className="h-3 w-3" />
-                        <span className="text-xs font-medium">ارسال رایگان</span>
+                        <span className="text-[10px] font-medium">ارسال رایگان</span>
                       </div>
                     </div>
                   )}
                   
                   <Button 
-                    className="w-full" 
-                    size="sm"
+                    className="w-full h-8 text-xs mt-2" 
                     onClick={handleProceedToCheckout}
                     disabled={proceedToCheckoutMutation.isPending || !selectedAddressId || !selectedShippingMethod}
                     data-testid="button-proceed-checkout"
@@ -756,12 +748,12 @@ export default function Cart() {
                   </Button>
                   
                   {!selectedAddressId && cartItems.length > 0 && (
-                    <p className="text-xs text-orange-500 text-center bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
-                      لطفاً ابتدا آدرس تحویل را انتخاب کنید
+                    <p className="text-[10px] text-orange-600 text-center bg-orange-50 dark:bg-orange-950/20 p-1.5 rounded leading-tight">
+                      لطفاً آدرس تحویل را انتخاب کنید
                     </p>
                   )}
                   {!selectedShippingMethod && cartItems.length > 0 && (
-                    <p className="text-xs text-orange-500 text-center bg-orange-50 dark:bg-orange-950/20 p-2 rounded">
+                    <p className="text-[10px] text-orange-600 text-center bg-orange-50 dark:bg-orange-950/20 p-1.5 rounded leading-tight">
                       لطفاً روش ارسال را انتخاب کنید
                     </p>
                   )}
