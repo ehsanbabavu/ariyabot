@@ -91,6 +91,35 @@ const uploadWhatsApp = multer({
   },
 });
 
+// Multer configuration for stamp images (مهر و امضا)
+const stamp_storage_config = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(process.cwd(), "stamppic");
+    // اطمینان از وجود فولدر stamppic
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const uploadStamp = multer({
+  storage: stamp_storage_config,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req: any, file: any, cb: any) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("نوع فایل مجاز نیست"));
+    }
+  },
+});
+
 // Auth middleware  
 interface AuthRequest extends Request {
   user?: User;
@@ -3075,13 +3104,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload stamp image for VAT settings
-  app.post("/api/vat-settings/upload-stamp", authenticateToken, requireAdminOrLevel1, upload.single('stampImage'), async (req: AuthRequest, res) => {
+  app.post("/api/vat-settings/upload-stamp", authenticateToken, requireAdminOrLevel1, uploadStamp.single('stampImage'), async (req: AuthRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "فایلی آپلود نشده است" });
       }
 
-      const stampImagePath = `/uploads/${req.file.filename}`;
+      const stampImagePath = `/stamppic/${req.file.filename}`;
       
       // بروزرسانی تنظیمات VAT با مسیر عکس جدید
       await storage.updateVatSettings(req.user!.id, {

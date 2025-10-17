@@ -20,6 +20,9 @@ app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 // Static serving for uploaded files
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
+// Static serving for stamp images (مهر و امضا)
+app.use('/stamppic', express.static(path.join(process.cwd(), 'stamppic')));
+
 // Static serving for public files (invoices, etc.)
 app.use('/invoices', express.static(path.join(process.cwd(), 'public', 'invoices')));
 
