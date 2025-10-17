@@ -124,7 +124,6 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         .invoice-container {
           width: ${isLargeOrder ? '595px' : '842px'};
           margin: 0 auto;
-          border: 2px solid #000;
           background: white;
         }
         
@@ -290,20 +289,18 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
           ${vatPercentage > 0 ? 'مبلغ قابل پرداخت' : 'جمع کل'} به حروف: ${numberToPersianWords((vatPercentage > 0 ? totalWithVat : subtotal) * 10)} ریال
         </div>
         
-        ${vatPercentage > 0 ? `
-        <!-- Company Stamp/Signature -->
-        <div style="position: relative; padding: 20px 0;">
-          <div style="position: absolute; bottom: 0; left: 20px; width: 150px; height: 100px; border: 2px solid #666; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px;">
-            <div style="font-size: 12px; color: #666;">
-              مهر و امضا شرکت
-            </div>
-          </div>
-        </div>
-        ` : ''}
-        
         <!-- Thank You Message -->
-        <div class="thank-you">
-          از خرید شما متشکریم منتظر شما هستیم
+        <div class="thank-you" style="position: relative; display: flex; align-items: center; justify-content: center;">
+          <div style="flex: 1; text-align: center;">از خرید شما متشکریم</div>
+          ${vatPercentage > 0 ? `
+          <div style="width: 150px; height: 80px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; margin-left: 20px;">
+            ${vatSettings?.stampImage ? 
+              `<img src="${vatSettings.stampImage}" alt="مهر و امضا" style="max-width: 100%; max-height: 100%; object-fit: contain;" />`
+              :
+              `<div style="font-size: 12px; color: #666;">مهر و امضا شرکت</div>`
+            }
+          </div>
+          ` : ''}
         </div>
       </div>
     </body>

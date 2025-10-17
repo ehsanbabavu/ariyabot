@@ -262,6 +262,7 @@ export const vatSettings = pgTable("vat_settings", {
   phoneNumber: varchar("phone_number", { length: 20 }), // شماره تلفن ثابت
   nationalId: varchar("national_id", { length: 20 }), // شناسه ملی
   economicCode: varchar("economic_code", { length: 20 }), // کد اقتصادی
+  stampImage: text("stamp_image"), // عکس مهر و امضا شرکت
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

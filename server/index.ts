@@ -7,15 +7,15 @@ import { cleanupService } from "./cleanup-service";
 import path from "path";
 
 const app = express();
-// JSON parsing middleware - با بررسی content-type  
+// JSON parsing middleware - با بررسی content-type و افزایش محدودیت سایز برای فاکتورها
 app.use((req, res, next) => {
   if (req.headers['content-type']?.startsWith('multipart/form-data')) {
     // برای multipart requests، JSON parsing را نادیده می‌گیریم
     return next();
   }
-  express.json()(req, res, next);
+  express.json({ limit: '50mb' })(req, res, next);
 });
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
 // Static serving for uploaded files
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

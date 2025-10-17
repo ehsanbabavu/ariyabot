@@ -3074,6 +3074,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload stamp image for VAT settings
+  app.post("/api/vat-settings/upload-stamp", authenticateToken, requireAdminOrLevel1, upload.single('stampImage'), async (req: AuthRequest, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "فایلی آپلود نشده است" });
+      }
+
+      const stampImagePath = `/uploads/${req.file.filename}`;
+      
+      // بروزرسانی تنظیمات VAT با مسیر عکس جدید
+      await storage.updateVatSettings(req.user!.id, {
+        stampImage: stampImagePath
+      });
+
+      res.json({ 
+        message: "عکس مهر و امضا با موفقیت آپلود شد",
+        stampImagePath 
+      });
+    } catch (error) {
+      console.error("Error uploading stamp image:", error);
+      res.status(500).json({ message: "خطا در آپلود عکس مهر و امضا" });
+    }
+  });
+
   // Get VAT settings for a specific seller (for level 2 users and reports)
   app.get("/api/vat-settings/:sellerId", authenticateToken, async (req: AuthRequest, res) => {
     try {

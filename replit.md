@@ -6,8 +6,8 @@ This is a modern Persian e-commerce and support web application built with a ful
 
 This project has been successfully cloned from GitHub and configured to run in the Replit environment:
 
-- **Database**: PostgreSQL database provisioned and schema pushed successfully via `npm run db:push`
-- **Dependencies**: All npm packages installed successfully (638 packages)
+- **Database**: PostgreSQL database provisioned (helium) and schema pushed successfully via `npm run db:push`
+- **Dependencies**: All npm packages installed successfully (430 packages in node_modules)
 - **Development Server**: Running on port 5000 (http://0.0.0.0:5000) with Vite dev server
 - **Default Users**: Automatically created on first run
   - Admin: username `ehsan`, password `admin123`
@@ -16,24 +16,38 @@ This project has been successfully cloned from GitHub and configured to run in t
 - **Deployment**: Configured for VM deployment with build (`npm run build`) and run (`npm start`) scripts
 - **Vite Configuration**: Pre-configured with `allowedHosts: true` for Replit proxy compatibility
 - **Workflow**: Single workflow "Server" running `npm run dev` on port 5000 with webview output
-- **Application Status**: Running successfully with Persian RTL login page
+- **Application Status**: ✅ Running successfully with Persian RTL login page
 
 ### Setup Steps Completed (Fresh GitHub Clone - October 17, 2025)
-1. Database environment already configured via Replit (PostgreSQL helium database)
-2. All npm dependencies installed successfully (638 packages)
-3. Database schema pushed using Drizzle ORM (`npm run db:push`)
-4. Development workflow "Server" configured and running on port 5000
-5. Deployment settings configured for VM deployment type with build and run scripts
-6. Application verified and running successfully with Persian RTL login page
-7. Import process completed successfully
+1. ✅ Database environment already configured via Replit (PostgreSQL helium database at `helium:5432/heliumdb`)
+2. ✅ All npm dependencies verified (430 packages in node_modules)
+3. ✅ Database schema pushed successfully using Drizzle ORM (`npm run db:push`)
+4. ✅ Development workflow "Server" configured and running on port 5000 with webview output
+5. ✅ Deployment settings configured for VM deployment type:
+   - Build: `npm run build` (vite build + esbuild bundling)
+   - Run: `npm start` (production mode with compiled dist/index.js)
+6. ✅ Application verified with screenshot - Persian RTL login page displaying correctly
+7. ✅ Import process completed successfully
 
-### Important Notes
-- **Security**: Change ADMIN_PASSWORD environment variable before production deployment (defaults to "admin123")
-- **Gemini AI**: Configure token in admin panel (AI Token Settings) to enable AI-powered features
-- **WhatsApp Integration**: Configure token in admin settings for WhatsApp features
-- **JWT_SECRET**: Optional for development (uses fixed secret), required for production
-- **GEMINI_API_KEY**: Optional environment variable for AI features
+### Important Security Notes
+- **JWT_SECRET**: Currently using fixed development secret - **MUST** set JWT_SECRET environment variable for production
+- **ADMIN_PASSWORD**: Default password is "admin123" - **MUST** set ADMIN_PASSWORD environment variable to change it
+- **GEMINI_API_KEY**: Optional for AI-powered features (WhatsApp OCR, smart ordering) - configure in admin panel or via environment variable
+- **WhatsApp Integration**: Configure WhatsApp token in admin settings for messaging features
+
+### Environment Variables (Required for Production)
+- `DATABASE_URL`: ✅ Already configured (postgresql://postgres:password@helium/heliumdb?sslmode=disable)
+- `JWT_SECRET`: ⚠️ Not set (using fixed development secret)
+- `ADMIN_PASSWORD`: ⚠️ Not set (defaults to "admin123")
+- `GEMINI_API_KEY`: ⚠️ Not set (AI features disabled)
+
+### Architecture Notes
 - The application runs frontend and backend on the same port (5000) using Vite in development mode
+- In production, Vite builds static assets to `dist/public/` and Express serves them
+- Backend listens on `0.0.0.0:5000` for Replit compatibility
+- Database sessions stored in PostgreSQL using connect-pg-simple
+- File uploads stored in `uploads/` directory
+- Invoice images generated in `public/invoices/` directory
 
 # User Preferences
 
