@@ -179,6 +179,7 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
           text-align: center;
           font-weight: bold;
           font-size: 14px;
+          vertical-align: middle;
         }
         
         td {
@@ -186,6 +187,7 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
           padding: ${padding};
           font-size: ${fontSize};
           text-align: center;
+          vertical-align: middle;
         }
         
         .text-right {
@@ -221,11 +223,11 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
       <div class="invoice-container">
         <!-- Header -->
         <div class="header">
-          <div class="header-date">
+          <div style="width: 100px;"></div>
+          <h1 class="header-title">فاکتور فروش</h1>
+          <div class="header-date" style="text-align: left;">
             تاریخ: ${new Date(order.createdAt!).toLocaleDateString('fa-IR')}
           </div>
-          <h1 class="header-title">فاکتور فروش</h1>
-          <div style="width: 100px;"></div>
         </div>
         
         <!-- Seller Section -->
@@ -241,12 +243,7 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         <!-- Customer Section -->
         <div class="section-header" style="text-align: right;">مشخصات خریدار</div>
         <div class="section-content customer-details">
-          <div>نام شخص / سازمان : ${buyer?.firstName && buyer?.lastName ? `${buyer.firstName} ${buyer.lastName}` : 'مشتری گرامی'}</div>
-          <div>آدرس - کد پستی - تلفن : ${[
-            address?.fullAddress || '-',
-            address?.postalCode || '-',
-            buyer?.whatsappNumber || '-'
-          ].join(' - ')}</div>
+          نام شخص / سازمان : ${buyer?.firstName && buyer?.lastName ? `${buyer.firstName} ${buyer.lastName}` : 'مشتری گرامی'} - آدرس : ${address?.fullAddress || '-'} - کد پستی : ${address?.postalCode || '-'} - تلفن : ${buyer?.whatsappNumber || '-'}
         </div>
         
         <!-- Items Table -->
@@ -290,14 +287,17 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         </div>
         
         <!-- Thank You Message -->
-        <div class="thank-you" style="position: relative; display: flex; align-items: center; justify-content: center;">
+        <div class="thank-you" style="position: relative; display: flex; align-items: center; justify-content: center; min-height: 60px;">
           <div style="flex: 1; text-align: center;">از خرید شما متشکریم</div>
           ${vatPercentage > 0 ? `
-          <div style="width: 150px; height: 80px; display: flex; align-items: center; justify-content: center; text-align: center; padding: 10px; margin-left: 20px;">
+          <div style="position: absolute; left: 40px; top: -80px; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 10; pointer-events: none;">
             ${vatSettings?.stampImage ? 
-              `<img src="${vatSettings.stampImage}" alt="مهر و امضا" style="max-width: 100%; max-height: 100%; object-fit: contain;" />`
+              `<div style="position: relative; width: 100%; height: 100%;">
+                <img src="${vatSettings.stampImage}" alt="مهر و امضا" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.5; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
+                <div style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; color: #333; font-weight: bold; white-space: nowrap;">مهر و امضا شرکت</div>
+              </div>`
               :
-              `<div style="font-size: 12px; color: #666;">مهر و امضا شرکت</div>`
+              `<div style="font-size: 14px; color: #999; opacity: 0.3;">مهر و امضا شرکت</div>`
             }
           </div>
           ` : ''}
