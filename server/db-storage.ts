@@ -1795,6 +1795,13 @@ export class DbStorage implements IStorage {
             userId,
             vatPercentage: settings.vatPercentage ?? "9",
             isEnabled: settings.isEnabled ?? false,
+            companyName: settings.companyName ?? null,
+            address: settings.address ?? null,
+            phoneNumber: settings.phoneNumber ?? null,
+            nationalId: settings.nationalId ?? null,
+            economicCode: settings.economicCode ?? null,
+            stampImage: settings.stampImage ?? null,
+            thankYouMessage: settings.thankYouMessage ?? "از خرید شما متشکریم",
             createdAt: new Date(),
             updatedAt: new Date(),
           })

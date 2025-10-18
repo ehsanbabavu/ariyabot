@@ -30,16 +30,16 @@ This project has been successfully cloned from GitHub and configured to run in t
 7. ✅ Import process completed successfully - application fully functional
 
 ### Important Security Notes
-- **JWT_SECRET**: Currently using fixed development secret - **MUST** set JWT_SECRET environment variable for production
-- **ADMIN_PASSWORD**: Default password is "admin123" - **MUST** set ADMIN_PASSWORD environment variable to change it
+- **JWT_SECRET**: ✅ Configured via Replit Secrets for secure session management
+- **ADMIN_PASSWORD**: ✅ Configured via Replit Secrets (admin username: "ehsan")
 - **GEMINI_API_KEY**: Optional for AI-powered features (WhatsApp OCR, smart ordering) - configure in admin panel or via environment variable
 - **WhatsApp Integration**: Configure WhatsApp token in admin settings for messaging features
 
-### Environment Variables (Required for Production)
-- `DATABASE_URL`: ✅ Already configured (postgresql://postgres:password@helium/heliumdb?sslmode=disable)
-- `JWT_SECRET`: ⚠️ Not set (using fixed development secret)
-- `ADMIN_PASSWORD`: ⚠️ Not set (defaults to "admin123")
-- `GEMINI_API_KEY`: ⚠️ Not set (AI features disabled)
+### Environment Variables
+- `DATABASE_URL`: ✅ Configured (postgresql://postgres:password@helium/heliumdb?sslmode=disable)
+- `JWT_SECRET`: ✅ Configured via Replit Secrets
+- `ADMIN_PASSWORD`: ✅ Configured via Replit Secrets
+- `GEMINI_API_KEY`: ⚠️ Optional - Not set (AI features will be disabled until configured)
 
 ### Architecture Notes
 - The application runs frontend and backend on the same port (5000) using Vite in development mode
@@ -78,7 +78,7 @@ Preferred communication style: Simple, everyday language.
     - **Order Management**: Enhanced order display for level 1 users with customer details, notification bell for new orders, unshipped orders dashboard, and automatic invoice generation with WhatsApp delivery upon order completion.
     - **Transaction Management**: Comprehensive duplicate transaction detection and automatic WhatsApp notifications for approval/rejection.
     - **Shipping Management**: Level 1 sellers can configure four shipping methods (پست پیشتاز, پست معمولی, پیک, ارسال رایگان) with enable/disable toggles and minimum amount for free shipping. Level 2 buyers select from enabled methods during web checkout and WhatsApp ordering. Shipping method is stored with each order for tracking and reporting.
-    - **VAT Management (October 15, 2025)**: Level 1 sellers can configure Value Added Tax (ارزش افزوده) with customizable percentage rate (default 9%) and enable/disable toggle. VAT is automatically calculated and applied to order totals during checkout and displayed separately in invoices (showing subtotal, VAT amount, and total). VAT settings are seller-specific and stored per userId.
+    - **VAT Management (October 15, 2025)**: Level 1 sellers can configure Value Added Tax (ارزش افزوده) with customizable percentage rate (default 9%), enable/disable toggle, and customizable thank you message for invoices (default "از خرید شما متشکریم"). VAT is automatically calculated and applied to order totals during checkout and displayed separately in invoices (showing subtotal, VAT amount, and total). VAT settings page redesigned with modern Tabs UI for better organization. VAT settings are seller-specific and stored per userId.
     - **Password Reset System**: Secure OTP-based password recovery via WhatsApp with crypto.randomInt for secure 6-digit code generation, 5-minute expiration, one-time use validation, and rate limiting (3 attempts per 15 minutes per user).
     - **Security**: JWT authentication with role-based access control, secure password reset with OTP validation.
 

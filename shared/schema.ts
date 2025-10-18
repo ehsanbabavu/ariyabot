@@ -263,6 +263,7 @@ export const vatSettings = pgTable("vat_settings", {
   nationalId: varchar("national_id", { length: 20 }), // شناسه ملی
   economicCode: varchar("economic_code", { length: 20 }), // کد اقتصادی
   stampImage: text("stamp_image"), // عکس مهر و امضا شرکت
+  thankYouMessage: text("thank_you_message").default("از خرید شما متشکریم"), // متن تشکر در فاکتور
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

@@ -288,7 +288,7 @@ async function generateInvoiceHTML(orderId: string): Promise<string> {
         
         <!-- Thank You Message -->
         <div class="thank-you" style="position: relative; display: flex; align-items: center; justify-content: center; min-height: 60px;">
-          <div style="flex: 1; text-align: center;">از خرید شما متشکریم</div>
+          <div style="flex: 1; text-align: center;">${vatSettings?.thankYouMessage || 'از خرید شما متشکریم'}</div>
           ${vatPercentage > 0 ? `
           <div style="position: absolute; left: 40px; top: -80px; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 10; pointer-events: none;">
             ${vatSettings?.stampImage ? 
