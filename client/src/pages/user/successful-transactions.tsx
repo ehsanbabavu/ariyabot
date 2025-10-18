@@ -108,8 +108,13 @@ export default function SuccessfulTransactionsPage() {
     }
   });
 
-  // Filter transactions
+  // Filter transactions - حذف تراکنش‌های order_payment از لیست
   const filteredTransactions = transactions.filter(transaction => {
+    // حذف تراکنش‌های پرداخت سفارش از نمایش
+    if (transaction.type === 'order_payment') {
+      return false;
+    }
+    
     const matchesStatus = statusFilter === "all" || transaction.status === statusFilter;
     const matchesType = typeFilter === "all" || transaction.type === typeFilter;
     const matchesSearch = !searchTerm || 
@@ -121,13 +126,14 @@ export default function SuccessfulTransactionsPage() {
     return matchesStatus && matchesType && matchesSearch;
   });
 
-  // Statistics
+  // Statistics - فقط برای تراکنش‌های واریزی (deposit)
+  const depositTransactions = transactions.filter(t => t.type === 'deposit');
   const stats = {
-    total: transactions.length,
-    pending: transactions.filter(t => t.status === 'pending').length,
-    completed: transactions.filter(t => t.status === 'completed').length,
-    failed: transactions.filter(t => t.status === 'failed').length,
-    totalAmount: transactions
+    total: depositTransactions.length,
+    pending: depositTransactions.filter(t => t.status === 'pending').length,
+    completed: depositTransactions.filter(t => t.status === 'completed').length,
+    failed: depositTransactions.filter(t => t.status === 'failed').length,
+    totalAmount: depositTransactions
       .filter(t => t.status === 'completed')
       .reduce((acc, t) => acc + Number(t.amount), 0)
   };

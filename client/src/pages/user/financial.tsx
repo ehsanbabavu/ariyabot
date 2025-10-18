@@ -102,25 +102,18 @@ export default function FinancialPage() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedTransactions = userOwnTransactions.slice(startIndex, endIndex);
   
-  const balance = userOwnTransactions
-    .filter(t => t.status === 'completed')
-    .reduce((acc, t) => {
-      const amount = Number(t.amount);
-      if (t.type === 'deposit' || t.type === 'commission') {
-        return acc + amount;
-      } else if (t.type === 'withdraw' || t.type === 'order_payment') {
-        return acc - amount;
-      }
-      return acc;
-    }, 0);
-
+  // محاسبه کل واریزی‌ها
   const totalDeposits = userOwnTransactions
     .filter(t => t.type === 'deposit' && t.status === 'completed')
     .reduce((acc, t) => acc + Number(t.amount), 0);
 
+  // محاسبه کل برداشت‌ها (استفاده از مقدار مطلق چون مبالغ ممکن است منفی ذخیره شده باشند)
   const totalWithdraws = userOwnTransactions
-    .filter(t => t.type === 'withdraw' && t.status === 'completed')
-    .reduce((acc, t) => acc + Number(t.amount), 0);
+    .filter(t => (t.type === 'withdraw' || t.type === 'order_payment') && t.status === 'completed')
+    .reduce((acc, t) => acc + Math.abs(Number(t.amount)), 0);
+
+  // موجودی کل = کل واریزی‌ها - کل برداشت‌ها
+  const balance = totalDeposits - totalWithdraws;
 
   // Request form
   const form = useForm({

@@ -60,9 +60,19 @@ export default function Cart() {
     enabled: !!user && user.role === "user_level_2" && !!sellerId,
   });
 
+  // Get user's balance
+  const { data: balanceData } = useQuery<{ balance: number }>({
+    queryKey: ["/api/balance"],
+    enabled: !!user,
+  });
+  const userBalance = balanceData?.balance || 0;
+
   // Calculate total
   const totalAmount = cartItems.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  
+  // Check if user has sufficient balance
+  const hasSufficientBalance = userBalance >= totalAmount;
 
   // Auto-select default address when addresses load
   useEffect(() => {
@@ -200,7 +210,7 @@ export default function Cart() {
     }
   };
 
-  // Proceed to checkout mutation
+  // Proceed to checkout mutation (regular order)
   const proceedToCheckoutMutation = useMutation({
     mutationFn: async () => {
       if (!selectedAddressId) {
@@ -222,6 +232,8 @@ export default function Cart() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/balance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       toast({
         title: "موفقیت",
         description: "سفارش شما با موفقیت ثبت شد و در لیست سفارشات شما قرار گرفت",
@@ -238,9 +250,55 @@ export default function Cart() {
     },
   });
 
+  // Pay from balance mutation
+  const payFromBalanceMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedAddressId) {
+        throw new Error("لطفاً آدرس تحویل را انتخاب کنید");
+      }
+      if (!selectedShippingMethod) {
+        throw new Error("لطفاً روش ارسال را انتخاب کنید");
+      }
+      const response = await apiRequest("POST", "/api/orders/pay-from-balance", {
+        addressId: selectedAddressId,
+        shippingMethod: selectedShippingMethod
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "خطا در پرداخت از اعتبار");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/balance"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+      toast({
+        title: "موفقیت",
+        description: "سفارش شما با موفقیت از اعتبار پرداخت شد و در لیست سفارشات شما قرار گرفت",
+      });
+      // Redirect to orders page
+      setLocation('/orders');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطا",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleProceedToCheckout = () => {
     if (cartItems.length > 0) {
-      proceedToCheckoutMutation.mutate();
+      if (hasSufficientBalance) {
+        // پرداخت از اعتبار
+        payFromBalanceMutation.mutate();
+      } else {
+        // ثبت سفارش عادی
+        proceedToCheckoutMutation.mutate();
+      }
     }
   };
 
@@ -717,13 +775,18 @@ export default function Cart() {
                   <Button 
                     className="w-full" 
                     onClick={handleProceedToCheckout}
-                    disabled={proceedToCheckoutMutation.isPending || !selectedAddressId || !selectedShippingMethod}
+                    disabled={proceedToCheckoutMutation.isPending || payFromBalanceMutation.isPending || !selectedAddressId || !selectedShippingMethod}
                     data-testid="button-proceed-checkout"
                   >
-                    {proceedToCheckoutMutation.isPending ? (
+                    {(proceedToCheckoutMutation.isPending || payFromBalanceMutation.isPending) ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white ml-2"></div>
                         در حال پردازش...
+                      </>
+                    ) : hasSufficientBalance ? (
+                      <>
+                        <CreditCard className="h-4 w-4 ml-2" />
+                        پرداخت از اعتبار
                       </>
                     ) : (
                       <>
