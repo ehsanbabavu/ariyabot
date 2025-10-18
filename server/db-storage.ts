@@ -1217,6 +1217,17 @@ export class DbStorage implements IStorage {
     return result[0]?.count || 0;
   }
 
+  async getAwaitingPaymentOrdersByUser(userId: string): Promise<Order[]> {
+    // Get orders that are awaiting payment for user, ordered by creation date (oldest first)
+    return await db.select()
+      .from(orders)
+      .where(and(
+        eq(orders.userId, userId),
+        eq(orders.status, 'awaiting_payment')
+      ))
+      .orderBy(orders.createdAt); // oldest first for priority processing
+  }
+
   // Order Items
   async getOrderItems(orderId: string): Promise<OrderItem[]> {
     return await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));

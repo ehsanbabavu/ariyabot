@@ -2429,6 +2429,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "خطا در به‌روزرسانی تراکنش" });
       }
 
+      // پردازش خودکار سفارشات در صورت تایید تراکنش واریزی
+      if (status === 'completed' && transaction.type === 'deposit') {
+        try {
+          const transactionUser = await storage.getUser(transaction.userId);
+          
+          if (transactionUser) {
+            // دریافت موجودی فعلی کاربر
+            let currentBalance = await storage.getUserBalance(transaction.userId);
+            
+            // دریافت سفارشات در انتظار پرداخت (قدیمی‌ترین اول)
+            const awaitingOrders = await storage.getAwaitingPaymentOrdersByUser(transaction.userId);
+            
+            // پردازش سفارشات به ترتیب اولویت
+            for (const order of awaitingOrders) {
+              const orderAmount = parseFloat(order.totalAmount);
+              
+              // چک کردن موجودی کافی
+              if (currentBalance >= orderAmount) {
+                // تغییر وضعیت سفارش به تایید شده
+                await storage.updateOrderStatus(order.id, 'confirmed', order.sellerId);
+                
+                // ثبت تراکنش کسر موجودی
+                await storage.createTransaction({
+                  userId: transaction.userId,
+                  orderId: order.id,
+                  type: 'order_payment',
+                  amount: `-${orderAmount}`, // مقدار منفی برای کسر
+                  status: 'completed',
+                  transactionDate: new Date().toLocaleDateString('fa-IR'),
+                  transactionTime: new Date().toLocaleTimeString('fa-IR'),
+                });
+                
+                // کم کردن از موجودی جاری
+                currentBalance -= orderAmount;
+                
+                console.log(`✅ سفارش ${order.orderNumber} با موفقیت تایید شد - مبلغ: ${orderAmount} تومان`);
+              } else {
+                // موجودی کافی نیست، از حلقه خارج می‌شویم
+                console.log(`⚠️ موجودی کافی برای پردازش سفارش ${order.orderNumber} نیست`);
+                break;
+              }
+            }
+          }
+        } catch (autoProcessError) {
+          console.error('خطا در پردازش خودکار سفارشات:', autoProcessError);
+          // ادامه می‌دهیم تا پیام واتساپ ارسال شود
+        }
+      }
+
       // ارسال پیام واتساپ به کاربر در صورت تغییر به completed یا failed
       if (status === 'completed' || status === 'failed') {
         const transactionUser = await storage.getUser(transaction.userId);

@@ -2,15 +2,15 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
-## Replit Setup (Fresh GitHub Clone - October 17, 2025)
+## Replit Setup (Fresh GitHub Clone - October 18, 2025)
 
 This project has been successfully cloned from GitHub and configured to run in the Replit environment:
 
-- **Database**: PostgreSQL database (helium) already configured, schema pushed successfully via `npm run db:push`
+- **Database**: PostgreSQL database (helium) configured, schema pushed successfully via `npm run db:push`
 - **Dependencies**: All npm packages installed successfully (638 packages in node_modules)
 - **Development Server**: Running on port 5000 (http://0.0.0.0:5000) with Vite dev server
 - **Default Users**: Automatically created on first run
-  - Admin: username `ehsan`, password `admin123`
+  - Admin: username `ehsan`, password set via ADMIN_PASSWORD secret
   - Test Seller: username `test_seller`, password `test123`
 - **Test Data**: Pre-loaded with 3 mobile categories and 6 test products
 - **Deployment**: Configured for VM deployment with build (`npm run build`) and run (`npm start`) scripts
@@ -18,16 +18,17 @@ This project has been successfully cloned from GitHub and configured to run in t
 - **Workflow**: Single workflow "Server" running `npm run dev` on port 5000 with webview output
 - **Application Status**: ✅ Running successfully with Persian RTL login page
 
-### Setup Steps Completed (October 17, 2025 - Latest Setup)
+### Setup Steps Completed (October 18, 2025 - Latest Setup)
 1. ✅ Database environment verified (PostgreSQL helium database at `helium:5432/heliumdb`)
-2. ✅ All npm dependencies installed fresh (638 packages including puppeteer, drizzle, express, react, etc.)
-3. ✅ Database schema pushed successfully using Drizzle ORM (`npm run db:push`)
-4. ✅ Development workflow "Server" configured and running on port 5000 with webview output
-5. ✅ Deployment settings configured for VM deployment type:
+2. ✅ Required secrets configured (JWT_SECRET and ADMIN_PASSWORD)
+3. ✅ All npm dependencies installed fresh (638 packages including puppeteer, drizzle, express, react, etc.)
+4. ✅ Database schema pushed successfully using Drizzle ORM (`npm run db:push`)
+5. ✅ Development workflow "Server" configured and running on port 5000 with webview output
+6. ✅ Deployment settings configured for VM deployment type:
    - Build: `npm run build` (vite build + esbuild bundling)
    - Run: `npm start` (production mode with compiled dist/index.js)
-6. ✅ Application verified with screenshot - Persian RTL login page displaying correctly
-7. ✅ Import process completed successfully - application fully functional
+7. ✅ Application verified with screenshot - Persian RTL login page displaying correctly
+8. ✅ Import process completed successfully - application fully functional
 
 ### Important Security Notes
 - **JWT_SECRET**: ✅ Configured via Replit Secrets for secure session management
@@ -80,6 +81,8 @@ Preferred communication style: Simple, everyday language.
     - **Shipping Management**: Level 1 sellers can configure four shipping methods (پست پیشتاز, پست معمولی, پیک, ارسال رایگان) with enable/disable toggles and minimum amount for free shipping. Level 2 buyers select from enabled methods during web checkout and WhatsApp ordering. Shipping method is stored with each order for tracking and reporting.
     - **VAT Management (October 15, 2025)**: Level 1 sellers can configure Value Added Tax (ارزش افزوده) with customizable percentage rate (default 9%), enable/disable toggle, and customizable thank you message for invoices (default "از خرید شما متشکریم"). VAT is automatically calculated and applied to order totals during checkout and displayed separately in invoices (showing subtotal, VAT amount, and total). VAT settings page redesigned with modern Tabs UI for better organization. VAT settings are seller-specific and stored per userId.
     - **Password Reset System**: Secure OTP-based password recovery via WhatsApp with crypto.randomInt for secure 6-digit code generation, 5-minute expiration, one-time use validation, and rate limiting (3 attempts per 15 minutes per user).
+    - **Cart Page Redesign (October 18, 2025)**: Shopping cart page redesigned with responsive two-column layout. Right column (lg:col-span-8, 2/3 width) displays products in table format with columns for image/name, unit price, quantity controls, total price, and delete action. Left column (lg:col-span-4, 1/3 width) shows order summary, delivery address selection, and shipping method options. Removed previous standalone "سبد خرید شما" card component. Layout uses lg:grid-cols-12 for responsive grid on large screens and stacks vertically on mobile.
+    - **Automatic Order Processing (October 18, 2025)**: When level 1 users approve deposit transactions (change status to "completed"), the system automatically processes awaiting payment orders in chronological order (oldest first based on createdAt timestamp). For each pending order, the system checks if user's current balance is sufficient, then automatically: (1) confirms the order by changing status to "confirmed", (2) creates a negative order_payment transaction to deduct the order amount, (3) updates the running balance. Processing continues until balance is insufficient or no more pending orders remain. Implemented via getAwaitingPaymentOrdersByUser() method in storage layer with ORDER BY createdAt ASC.
     - **Security**: JWT authentication with role-based access control, secure password reset with OTP validation.
 
 ## Data Storage Solutions

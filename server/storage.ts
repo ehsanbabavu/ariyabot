@@ -110,6 +110,7 @@ export interface IStorage {
   getPaidOrdersCount(sellerId: string): Promise<number>;
   getPendingOrdersCount(sellerId: string): Promise<number>;
   getPendingPaymentOrdersCount(userId: string): Promise<number>;
+  getAwaitingPaymentOrdersByUser(userId: string): Promise<Order[]>;
   
   // Order Items
   getOrderItems(orderId: string): Promise<OrderItem[]>;
@@ -186,6 +187,8 @@ export class MemStorage implements IStorage {
   private internalChats: Map<string, InternalChat>;
   private faqs: Map<string, Faq>;
   private shippingSettings: Map<string, ShippingSettings>;
+  private passwordResetOtps: Map<string, PasswordResetOtp>;
+  private vatSettings: Map<string, VatSettings>;
 
   constructor() {
     this.users = new Map();
@@ -207,6 +210,8 @@ export class MemStorage implements IStorage {
     this.internalChats = new Map();
     this.faqs = new Map();
     this.shippingSettings = new Map();
+    this.passwordResetOtps = new Map();
+    this.vatSettings = new Map();
     
     // Create default admin user
     this.initializeAdminUser();
@@ -1320,6 +1325,17 @@ export class MemStorage implements IStorage {
     return userPendingPaymentOrders.length;
   }
 
+  async getAwaitingPaymentOrdersByUser(userId: string): Promise<Order[]> {
+    // Get orders that are awaiting payment for user, sorted by creation date (oldest first)
+    return Array.from(this.orders.values())
+      .filter(order => order.userId === userId && order.status === 'awaiting_payment')
+      .sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateA - dateB; // oldest first
+      });
+  }
+
   // Order Items
   async getOrderItems(orderId: string): Promise<OrderItem[]> {
     return Array.from(this.orderItems.values()).filter(item => item.orderId === orderId);
@@ -1713,8 +1729,6 @@ export class MemStorage implements IStorage {
   }
 
   // VAT Settings
-  vatSettings = new Map<string, VatSettings>();
-
   async getVatSettings(userId: string): Promise<VatSettings | undefined> {
     return Array.from(this.vatSettings.values()).find(s => s.userId === userId);
   }
@@ -1749,6 +1763,51 @@ export class MemStorage implements IStorage {
       };
       this.vatSettings.set(id, newSettings);
       return newSettings;
+    }
+  }
+
+  // Password Reset OTP
+  async createPasswordResetOtp(userId: string, otp: string, expiresAt: Date): Promise<PasswordResetOtp> {
+    const id = randomUUID();
+    const newOtp: PasswordResetOtp = {
+      id,
+      userId,
+      otp,
+      isUsed: false,
+      expiresAt,
+      createdAt: new Date(),
+    };
+    this.passwordResetOtps.set(id, newOtp);
+    return newOtp;
+  }
+
+  async getValidPasswordResetOtp(userId: string, otp: string): Promise<PasswordResetOtp | undefined> {
+    const now = new Date();
+    return Array.from(this.passwordResetOtps.values()).find(
+      otpRecord => 
+        otpRecord.userId === userId && 
+        otpRecord.otp === otp && 
+        !otpRecord.isUsed && 
+        otpRecord.expiresAt > now
+    );
+  }
+
+  async markOtpAsUsed(id: string): Promise<boolean> {
+    const otp = this.passwordResetOtps.get(id);
+    if (otp) {
+      otp.isUsed = true;
+      this.passwordResetOtps.set(id, otp);
+      return true;
+    }
+    return false;
+  }
+
+  async deleteExpiredOtps(): Promise<void> {
+    const now = new Date();
+    for (const [id, otp] of this.passwordResetOtps.entries()) {
+      if (otp.isUsed || otp.expiresAt < now) {
+        this.passwordResetOtps.delete(id);
+      }
     }
   }
 }
