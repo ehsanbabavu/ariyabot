@@ -2141,6 +2141,148 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pay from balance and create order
+  app.post("/api/orders/pay-from-balance", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
+    try {
+      const cartItems = await storage.getCartItemsWithProducts(req.user!.id);
+      
+      if (cartItems.length === 0) {
+        return res.status(400).json({ message: "سبد خرید خالی است" });
+      }
+
+      // محاسبه مبلغ کل سبد خرید
+      let totalCartAmount = 0;
+      const ordersBySeller = new Map();
+      
+      for (const item of cartItems) {
+        const product = await storage.getProduct(item.productId, req.user!.id, req.user!.role);
+        if (!product) continue;
+        
+        const sellerId = product.userId;
+        if (!ordersBySeller.has(sellerId)) {
+          ordersBySeller.set(sellerId, {
+            items: [],
+            totalAmount: 0
+          });
+        }
+        
+        const sellerOrder = ordersBySeller.get(sellerId);
+        sellerOrder.items.push(item);
+        sellerOrder.totalAmount += parseFloat(item.totalPrice);
+      }
+
+      // محاسبه مبلغ کل با VAT
+      for (const [sellerId, orderData] of Array.from(ordersBySeller.entries())) {
+        const vatSettings = await storage.getVatSettings(sellerId);
+        const vatPercentage = vatSettings?.isEnabled ? parseFloat(vatSettings.vatPercentage) : 0;
+        const subtotal = orderData.totalAmount;
+        const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+        totalCartAmount += subtotal + vatAmount;
+      }
+
+      // بررسی موجودی کاربر
+      const userBalance = await storage.getUserBalance(req.user!.id);
+      
+      if (userBalance < totalCartAmount) {
+        return res.status(400).json({ 
+          message: "موجودی حساب شما کافی نیست",
+          required: totalCartAmount,
+          available: userBalance
+        });
+      }
+
+      const createdOrders = [];
+      
+      // ایجاد سفارش برای هر فروشنده با وضعیت pending
+      for (const [sellerId, orderData] of Array.from(ordersBySeller.entries())) {
+        const vatSettings = await storage.getVatSettings(sellerId);
+        const vatPercentage = vatSettings?.isEnabled ? parseFloat(vatSettings.vatPercentage) : 0;
+        
+        const subtotal = orderData.totalAmount;
+        const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+        const totalWithVat = subtotal + vatAmount;
+        
+        const order = await storage.createOrder({
+          userId: req.user!.id,
+          sellerId,
+          totalAmount: totalWithVat.toString(),
+          status: 'pending', // در انتظار تایید
+          addressId: req.body.addressId || null,
+          shippingMethod: req.body.shippingMethod || null,
+          notes: req.body.notes || null
+        });
+
+        // ایجاد آیتم‌های سفارش
+        for (const item of orderData.items) {
+          await storage.createOrderItem({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice
+          });
+        }
+
+        // ثبت تراکنش کسر موجودی
+        const { nanoid } = await import('nanoid');
+        await storage.createTransaction({
+          userId: req.user!.id,
+          orderId: order.id,
+          type: 'order_payment',
+          amount: `-${totalWithVat}`,
+          status: 'completed',
+          transactionDate: new Date().toLocaleDateString('fa-IR'),
+          transactionTime: new Date().toLocaleTimeString('fa-IR'),
+          accountSource: 'موجودی کل',
+          referenceId: `OP-${nanoid(10)}`,
+        });
+
+        createdOrders.push(order);
+      }
+
+      // پاک کردن سبد خرید
+      await storage.clearCart(req.user!.id);
+
+      // تولید و ارسال فاکتور برای همه سفارشات
+      if (createdOrders.length > 0) {
+        const user = await storage.getUser(req.user!.id);
+        
+        for (const order of createdOrders) {
+          try {
+            console.log(`🖼️ در حال تولید فاکتور برای سفارش ${order.id}...`);
+            const invoiceUrl = await generateAndSaveInvoice(order.id);
+            console.log(`✅ فاکتور ذخیره شد: ${invoiceUrl}`);
+            
+            if (user && user.whatsappNumber) {
+              const success = await whatsAppSender.sendImage(
+                user.whatsappNumber,
+                `📄 فاکتور سفارش شما - پرداخت شده از اعتبار`,
+                invoiceUrl,
+                order.sellerId
+              );
+              
+              if (success) {
+                console.log(`✅ فاکتور با موفقیت به ${user.whatsappNumber} ارسال شد`);
+              } else {
+                console.log(`⚠️ ارسال فاکتور به ${user.whatsappNumber} ناموفق بود`);
+              }
+            }
+          } catch (error) {
+            console.error(`❌ خطا در تولید یا ارسال فاکتور برای سفارش ${order.id}:`, error);
+          }
+        }
+      }
+
+      res.status(201).json({ 
+        message: "سفارش با موفقیت از اعتبار پرداخت شد",
+        orders: createdOrders 
+      });
+    } catch (error: any) {
+      console.error("Pay from balance error:", error);
+      res.status(500).json({ message: "خطا در پرداخت از اعتبار" });
+    }
+  });
+
   // Create new order from cart
   app.post("/api/orders", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
     try {
@@ -2451,6 +2593,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 await storage.updateOrderStatus(order.id, 'confirmed', order.sellerId);
                 
                 // ثبت تراکنش کسر موجودی
+                const { nanoid } = await import('nanoid');
                 await storage.createTransaction({
                   userId: transaction.userId,
                   orderId: order.id,
@@ -2459,6 +2602,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   status: 'completed',
                   transactionDate: new Date().toLocaleDateString('fa-IR'),
                   transactionTime: new Date().toLocaleTimeString('fa-IR'),
+                  accountSource: 'موجودی کل',
+                  referenceId: `OP-${nanoid(10)}`, // شماره پیگیری منحصر به فرد
                 });
                 
                 // کم کردن از موجودی جاری
