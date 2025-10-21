@@ -6,11 +6,12 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
-import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, type User } from "@shared/schema";
+import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, maintenanceMode, type User } from "@shared/schema";
 import { z } from "zod";
 import fs from "fs";
 import { generateAndSaveInvoice } from "./invoice-service";
 import { whatsAppSender } from "./whatsapp-sender";
+import { db, eq } from "./db-storage";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -3390,9 +3391,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "تنظیمات دیتابیس یافت نشد" });
       }
 
-      // Execute pg_dump to create backup
+      // Execute pg_dump to create backup with --clean and --if-exists flags
+      // This ensures the backup includes DROP statements for proper restoration
       try {
-        await execAsync(`pg_dump "${databaseUrl}" > "${backupFilePath}"`);
+        await execAsync(`pg_dump --clean --if-exists "${databaseUrl}" > "${backupFilePath}"`);
         
         // Send file for download
         res.download(backupFilePath, backupFileName, (err) => {
@@ -3601,6 +3603,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting backup:", error);
       res.status(500).json({ message: "خطا در حذف بک‌آپ" });
+    }
+  });
+
+  // ====== Maintenance Mode Routes ======
+  
+  // Get maintenance mode status (no authentication - public endpoint)
+  app.get("/api/maintenance/status", async (req, res) => {
+    try {
+      const [status] = await db.select().from(maintenanceMode).limit(1);
+      
+      if (!status) {
+        // Create default record if doesn't exist
+        const [newStatus] = await db.insert(maintenanceMode).values({
+          isEnabled: false
+        }).returning();
+        return res.json({ isEnabled: false });
+      }
+      
+      res.json({ isEnabled: status.isEnabled });
+    } catch (error) {
+      console.error("Error getting maintenance status:", error);
+      res.status(500).json({ message: "خطا در دریافت وضعیت" });
+    }
+  });
+
+  // Toggle maintenance mode (admin only)
+  app.post("/api/admin/maintenance/toggle", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { isEnabled } = req.body;
+
+      const [status] = await db.select().from(maintenanceMode).limit(1);
+      
+      if (!status) {
+        // Create new record
+        const [newStatus] = await db.insert(maintenanceMode).values({
+          isEnabled: isEnabled
+        }).returning();
+        return res.json(newStatus);
+      }
+      
+      // Update existing record
+      const [updated] = await db
+        .update(maintenanceMode)
+        .set({ 
+          isEnabled: isEnabled,
+          updatedAt: new Date()
+        })
+        .where(eq(maintenanceMode.id, status.id))
+        .returning();
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error toggling maintenance mode:", error);
+      res.status(500).json({ message: "خطا در تغییر وضعیت" });
     }
   });
 

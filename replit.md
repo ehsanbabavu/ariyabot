@@ -63,3 +63,51 @@ Preferred communication style: Simple, everyday language.
 
 ## Database & Storage
 - Neon Database (PostgreSQL), Drizzle Kit.
+
+# Replit Setup & Configuration
+
+## Initial Setup (Completed)
+- **Date**: October 21, 2025
+- **Status**: ✅ Successfully imported and configured
+
+## Environment Configuration
+1. **Database**: PostgreSQL database is provisioned and connected via `DATABASE_URL`
+2. **Schema**: Database schema pushed successfully using Drizzle Kit
+3. **Port**: Server runs on port 5000 (both dev and production)
+4. **Host**: 0.0.0.0 (configured for Replit proxy support)
+
+## Default Credentials
+- **Admin User**: 
+  - Username: `ehsan`
+  - Password: `admin123` (change via `ADMIN_PASSWORD` environment variable)
+- **Test Seller**:
+  - Username: `test_seller`
+  - Password: `test123`
+
+## Required Environment Variables (Optional)
+The following environment variables can be set for enhanced functionality:
+- `JWT_SECRET`: Custom JWT secret (defaults to dev secret if not set)
+- `ADMIN_PASSWORD`: Custom admin password (defaults to admin123)
+- `GEMINI_API_KEY`: For AI-powered features (OCR, smart ordering)
+- `LIARA_AI_API_KEY`: Alternative AI provider
+- WhatsApp integration tokens (configured per user in admin panel)
+
+## Development Workflow
+- **Start Dev Server**: `npm run dev` (automatically configured)
+- **Database Push**: `npm run db:push`
+- **Type Check**: `npm run check`
+- **Build**: `npm run build`
+
+## Deployment
+- **Type**: VM (always-on server)
+- **Build Command**: `npm run build`
+- **Run Command**: `npm start`
+- **Configuration**: Already set up and ready to publish
+
+## Test Data
+The application automatically creates:
+- Admin and test seller accounts
+- 3 mobile phone categories
+- 6 sample products
+
+All ready for testing and demonstration purposes.

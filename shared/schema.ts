@@ -271,6 +271,12 @@ export const vatSettings = pgTable("vat_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const maintenanceMode = pgTable("maintenance_mode", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  isEnabled: boolean("is_enabled").notNull().default(false), // فعال/غیرفعال
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,

@@ -17,6 +17,9 @@ const pool = new Pool({
 });
 const db = drizzle(pool);
 
+// Export db instance for use in routes
+export { db, eq };
+
 export class DbStorage implements IStorage {
   constructor() {
     // Initialize default admin user on startup
