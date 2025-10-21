@@ -613,17 +613,34 @@ export class DbStorage implements IStorage {
   }
 
   // AI Token Settings
-  async getAiTokenSettings(): Promise<AiTokenSettings | undefined> {
-    const result = await db.select().from(aiTokenSettings).limit(1);
+  async getAiTokenSettings(provider?: string): Promise<AiTokenSettings | undefined> {
+    if (provider) {
+      const result = await db.select().from(aiTokenSettings).where(eq(aiTokenSettings.provider, provider)).limit(1);
+      return result[0];
+    }
+    const result = await db.select().from(aiTokenSettings).where(eq(aiTokenSettings.isActive, true)).limit(1);
     return result[0];
   }
 
+  async getAllAiTokenSettings(): Promise<AiTokenSettings[]> {
+    const result = await db.select().from(aiTokenSettings);
+    return result;
+  }
+
   async updateAiTokenSettings(settings: InsertAiTokenSettings): Promise<AiTokenSettings> {
-    // First try to get existing settings
-    const existing = await this.getAiTokenSettings();
+    const existing = await this.getAiTokenSettings(settings.provider);
+    
+    if (settings.isActive) {
+      await db.update(aiTokenSettings)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(aiTokenSettings.isActive, true));
+    }
     
     if (existing) {
-      const result = await db.update(aiTokenSettings).set(settings).where(eq(aiTokenSettings.id, existing.id)).returning();
+      const result = await db.update(aiTokenSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(aiTokenSettings.id, existing.id))
+        .returning();
       return result[0];
     } else {
       const result = await db.insert(aiTokenSettings).values(settings).returning();

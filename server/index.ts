@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { whatsAppMessageService } from "./whatsapp-service";
-import { geminiService } from "./gemini-service";
+import { aiService } from "./ai-service";
 import { cleanupService } from "./cleanup-service";
 import path from "path";
 
@@ -87,8 +87,10 @@ app.use((req, res, next) => {
     reusePort: true,
   }, async () => {
     log(`serving on port ${port}`);
-    // اول Gemini AI رو initialize کن
-    await geminiService.reinitialize();
+    // اول AI Service رو initialize کن
+    log("[AI] شروع initialize سرویس AI...");
+    await aiService.initialize();
+    log(`[AI] AI Service initialized با provider: ${aiService.getCurrentProvider() || 'هیچکدام'}`);
     // بعد سرویس پیام‌های واتس‌اپ رو شروع کن
     whatsAppMessageService.start();
     // سرویس پاکسازی فایل‌های موقت رو شروع کن

@@ -102,11 +102,14 @@ export const receivedMessages = pgTable("received_messages", {
 export const aiTokenSettings = pgTable("ai_token_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   token: text("token").notNull(),
-  provider: text("provider").notNull().default("openai"), // openai, claude, etc
-  isActive: boolean("is_active").notNull().default(true),
+  provider: text("provider").notNull(), // gemini, liara
+  workspaceId: text("workspace_id"), // workspace ID for Liara (optional)
+  isActive: boolean("is_active").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  providerUnique: unique("ai_token_settings_provider_unique").on(table.provider),
+}));
 
 export const internalChats = pgTable("internal_chats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

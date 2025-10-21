@@ -56,7 +56,8 @@ export interface IStorage {
   updateReceivedMessageStatus(id: string, status: string): Promise<ReceivedMessage | undefined>;
 
   // AI Token Settings
-  getAiTokenSettings(): Promise<AiTokenSettings | undefined>;
+  getAiTokenSettings(provider?: string): Promise<AiTokenSettings | undefined>;
+  getAllAiTokenSettings(): Promise<AiTokenSettings[]>;
   updateAiTokenSettings(settings: InsertAiTokenSettings): Promise<AiTokenSettings>;
   
   // User Subscriptions
@@ -175,7 +176,7 @@ export class MemStorage implements IStorage {
   private whatsappSettings: WhatsappSettings | undefined;
   private sentMessages: Map<string, SentMessage>;
   private receivedMessages: Map<string, ReceivedMessage>;
-  private aiTokenSettings: AiTokenSettings | undefined;
+  private aiTokenSettings: Map<string, AiTokenSettings>;
   private userSubscriptions: Map<string, UserSubscription>;
   private categories: Map<string, Category>;
   private carts: Map<string, Cart>;
@@ -198,7 +199,7 @@ export class MemStorage implements IStorage {
     this.whatsappSettings = undefined;
     this.sentMessages = new Map();
     this.receivedMessages = new Map();
-    this.aiTokenSettings = undefined;
+    this.aiTokenSettings = new Map();
     this.userSubscriptions = new Map();
     this.categories = new Map();
     this.carts = new Map();
@@ -787,20 +788,41 @@ export class MemStorage implements IStorage {
   }
 
   // AI Token Settings
-  async getAiTokenSettings(): Promise<AiTokenSettings | undefined> {
-    return this.aiTokenSettings;
+  async getAiTokenSettings(provider?: string): Promise<AiTokenSettings | undefined> {
+    if (provider) {
+      return Array.from(this.aiTokenSettings.values()).find(s => s.provider === provider);
+    }
+    return Array.from(this.aiTokenSettings.values()).find(s => s.isActive);
+  }
+
+  async getAllAiTokenSettings(): Promise<AiTokenSettings[]> {
+    return Array.from(this.aiTokenSettings.values());
   }
 
   async updateAiTokenSettings(settings: InsertAiTokenSettings): Promise<AiTokenSettings> {
+    const existing = Array.from(this.aiTokenSettings.values()).find(s => s.provider === settings.provider);
+    
+    if (settings.isActive) {
+      for (const [id, tokenSetting] of this.aiTokenSettings.entries()) {
+        if (tokenSetting.provider !== settings.provider && tokenSetting.isActive) {
+          this.aiTokenSettings.set(id, {
+            ...tokenSetting,
+            isActive: false,
+            updatedAt: new Date(),
+          });
+        }
+      }
+    }
+    
     const aiTokenSettings: AiTokenSettings = {
       ...settings,
-      id: this.aiTokenSettings?.id || randomUUID(),
-      provider: settings.provider || "openai",
-      isActive: settings.isActive !== undefined ? settings.isActive : true,
-      createdAt: this.aiTokenSettings?.createdAt || new Date(),
+      id: existing?.id || randomUUID(),
+      provider: settings.provider,
+      isActive: settings.isActive !== undefined ? settings.isActive : false,
+      createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date(),
     };
-    this.aiTokenSettings = aiTokenSettings;
+    this.aiTokenSettings.set(aiTokenSettings.id, aiTokenSettings);
     return aiTokenSettings;
   }
 

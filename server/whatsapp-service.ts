@@ -1,5 +1,5 @@
 import { storage } from "./storage";
-import { geminiService } from "./gemini-service";
+import { aiService } from "./ai-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { orderSessionService } from "./order-session-service";
 import { generateAndSaveInvoice } from "./invoice-service";
@@ -160,7 +160,7 @@ class WhatsAppMessageService {
             // برای پیام‌های متنی
             messageContent = message.message;
             // چک می‌کنیم آیا توی متن لینک عکس هست
-            imageUrl = geminiService.extractImageUrl(message.message);
+            imageUrl = aiService.extractImageUrl(message.message);
             if (imageUrl) {
               console.log(`🖼️ آدرس عکس از متن پیام استخراج شد: ${imageUrl}`);
             }
@@ -191,7 +191,7 @@ class WhatsAppMessageService {
             });
 
             // پاسخ خودکار با Gemini AI فقط اگر کاربر ثبت‌نام کامل شده باشد
-            if (geminiService.isActive() && !isUserInRegistrationProcess) {
+            if (aiService.isActive() && !isUserInRegistrationProcess) {
               await this.handleAutoResponse(message.from, messageContent, message.id, user.id);
             }
             
@@ -509,7 +509,7 @@ class WhatsAppMessageService {
       }
 
       // استخراج اطلاعات مالی با هوش مصنوعی
-      const depositInfo = await geminiService.extractDepositInfo(message);
+      const depositInfo = await aiService.extractDepositInfo(message);
       
       // لاگ ساختاریافته برای مانیتورینگ و تلمتری
       console.log(`📊 Telemetry - Deposit extraction attempt:`, JSON.stringify({
@@ -603,7 +603,7 @@ class WhatsAppMessageService {
       }
 
       // استخراج اطلاعات مالی از عکس با هوش مصنوعی
-      const depositInfo = await geminiService.extractDepositInfoFromImage(imageUrl);
+      const depositInfo = await aiService.extractDepositInfoFromImage(imageUrl);
       
       // لاگ ساختاریافته برای مانیتورینگ و تلمتری
       console.log(`📊 Telemetry - Deposit extraction from image:`, JSON.stringify({
@@ -960,13 +960,13 @@ ${missingFieldsText}
       // مدیریت state های مختلف
       if (session.state === 'idle') {
         // ابتدا چک کنیم آیا پیام درخواست سفارش است
-        const isOrder = await geminiService.isProductOrderRequest(message);
+        const isOrder = await aiService.isProductOrderRequest(message);
         if (!isOrder) {
           return false; // اگر درخواست سفارش نبود، ادامه ندهیم
         }
 
         // استخراج نام محصول
-        const productName = await geminiService.extractProductName(message);
+        const productName = await aiService.extractProductName(message);
         if (!productName) {
           await this.sendWhatsAppMessage(whatsappToken, sender, 'متوجه نشدم چه محصولی می‌خواهید. لطفاً نام محصول را واضح‌تر بنویسید.', receiverUserId);
           return true;
@@ -1041,7 +1041,7 @@ ${missingFieldsText}
       
       else if (session.state === 'asking_quantity') {
         // استخراج تعداد از پیام
-        const quantity = await geminiService.extractQuantity(message);
+        const quantity = await aiService.extractQuantity(message);
         if (!quantity || quantity <= 0) {
           await this.sendWhatsAppMessage(whatsappToken, sender, 'لطفاً تعداد را به صورت عدد بنویسید. مثلاً: 2 یا سه', receiverUserId);
           return true;
@@ -1086,7 +1086,7 @@ ${missingFieldsText}
       
       else if (session.state === 'asking_more_products') {
         // بررسی پاسخ کاربر
-        const wantsMore = await geminiService.isPositiveResponse(message);
+        const wantsMore = await aiService.isPositiveResponse(message);
         
         if (wantsMore) {
           // کاربر محصول دیگری می‌خواهد
@@ -1475,7 +1475,7 @@ ${missingFieldsText}
       console.log(`🤖 در حال تولید پاسخ برای پیام از ${sender}...`);
       
       // ابتدا بررسی کنیم که آیا پیام حاوی عکس است
-      const imageUrl = geminiService.extractImageUrl(incomingMessage);
+      const imageUrl = aiService.extractImageUrl(incomingMessage);
       
       if (imageUrl) {
         console.log(`🖼️ پیام حاوی عکس است، در حال پردازش عکس رسید...`);
@@ -1494,7 +1494,7 @@ ${missingFieldsText}
       }
       
       // اگر عکس نبود یا عکس واریزی نبود، چک کنیم که آیا پیام یک رسید واریزی متنی است
-      const isDeposit = await geminiService.isDepositMessage(incomingMessage);
+      const isDeposit = await aiService.isDepositMessage(incomingMessage);
       if (isDeposit) {
         console.log(`💰 پیام تشخیص داده شد به عنوان رسید واریزی متنی`);
         const depositProcessed = await this.handleDepositMessage(sender, incomingMessage, userId);
@@ -1547,7 +1547,7 @@ ${missingFieldsText}
           console.log(`📋 ${parentFaqs.length} سوال متداول از والد پیدا شد`);
           
           // یافتن FAQ منطبق با سوال کاربر
-          const matchedFaq = await geminiService.findMatchingFaq(
+          const matchedFaq = await aiService.findMatchingFaq(
             incomingMessage,
             parentFaqs.map(faq => ({ id: faq.id, question: faq.question, answer: faq.answer }))
           );
@@ -1585,16 +1585,9 @@ ${missingFieldsText}
       }
 
       // ۳. اولویت سوم: پاسخ عادی هوش مصنوعی (AI Fallback)
-      // دریافت تنظیمات هوش مصنوعی
-      const aiTokenSettings = await storage.getAiTokenSettings();
-      if (!aiTokenSettings?.token || !aiTokenSettings.isActive) {
-        console.log("⚠️ توکن هوش مصنوعی تنظیم نشده یا غیرفعال است");
-        return;
-      }
-
       console.log(`🤖 هیچ FAQ یا سفارشی یافت نشد، در حال تولید پاسخ هوشمند...`);
       // تولید پاسخ با Gemini AI
-      const aiResponse = await geminiService.generateResponse(incomingMessage, userId);
+      const aiResponse = await aiService.generateResponse(incomingMessage, userId);
 
       // محدود کردن طول پاسخ برای جلوگیری از خطای 414
       const maxLength = 200; // حداکثر 200 کاراکتر
@@ -1639,7 +1632,7 @@ ${missingFieldsText}
     return {
       isRunning: this.isRunning,
       lastFetchTime: this.lastFetchTime,
-      geminiActive: geminiService.isActive()
+      geminiActive: aiService.isActive()
     };
   }
 }

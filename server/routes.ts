@@ -1265,7 +1265,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AI Token routes
   app.get("/api/ai-token", authenticateToken, requireAdmin, async (req, res) => {
     try {
-      const settings = await storage.getAiTokenSettings();
+      const settings = await storage.getAllAiTokenSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "خطا در دریافت توکن هوش مصنوعی" });
+    }
+  });
+
+  app.get("/api/ai-token/:provider", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      const settings = await storage.getAiTokenSettings(provider);
       res.json(settings || {});
     } catch (error) {
       res.status(500).json({ message: "خطا در دریافت توکن هوش مصنوعی" });
@@ -1277,9 +1287,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertAiTokenSettingsSchema.parse(req.body);
       const settings = await storage.updateAiTokenSettings(validatedData);
       
-      // بازخوانی سرویس Gemini با توکن جدید
-      const { geminiService } = await import("./gemini-service");
-      await geminiService.reinitialize();
+      // بازخوانی سرویس AI مناسب با توکن جدید
+      const { aiService } = await import("./ai-service");
+      await aiService.reinitialize();
       
       res.json(settings);
     } catch (error) {

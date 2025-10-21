@@ -2,12 +2,41 @@
 
 This is a modern Persian e-commerce and support web application built with a full-stack TypeScript architecture. The application provides user management, a ticketing system, inventory management, and subscription services with role-based access control. All user-facing content is displayed in Persian (Farsi) while maintaining a modern, responsive design. The project aims to provide a comprehensive and intuitive platform for online business operations in the Persian market, incorporating AI-powered features for smart ordering and deposit receipt processing via WhatsApp.
 
-## Replit Setup (Fresh GitHub Clone - October 19, 2025)
+# Recent Changes
+
+## Mobile Responsive Admin Panel (October 21, 2025)
+- ✅ Implemented fully responsive admin panel with mobile-first design:
+  - Added hamburger menu button (only visible on mobile screens)
+  - Converted Sidebar to Sheet/Drawer component for mobile navigation
+  - Desktop layout remains unchanged (Sidebar always visible)
+  - Added `onNavigate` prop to Sidebar for automatic drawer close on navigation
+  - Fixed drawer bug using `prevLocation` ref to prevent immediate closure on mount
+- ✅ Enhanced Liara AI workspace ID support:
+  - Added `workspaceId` field to `ai_token_settings` database schema
+  - Updated Liara service to use dynamic workspace ID from database
+  - Added Workspace ID input field to admin AI token settings page (Liara tab)
+
+## Dual AI Provider System (October 19, 2025)
+- ✅ Implemented dual AI provider architecture supporting both Gemini AI and Liara AI
+- ✅ Created AI Service Orchestrator (`ai-service.ts`) for centralized provider management and automatic failover
+- ✅ Added Liara AI service (`liara-service.ts`) using OpenAI-compatible API
+- ✅ Updated database schema with unique constraint on `provider` column in `ai_token_settings` table
+- ✅ Enhanced storage layer with provider-specific methods:
+  - `getAiTokenSettings(provider?)`: Retrieve settings for specific provider or active provider
+  - `getAllAiTokenSettings()`: Retrieve all provider configurations
+  - Updated both MemStorage and DbStorage implementations
+- ✅ Redesigned admin AI token settings page (`/admin/ai-token`) with tabbed interface for Gemini and Liara
+- ✅ Implemented mutual exclusivity: activating one provider automatically deactivates the other
+- ✅ Updated all API routes to use AI orchestrator instead of direct Gemini service calls
+- ✅ Provider preference: Gemini AI is preferred when both are active, with automatic fallback to Liara
+- ✅ Fixed provider-specific initialization in both AI services
+
+## Replit Setup (Fresh GitHub Clone - October 21, 2025)
 
 This project has been successfully cloned from GitHub and configured to run in the Replit environment:
 
 - **Database**: PostgreSQL database configured, schema pushed successfully via `npm run db:push`
-- **Dependencies**: All npm packages installed successfully (638 packages in node_modules)
+- **Dependencies**: All npm packages installed successfully (639 packages in node_modules)
 - **Development Server**: Running on port 5000 (http://0.0.0.0:5000) with Vite dev server
 - **Default Users**: Automatically created on first run
   - Admin: username `ehsan`, password set via ADMIN_PASSWORD secret
@@ -17,25 +46,20 @@ This project has been successfully cloned from GitHub and configured to run in t
 - **Vite Configuration**: Pre-configured with `allowedHosts: true` for Replit proxy compatibility
 - **Workflow**: Single workflow "Server" running `npm run dev` on port 5000 with webview output
 - **Application Status**: ✅ Running successfully with Persian RTL login page
+- **Git Configuration**: ✅ .gitignore file created with Node.js project exclusions
 
-### Setup Steps Completed (October 19, 2025 - Latest Setup)
-1. ✅ Database created and configured (PostgreSQL database)
-2. ✅ Required secrets configured (JWT_SECRET and ADMIN_PASSWORD)
-3. ✅ All npm dependencies installed fresh (638 packages including puppeteer, drizzle, express, react, etc.)
+### Setup Steps Completed (October 21, 2025 - Latest Setup)
+1. ✅ Verified existing PostgreSQL database (DATABASE_URL secret exists)
+2. ✅ Requested and configured required secrets (JWT_SECRET and ADMIN_PASSWORD)
+3. ✅ All npm dependencies installed fresh (639 packages including puppeteer, drizzle, express, react, etc.)
 4. ✅ Database schema pushed successfully using Drizzle ORM (`npm run db:push`)
 5. ✅ Development workflow "Server" configured and running on port 5000 with webview output
 6. ✅ Deployment settings configured for VM deployment type:
    - Build: `npm run build` (vite build + esbuild bundling)
    - Run: `npm start` (production mode with compiled dist/index.js)
 7. ✅ Application verified with screenshot - Persian RTL login page displaying correctly
-8. ✅ Import process completed successfully - application fully functional
-9. ✅ **Codebase cleanup performed (October 19, 2025)**:
-   - Removed duplicate UI component: `client/src/components/ui/sidebar.tsx` (unused shadcn sidebar)
-   - Removed unnecessary documentation: `VPS-INSTALLATION-GUIDE.md` (not applicable for Replit)
-   - Removed temporary files: `cookies.txt`
-   - Cleaned up `attached_assets/` folder: removed 31 old screenshots and invoice images (~3.3MB saved)
-   - Kept project documentation files: 4 AI prompt text files and 1 video file for reference
-   - Final `attached_assets/` size reduced from 3.9MB to 664KB
+8. ✅ Created .gitignore file with appropriate exclusions for Node.js project
+9. ✅ Import process completed successfully - application fully functional
 
 ### Important Security Notes
 - **JWT_SECRET**: ✅ Configured via Replit Secrets for secure session management
@@ -65,11 +89,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Frontend Architecture
 - **Framework**: React 18 with TypeScript and Vite
-- **UI Components**: shadcn/ui built on Radix UI
+- **UI Components**: shadcn/ui built on Radix UI (including Sheet component for mobile drawer)
 - **Styling**: Tailwind CSS with Persian font support (Vazirmatn) and RTL layout
 - **Routing**: Wouter
 - **State Management**: TanStack Query
 - **Form Handling**: React Hook Form with Zod validation
+- **Responsive Design**: Mobile-first approach with hamburger menu and drawer navigation for small screens, fixed sidebar for desktop
 - **UI/UX Decisions**: Compact card layouts for lists, auto-sliding carousels, dynamic notification bells, Persian invoice template adhering to business standards, and currency conversion/number-to-words for financial displays.
 
 ## Backend Architecture
@@ -129,8 +154,18 @@ Preferred communication style: Simple, everyday language.
 - **Authentication**: JWT, bcrypt
 - **Invoice Generation**: Puppeteer (headless Chrome for HTML-to-image conversion)
 
-## AI Services
-- **Gemini AI**: For intelligent deposit receipt OCR (Gemini 2.0 Flash Vision) and natural language understanding for WhatsApp product ordering.
+## AI Services (Dual-Provider Architecture - October 19, 2025)
+- **Dual AI System**: The application now supports two AI providers that can be configured independently:
+  - **Gemini AI** (Google): For intelligent deposit receipt OCR (Gemini 2.0 Flash Vision) and natural language understanding for WhatsApp product ordering.
+  - **Liara AI** (OpenAI-compatible): Alternative AI provider using OpenAI-compatible API with automatic failover support.
+- **Provider Management**: 
+  - Only one AI provider can be active at a time (mutual exclusivity enforced)
+  - Admin can configure and switch between providers via `/admin/ai-token` settings page
+  - Separate API tokens stored securely for each provider
+  - Automatic initialization and runtime failover between providers
+- **AI Orchestrator** (`ai-service.ts`): Central service that manages provider selection, automatic failover, and unified interface for all AI operations
+- **Storage Layer**: Provider-specific token retrieval with `getAiTokenSettings(provider)` and `getAllAiTokenSettings()` methods in both MemStorage and DbStorage
+- **Database Schema**: `ai_token_settings` table with unique constraint on `provider` column to prevent duplicate provider configurations
 
 ## Database and Storage
 - **Database Provider**: Neon Database
