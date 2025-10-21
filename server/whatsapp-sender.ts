@@ -1,4 +1,5 @@
 import { storage } from "./storage";
+import { whatsAppQueue } from "./whatsapp-queue";
 
 export class WhatsAppSender {
   async sendMessage(recipient: string, message: string, userId: string): Promise<boolean> {
@@ -41,57 +42,48 @@ export class WhatsAppSender {
         return false;
       }
 
-      // ارسال پیام از طریق WhatsiPlus API (مانند whatsapp-service)
-      const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${recipient}&message=${encodeURIComponent(message)}`;
-      
-      console.log(`📤 درحال ارسال پیام به ${recipient} از طریق توکن...`);
-      const response = await fetch(sendUrl, { method: 'GET' });
-
-      if (!response.ok) {
-        console.error("❌ خطا در ارسال پیام واتس‌اپ:", response.status, response.statusText);
-        return false;
-      }
+      // اضافه کردن پیام به صف برای ارسال تدریجی (3 پیام در ثانیه)
+      const messageId = await whatsAppQueue.addMessage(
+        'text',
+        recipient,
+        message,
+        userId,
+        whatsappToken
+      );
 
       // ذخیره پیام ارسالی در دیتابیس
       await storage.createSentMessage({
         userId: userId,
         recipient: recipient,
         message: message,
-        status: "sent"
+        status: "queued"
       });
 
-      console.log(`📤 پیام به ${recipient} ارسال شد: ${message.substring(0, 50)}...`);
+      console.log(`📤 پیام به صف اضافه شد (ID: ${messageId}): ${message.substring(0, 50)}...`);
       return true;
 
     } catch (error) {
-      console.error("❌ خطا در ارسال پیام واتس‌اپ:", error);
+      console.error("❌ خطا در اضافه کردن پیام به صف:", error);
       return false;
     }
   }
 
-  async sendWhatsAppImage(token: string, phoneNumber: string, message: string, imageUrl: string): Promise<boolean> {
+  async sendWhatsAppImage(token: string, phoneNumber: string, message: string, imageUrl: string, userId?: string): Promise<boolean> {
     try {
-      const formData = new FormData();
-      formData.append('phonenumber', phoneNumber);
-      formData.append('message', message);
-      formData.append('link', imageUrl);
+      // اضافه کردن عکس به صف برای ارسال تدریجی (3 پیام در ثانیه)
+      const messageId = await whatsAppQueue.addMessage(
+        'image',
+        phoneNumber,
+        message,
+        userId || 'system',
+        token,
+        imageUrl
+      );
 
-      const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}`;
-      const response = await fetch(sendUrl, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (response.ok) {
-        console.log(`✅ عکس به ${phoneNumber} ارسال شد`);
-        return true;
-      } else {
-        const errorText = await response.text();
-        console.error(`❌ خطا در ارسال عکس به ${phoneNumber}:`, errorText);
-        return false;
-      }
+      console.log(`✅ عکس به صف اضافه شد (ID: ${messageId}) برای ${phoneNumber}`);
+      return true;
     } catch (error) {
-      console.error("❌ خطا در ارسال عکس واتساپ:", error);
+      console.error("❌ خطا در اضافه کردن عکس به صف:", error);
       return false;
     }
   }
@@ -119,35 +111,28 @@ export class WhatsAppSender {
         return false;
       }
 
-      const formData = new FormData();
-      formData.append('phonenumber', recipient);
-      formData.append('message', message);
-      formData.append('link', imageUrl);
-
-      const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}`;
-      const response = await fetch(sendUrl, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ خطا در ارسال عکس به ${recipient}:`, errorText);
-        return false;
-      }
+      // اضافه کردن عکس به صف برای ارسال تدریجی (3 پیام در ثانیه)
+      const messageId = await whatsAppQueue.addMessage(
+        'image',
+        recipient,
+        message,
+        userId,
+        whatsappToken,
+        imageUrl
+      );
 
       await storage.createSentMessage({
         userId: userId,
         recipient: recipient,
         message: `${message} (عکس: ${imageUrl})`,
-        status: "sent"
+        status: "queued"
       });
 
-      console.log(`✅ عکس به ${recipient} ارسال شد: ${imageUrl}`);
+      console.log(`✅ عکس به صف اضافه شد (ID: ${messageId}): ${imageUrl}`);
       return true;
 
     } catch (error) {
-      console.error("❌ خطا در ارسال عکس واتساپ:", error);
+      console.error("❌ خطا در اضافه کردن عکس به صف:", error);
       return false;
     }
   }
