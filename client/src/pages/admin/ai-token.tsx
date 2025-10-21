@@ -1,20 +1,34 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { DashboardLayout } from "@/components/dashboard-layout";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Bot, Key, Save, Eye, EyeOff, Power } from "lucide-react";
+import { Eye, EyeOff, Key, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
+import { DashboardLayout } from "@/components/dashboard-layout";
+
+interface AiTokenSettings {
+  id?: string;
+  token: string;
+  provider: string;
+  workspaceId?: string;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 export default function AITokenSettings() {
-  const [token, setToken] = useState("");
-  const [isActive, setIsActive] = useState(true);
-  const [showToken, setShowToken] = useState(false);
+  const [geminiToken, setGeminiToken] = useState("");
+  const [liaraToken, setLiaraToken] = useState("");
+  const [liaraWorkspaceId, setLiaraWorkspaceId] = useState("");
+  const [showGeminiToken, setShowGeminiToken] = useState(false);
+  const [showLiaraToken, setShowLiaraToken] = useState(false);
+  const [geminiActive, setGeminiActive] = useState(false);
+  const [liaraActive, setLiaraActive] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -23,17 +37,14 @@ export default function AITokenSettings() {
     queryFn: async () => {
       const response = await createAuthenticatedRequest("/api/ai-token");
       if (!response.ok) {
-        if (response.status === 404) {
-          return { token: "", isActive: true };
-        }
-        throw new Error("خطا در دریافت توکن هوش مصنوعی");
+        throw new Error("خطا در دریافت تنظیمات هوش مصنوعی");
       }
-      return response.json();
+      return response.json() as Promise<AiTokenSettings[]>;
     },
   });
 
   const saveTokenMutation = useMutation({
-    mutationFn: async (tokenData: { token: string; isActive: boolean }) => {
+    mutationFn: async (tokenData: { token: string; provider: string; workspaceId?: string; isActive: boolean }) => {
       const response = await createAuthenticatedRequest("/api/ai-token", {
         method: "POST",
         body: JSON.stringify(tokenData),
@@ -57,128 +68,214 @@ export default function AITokenSettings() {
     },
   });
 
-  const statusMutation = useMutation({
-    mutationFn: async (isActiveStatus: boolean) => {
-      const response = await createAuthenticatedRequest("/api/ai-token", {
-        method: "POST",
-        body: JSON.stringify({ token: aiTokenData?.token || token, isActive: isActiveStatus }),
-      });
-      if (!response.ok) throw new Error("خطا در تغییر وضعیت");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai-token"] });
-      toast({
-        title: "موفقیت",
-        description: `هوش مصنوعی ${isActive ? 'فعال' : 'غیرفعال'} شد`,
-      });
-    },
-    onError: (error, variables) => {
-      setIsActive(!variables); // برگرداندن وضعیت قبلی در صورت خطا
-      toast({
-        title: "خطا",
-        description: "خطا در تغییر وضعیت هوش مصنوعی",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSaveToken = (e: React.FormEvent) => {
+  const handleSaveGeminiToken = (e: React.FormEvent) => {
     e.preventDefault();
-    saveTokenMutation.mutate({ token, isActive });
+    saveTokenMutation.mutate({ token: geminiToken, provider: "gemini", isActive: geminiActive });
   };
 
-  const handleToggleStatus = (checked: boolean) => {
-    setIsActive(checked);
-    statusMutation.mutate(checked);
+  const handleSaveLiaraToken = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveTokenMutation.mutate({ token: liaraToken, provider: "liara", workspaceId: liaraWorkspaceId, isActive: liaraActive });
   };
 
-  // Set token and status when data is loaded
-  useEffect(() => {
-    if (aiTokenData?.token) {
-      setToken(aiTokenData.token);
+  const handleToggleGemini = (checked: boolean) => {
+    setGeminiActive(checked);
+    if (checked) {
+      setLiaraActive(false);
     }
-    if (aiTokenData?.isActive !== undefined) {
-      setIsActive(aiTokenData.isActive);
+    saveTokenMutation.mutate({ 
+      token: geminiToken || aiTokenData?.find(s => s.provider === "gemini")?.token || "", 
+      provider: "gemini", 
+      isActive: checked 
+    });
+  };
+
+  const handleToggleLiara = (checked: boolean) => {
+    setLiaraActive(checked);
+    if (checked) {
+      setGeminiActive(false);
+    }
+    const liaraData = aiTokenData?.find(s => s.provider === "liara");
+    saveTokenMutation.mutate({ 
+      token: liaraToken || liaraData?.token || "", 
+      provider: "liara",
+      workspaceId: liaraWorkspaceId || liaraData?.workspaceId || "",
+      isActive: checked 
+    });
+  };
+
+  useEffect(() => {
+    if (aiTokenData) {
+      const geminiSettings = aiTokenData.find(s => s.provider === "gemini");
+      const liaraSettings = aiTokenData.find(s => s.provider === "liara");
+      
+      if (geminiSettings) {
+        setGeminiToken(geminiSettings.token);
+        setGeminiActive(geminiSettings.isActive);
+      }
+      
+      if (liaraSettings) {
+        setLiaraToken(liaraSettings.token);
+        setLiaraWorkspaceId(liaraSettings.workspaceId || "");
+        setLiaraActive(liaraSettings.isActive);
+      }
     }
   }, [aiTokenData]);
 
   return (
-    <DashboardLayout title="توکن هوش مصنوعی">
-      <div className="space-y-6" data-testid="page-ai-token">
-
+    <DashboardLayout title="تنظیمات هوش مصنوعی">
+      <div className="space-y-6 text-right" dir="rtl" data-testid="page-ai-token">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Key className="w-5 h-5 ml-2" />
-                تنظیمات توکن
-              </div>
-              <div className="flex items-center gap-2" dir="ltr">
-                <Switch
-                  id="ai-status"
-                  checked={isActive}
-                  onCheckedChange={handleToggleStatus}
-                  data-testid="switch-ai-status"
-                  className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
-                />
-                <Label htmlFor="ai-status" className="text-sm text-muted-foreground" dir="rtl">
-                  {isActive ? "فعال" : "غیرفعال"}
-                </Label>
-              </div>
-            </CardTitle>
-            <CardDescription>
-              توکن API را برای اتصال به سرویس‌های هوش مصنوعی وارد کنید
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {isLoading ? (
               <div className="p-8 text-center">در حال بارگذاری...</div>
             ) : (
-              <form onSubmit={handleSaveToken} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="aiToken">توکن API</Label>
-                  <div className="relative">
-                    <Input
-                      id="aiToken"
-                      type={showToken ? "text" : "password"}
-                      value={token}
-                      onChange={(e) => setToken(e.target.value)}
-                      placeholder="توکن هوش مصنوعی خود را وارد کنید..."
-                      className="pl-10"
-                      data-testid="input-ai-token"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute left-2 top-1/2 transform -translate-y-1/2"
-                      onClick={() => setShowToken(!showToken)}
-                      data-testid="button-toggle-token-visibility"
-                    >
-                      {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
-                  </div>
-                </div>
+              <Tabs defaultValue="gemini" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="gemini">
+                    Gemini AI
+                    {geminiActive && <span className="mr-2 text-green-500">●</span>}
+                  </TabsTrigger>
+                  <TabsTrigger value="liara">
+                    Liara AI
+                    {liaraActive && <span className="mr-2 text-green-500">●</span>}
+                  </TabsTrigger>
+                </TabsList>
 
+                <TabsContent value="gemini" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Key className="w-5 h-5 ml-2" />
+                          تنظیمات Gemini AI
+                        </div>
+                        <div className="flex items-center gap-2" dir="ltr">
+                          <Switch
+                            id="gemini-status"
+                            checked={geminiActive}
+                            onCheckedChange={handleToggleGemini}
+                            data-testid="switch-gemini-status"
+                            className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
+                          />
+                          <Label htmlFor="gemini-status" className="text-sm text-muted-foreground" dir="rtl">
+                            {geminiActive ? "فعال" : "غیرفعال"}
+                          </Label>
+                        </div>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleSaveGeminiToken} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="geminiToken">توکن Gemini API</Label>
+                          <div className="relative">
+                            <Input
+                              id="geminiToken"
+                              type={showGeminiToken ? "text" : "password"}
+                              value={geminiToken}
+                              onChange={(e) => setGeminiToken(e.target.value)}
+                              placeholder="توکن Gemini AI خود را وارد کنید..."
+                              className="pl-10"
+                              data-testid="input-gemini-token"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute left-2 top-1/2 transform -translate-y-1/2"
+                              onClick={() => setShowGeminiToken(!showGeminiToken)}
+                              data-testid="button-toggle-gemini-visibility"
+                            >
+                              {showGeminiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                        <Button 
+                          type="submit" 
+                          disabled={saveTokenMutation.isPending}
+                          data-testid="button-save-gemini-token"
+                        >
+                          {saveTokenMutation.isPending ? "در حال ذخیره..." : "ذخیره توکن Gemini"}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    disabled={saveTokenMutation.isPending || !token.trim()}
-                    data-testid="button-save-token"
-                    className={!isActive ? "opacity-60" : ""}
-                  >
-                    <Save className="w-4 h-4 ml-2" />
-                    {saveTokenMutation.isPending ? "در حال ذخیره..." : "ذخیره توکن"}
-                  </Button>
-                </div>
-              </form>
+                <TabsContent value="liara" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <Key className="w-5 h-5 ml-2" />
+                          تنظیمات Liara AI
+                        </div>
+                        <div className="flex items-center gap-2" dir="ltr">
+                          <Switch
+                            id="liara-status"
+                            checked={liaraActive}
+                            onCheckedChange={handleToggleLiara}
+                            data-testid="switch-liara-status"
+                            className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
+                          />
+                          <Label htmlFor="liara-status" className="text-sm text-muted-foreground" dir="rtl">
+                            {liaraActive ? "فعال" : "غیرفعال"}
+                          </Label>
+                        </div>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleSaveLiaraToken} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="liaraWorkspaceId">Workspace ID</Label>
+                          <Input
+                            id="liaraWorkspaceId"
+                            type="text"
+                            value={liaraWorkspaceId}
+                            onChange={(e) => setLiaraWorkspaceId(e.target.value)}
+                            placeholder="مثال: 68e204eb1008fc6ccd20c83d"
+                            data-testid="input-liara-workspace-id"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="liaraToken">توکن Liara API</Label>
+                          <div className="relative">
+                            <Input
+                              id="liaraToken"
+                              type={showLiaraToken ? "text" : "password"}
+                              value={liaraToken}
+                              onChange={(e) => setLiaraToken(e.target.value)}
+                              placeholder="توکن Liara AI خود را وارد کنید..."
+                              className="pl-10"
+                              data-testid="input-liara-token"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="absolute left-2 top-1/2 transform -translate-y-1/2"
+                              onClick={() => setShowLiaraToken(!showLiaraToken)}
+                              data-testid="button-toggle-liara-visibility"
+                            >
+                              {showLiaraToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                        <Button 
+                          type="submit" 
+                          disabled={saveTokenMutation.isPending}
+                          data-testid="button-save-liara-token"
+                        >
+                          {saveTokenMutation.isPending ? "در حال ذخیره..." : "ذخیره توکن Liara"}
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>
-
       </div>
     </DashboardLayout>
   );

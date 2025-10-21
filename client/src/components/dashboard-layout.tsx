@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { Sidebar } from "@/components/sidebar";
-import { Bell, User, LogOut, ShoppingCart, X, Package } from "lucide-react";
+import { Bell, User, LogOut, ShoppingCart, X, Package, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -12,6 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -26,6 +31,7 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [cartOpen, setCartOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [, setLocation] = useLocation();
 
   // Get notifications count for level 1 users
@@ -88,12 +94,32 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background" data-testid="dashboard-layout">
-      <Sidebar />
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
+
+      {/* Mobile Sidebar (Sheet/Drawer) */}
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="right" className="p-0 w-64">
+          <Sidebar onNavigate={() => setSidebarOpen(false)} />
+        </SheetContent>
+      </Sheet>
       
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
         <header className="bg-card border-b border-border p-4 flex items-center justify-between" data-testid="header-topbar">
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => setSidebarOpen(true)}
+              data-testid="button-mobile-menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">{title}</h1>
           </div>
           

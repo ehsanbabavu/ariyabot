@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,11 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
-export function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
   const [inventoryOpen, setInventoryOpen] = useState(false);
@@ -45,8 +49,17 @@ export function Sidebar() {
   const [ticketsOpen, setTicketsOpen] = useState(false);
   const [level2MenuOpen, setLevel2MenuOpen] = useState(false);
   const [level1MenuOpen, setLevel1MenuOpen] = useState(false);
+  const prevLocation = useRef(location);
 
   const isActive = (path: string) => location === path;
+
+  // Call onNavigate when location changes (for mobile drawer close)
+  useEffect(() => {
+    if (prevLocation.current !== location && onNavigate) {
+      onNavigate();
+    }
+    prevLocation.current = location;
+  }, [location, onNavigate]);
 
   // Get unread messages count for chat badges
   const { data } = useQuery<{ unreadCount: number }>({
