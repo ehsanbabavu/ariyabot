@@ -416,27 +416,27 @@ export default function TicketManagement() {
           </TabsList>
 
           <TabsContent value={activeTab} className="mt-6">
-            <div className="space-y-4">
-              {filteredAndSortedTickets.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-muted-foreground mb-2">
-                      {searchQuery ? "تیکتی با این جستجو یافت نشد" : "تیکتی موجود نیست"}
-                    </h3>
-                    {searchQuery && (
-                      <Button variant="outline" onClick={() => setSearchQuery("")}>
-                        پاک کردن جستجو
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              ) : (
-                filteredAndSortedTickets.map((ticket) => {
+            {filteredAndSortedTickets.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                    {searchQuery ? "تیکتی با این جستجو یافت نشد" : "تیکتی موجود نیست"}
+                  </h3>
+                  {searchQuery && (
+                    <Button variant="outline" onClick={() => setSearchQuery("")}>
+                      پاک کردن جستجو
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                {filteredAndSortedTickets.map((ticket) => {
                   const user = getUserForTicket(ticket.userId);
                   return (
                     <Card key={ticket.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
+                      <CardContent className="p-3 sm:p-6">
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center space-x-3 space-x-reverse">
                             <Avatar className="h-10 w-10">
@@ -542,9 +542,9 @@ export default function TicketManagement() {
                       </CardContent>
                     </Card>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
