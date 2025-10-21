@@ -3,26 +3,38 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { 
   Database, 
   Download, 
   Upload, 
   Trash2, 
-  AlertCircle,
   CheckCircle2,
   Clock,
-  HardDrive
+  Power,
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Backup {
   filename: string;
   size: number;
   createdAt: string;
   modifiedAt: string;
+}
+
+interface MaintenanceStatus {
+  isEnabled: boolean;
 }
 
 export default function DatabaseBackupPage() {
@@ -40,6 +52,46 @@ export default function DatabaseBackupPage() {
         throw new Error("خطا در دریافت لیست بک‌آپ‌ها");
       }
       return response.json();
+    },
+  });
+
+  const { data: maintenanceData } = useQuery<MaintenanceStatus>({
+    queryKey: ["maintenance-status"],
+    queryFn: async () => {
+      const response = await fetch("/api/maintenance/status");
+      if (!response.ok) {
+        throw new Error("خطا در دریافت وضعیت");
+      }
+      return response.json();
+    },
+  });
+
+  const toggleMaintenanceMutation = useMutation({
+    mutationFn: async (isEnabled: boolean) => {
+      const response = await createAuthenticatedRequest("/api/admin/maintenance/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isEnabled }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "خطا در تغییر وضعیت");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["maintenance-status"] });
+      toast({
+        title: "موفقیت‌آمیز",
+        description: "وضعیت به‌روزرسانی با موفقیت تغییر یافت",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطا",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -236,21 +288,41 @@ export default function DatabaseBackupPage() {
   };
 
   return (
-    <DashboardLayout title="مدیریت پشتیبان‌گیری">
+    <DashboardLayout title="پشتیبان‌گیری">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">مدیریت پشتیبان‌گیری دیتابیس</h1>
-          <p className="text-muted-foreground mt-2">
-            ایجاد بک‌آپ از دیتابیس و بازیابی از فایل بک‌آپ
-          </p>
-        </div>
-
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            توجه: بازیابی بک‌آپ تمام داده‌های فعلی دیتابیس را جایگزین می‌کند. قبل از بازیابی حتماً از دیتابیس فعلی بک‌آپ بگیرید.
-          </AlertDescription>
-        </Alert>
+        <Card className="border-orange-200 bg-orange-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Power className="w-5 h-5 text-orange-600" />
+                <div className="space-y-0.5">
+                  <Label htmlFor="maintenance-mode" className="text-sm font-medium">
+                    حالت بروزرسانی سیستم
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {maintenanceData?.isEnabled 
+                      ? "کاربران سطح 1 و 2 به صفحه بروزرسانی هدایت می‌شوند" 
+                      : "تمام کاربران دسترسی دارند"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {maintenanceData?.isEnabled && (
+                  <div className="flex items-center gap-1.5 text-orange-600">
+                    <AlertTriangle className="w-4 h-4" />
+                    <span className="text-xs font-medium">فعال</span>
+                  </div>
+                )}
+                <Switch
+                  id="maintenance-mode"
+                  checked={maintenanceData?.isEnabled || false}
+                  onCheckedChange={(checked) => toggleMaintenanceMutation.mutate(checked)}
+                  disabled={toggleMaintenanceMutation.isPending}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
@@ -350,73 +422,63 @@ export default function DatabaseBackupPage() {
                   </>
                 )}
               </Button>
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  این عملیات برگشت‌پذیر نیست!
-                </AlertDescription>
-              </Alert>
             </CardContent>
           </Card>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="w-5 h-5" />
-              بک‌آپ‌های ذخیره شده
-            </CardTitle>
-            <CardDescription>
-              لیست فایل‌های بک‌آپ ذخیره شده روی سرور
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-6">
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">
                 در حال بارگذاری...
               </div>
             ) : backupsData?.backups && backupsData.backups.length > 0 ? (
-              <div className="space-y-2">
-                {backupsData.backups.map((backup) => (
-                  <div
-                    key={backup.filename}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium">{backup.filename}</p>
-                      <div className="flex items-center gap-4 mt-1">
-                        <Badge variant="outline" className="text-xs">
-                          <Clock className="w-3 h-3 mr-1" />
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-right">نام فایل</TableHead>
+                      <TableHead className="text-right">تاریخ ایجاد</TableHead>
+                      <TableHead className="text-right">حجم</TableHead>
+                      <TableHead className="text-center">عملیات</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {backupsData.backups.map((backup) => (
+                      <TableRow key={backup.filename}>
+                        <TableCell className="font-medium">{backup.filename}</TableCell>
+                        <TableCell className="text-muted-foreground">
                           {formatDate(backup.createdAt)}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          <HardDrive className="w-3 h-3 mr-1" />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
                           {formatFileSize(backup.size)}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownloadBackup(backup.filename)}
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (window.confirm(`آیا مطمئن هستید که می‌خواهید "${backup.filename}" را حذف کنید؟`)) {
-                            deleteMutation.mutate(backup.filename);
-                          }
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadBackup(backup.filename)}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (window.confirm(`آیا مطمئن هستید که می‌خواهید "${backup.filename}" را حذف کنید؟`)) {
+                                  deleteMutation.mutate(backup.filename);
+                                }
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">

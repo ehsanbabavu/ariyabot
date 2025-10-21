@@ -1,6 +1,6 @@
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
@@ -40,7 +40,32 @@ import VatSettings from "@/pages/level1/vat-settings";
 import FaqsPage from "@/pages/faqs";
 import AddFaqPage from "@/pages/user/add-faq";
 import ManageFaqsPage from "@/pages/user/manage-faqs";
+import MaintenancePage from "@/pages/maintenance";
 import NotFound from "@/pages/not-found";
+
+interface MaintenanceStatus {
+  isEnabled: boolean;
+}
+
+function MaintenanceCheck({ children, userRole }: { children: React.ReactNode; userRole: string }) {
+  const { data: maintenanceData } = useQuery<MaintenanceStatus>({
+    queryKey: ["maintenance-status"],
+    queryFn: async () => {
+      const response = await fetch("/api/maintenance/status");
+      if (!response.ok) {
+        throw new Error("خطا در دریافت وضعیت");
+      }
+      return response.json();
+    },
+    refetchInterval: 5000,
+  });
+
+  if (maintenanceData?.isEnabled && userRole !== "admin") {
+    return <MaintenancePage />;
+  }
+
+  return <>{children}</>;
+}
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, isLoading } = useAuth();
@@ -55,7 +80,11 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return <Login />;
   }
   
-  return <Component />;
+  return (
+    <MaintenanceCheck userRole={user.role}>
+      <Component />
+    </MaintenanceCheck>
+  );
 }
 
 function AdminRoute({ component: Component }: { component: React.ComponentType }) {

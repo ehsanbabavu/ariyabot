@@ -136,6 +136,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
     { path: "/users", label: "مدیریت کاربران", icon: Users },
     { path: "/tickets", label: "مدیریت تیکت‌ها", icon: Ticket },
     { path: "/subscriptions", label: "اشتراک‌ها", icon: Crown },
+    { path: "/database-backup", label: "پشتیبان‌گیری", icon: Database },
   ];
 
   const userMenuItems = [
@@ -163,7 +164,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const settingsItems = [
     { path: "/whatsapp-settings", label: "تنظیمات واتس‌اپ", icon: MessageSquare, adminOnly: true },
     { path: "/ai-token", label: "توکن هوش مصنوعی", icon: Bot, adminOnly: true },
-    { path: "/database-backup", label: "پشتیبان‌گیری دیتابیس", icon: Database, adminOnly: true },
     { path: "/profile", label: "اطلاعات کاربری", icon: User, adminOnly: false },
   ];
 
