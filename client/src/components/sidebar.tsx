@@ -32,7 +32,8 @@ import {
   DollarSign,
   HelpCircle,
   Truck,
-  Receipt
+  Receipt,
+  Database
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -162,6 +163,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const settingsItems = [
     { path: "/whatsapp-settings", label: "تنظیمات واتس‌اپ", icon: MessageSquare, adminOnly: true },
     { path: "/ai-token", label: "توکن هوش مصنوعی", icon: Bot, adminOnly: true },
+    { path: "/database-backup", label: "پشتیبان‌گیری دیتابیس", icon: Database, adminOnly: true },
     { path: "/profile", label: "اطلاعات کاربری", icon: User, adminOnly: false },
   ];
 
