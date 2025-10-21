@@ -3360,6 +3360,250 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve invoice files
   app.use("/invoice", express.static(path.join(process.cwd(), "invoice")));
 
+  // ====== Database Backup & Restore Routes ======
+  
+  // Create and download database backup
+  app.get("/api/admin/backup/create", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
+      const execAsync = promisify(exec);
+
+      // Create backups directory if it doesn't exist
+      const backupsDir = path.join(process.cwd(), "backups");
+      if (!fs.existsSync(backupsDir)) {
+        fs.mkdirSync(backupsDir, { recursive: true });
+      }
+
+      // Generate backup filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+      const backupFileName = `backup-${timestamp}.sql`;
+      const backupFilePath = path.join(backupsDir, backupFileName);
+
+      // Get database connection URL from environment
+      const databaseUrl = process.env.DATABASE_URL;
+      if (!databaseUrl) {
+        return res.status(500).json({ message: "تنظیمات دیتابیس یافت نشد" });
+      }
+
+      // Execute pg_dump to create backup
+      try {
+        await execAsync(`pg_dump "${databaseUrl}" > "${backupFilePath}"`);
+        
+        // Send file for download
+        res.download(backupFilePath, backupFileName, (err) => {
+          if (err) {
+            console.error("Error downloading backup:", err);
+          }
+          // Optionally delete the file after download
+          // fs.unlinkSync(backupFilePath);
+        });
+      } catch (error: any) {
+        console.error("Error creating backup:", error);
+        res.status(500).json({ 
+          message: "خطا در ایجاد بک‌آپ",
+          error: error.message 
+        });
+      }
+    } catch (error) {
+      console.error("Error in backup route:", error);
+      res.status(500).json({ message: "خطا در ایجاد بک‌آپ دیتابیس" });
+    }
+  });
+
+  // Multer configuration for backup file uploads
+  const backup_storage_config = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadPath = path.join(process.cwd(), "backups");
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+      cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+      cb(null, file.originalname);
+    }
+  });
+
+  const uploadBackup = multer({
+    storage: backup_storage_config,
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
+    fileFilter: (req: any, file: any, cb: any) => {
+      if (file.originalname.endsWith('.sql')) {
+        cb(null, true);
+      } else {
+        cb(new Error("فقط فایل‌های SQL مجاز هستند"));
+      }
+    },
+  });
+
+  // Restore database from backup file
+  app.post("/api/admin/backup/restore", authenticateToken, uploadBackup.single('backupFile'), async (req: AuthRequest, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "فایل بک‌آپ ارسال نشده است" });
+      }
+
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
+      const execAsync = promisify(exec);
+
+      const backupFilePath = req.file.path;
+      const databaseUrl = process.env.DATABASE_URL;
+      
+      if (!databaseUrl) {
+        return res.status(500).json({ message: "تنظیمات دیتابیس یافت نشد" });
+      }
+
+      // Execute psql to restore backup
+      try {
+        await execAsync(`psql "${databaseUrl}" < "${backupFilePath}"`);
+        
+        res.json({ 
+          message: "بک‌آپ با موفقیت بازیابی شد",
+          filename: req.file.originalname
+        });
+      } catch (error: any) {
+        console.error("Error restoring backup:", error);
+        res.status(500).json({ 
+          message: "خطا در بازیابی بک‌آپ",
+          error: error.message 
+        });
+      }
+    } catch (error) {
+      console.error("Error in restore route:", error);
+      res.status(500).json({ message: "خطا در بازیابی بک‌آپ دیتابیس" });
+    }
+  });
+
+  // Get list of available backups
+  app.get("/api/admin/backup/list", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const backupsDir = path.join(process.cwd(), "backups");
+      
+      if (!fs.existsSync(backupsDir)) {
+        return res.json({ backups: [] });
+      }
+
+      const files = fs.readdirSync(backupsDir);
+      const backups = files
+        .filter(file => file.endsWith('.sql'))
+        .map(file => {
+          const filePath = path.join(backupsDir, file);
+          const stats = fs.statSync(filePath);
+          return {
+            filename: file,
+            size: stats.size,
+            createdAt: stats.birthtime,
+            modifiedAt: stats.mtime
+          };
+        })
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+      res.json({ backups });
+    } catch (error) {
+      console.error("Error listing backups:", error);
+      res.status(500).json({ message: "خطا در دریافت لیست بک‌آپ‌ها" });
+    }
+  });
+
+  // Download a specific backup file
+  app.get("/api/admin/backup/:filename/download", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { filename } = req.params;
+      
+      // Security check: ensure filename doesn't contain path separators
+      if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+        return res.status(400).json({ message: "نام فایل نامعتبر است" });
+      }
+
+      // Ensure filename ends with .sql
+      if (!filename.endsWith('.sql')) {
+        return res.status(400).json({ message: "فقط فایل‌های SQL مجاز هستند" });
+      }
+
+      const backupsDir = path.resolve(process.cwd(), "backups");
+      const requestedFilePath = path.resolve(backupsDir, filename);
+
+      // Security check: verify the resolved path is still inside backups directory
+      if (!requestedFilePath.startsWith(backupsDir + path.sep)) {
+        return res.status(400).json({ message: "دسترسی به فایل غیرمجاز است" });
+      }
+
+      if (!fs.existsSync(requestedFilePath)) {
+        return res.status(404).json({ message: "فایل بک‌آپ یافت نشد" });
+      }
+
+      // Send file for download
+      res.download(requestedFilePath, filename, (err) => {
+        if (err) {
+          console.error("Error downloading backup file:", err);
+          if (!res.headersSent) {
+            res.status(500).json({ message: "خطا در دانلود فایل بک‌آپ" });
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error downloading backup file:", error);
+      res.status(500).json({ message: "خطا در دانلود فایل بک‌آپ" });
+    }
+  });
+
+  // Delete a backup file
+  app.delete("/api/admin/backup/:filename", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { filename } = req.params;
+      
+      // Security check: ensure filename doesn't contain path separators
+      if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
+        return res.status(400).json({ message: "نام فایل نامعتبر است" });
+      }
+
+      // Ensure filename ends with .sql
+      if (!filename.endsWith('.sql')) {
+        return res.status(400).json({ message: "فقط فایل‌های SQL مجاز هستند" });
+      }
+
+      const backupsDir = path.resolve(process.cwd(), "backups");
+      const requestedFilePath = path.resolve(backupsDir, filename);
+
+      // Security check: verify the resolved path is still inside backups directory
+      if (!requestedFilePath.startsWith(backupsDir + path.sep)) {
+        return res.status(400).json({ message: "دسترسی به فایل غیرمجاز است" });
+      }
+
+      if (!fs.existsSync(requestedFilePath)) {
+        return res.status(404).json({ message: "فایل بک‌آپ یافت نشد" });
+      }
+
+      fs.unlinkSync(requestedFilePath);
+      res.json({ message: "بک‌آپ با موفقیت حذف شد" });
+    } catch (error) {
+      console.error("Error deleting backup:", error);
+      res.status(500).json({ message: "خطا در حذف بک‌آپ" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
