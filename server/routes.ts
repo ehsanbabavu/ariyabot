@@ -3664,6 +3664,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Content Management API endpoints
+  // Get all content sections
+  app.get("/api/content-sections", async (req: Request, res: Response) => {
+    try {
+      const { contentSections } = await import("@shared/schema");
+      const sections = await db.select().from(contentSections).orderBy(contentSections.createdAt);
+      res.json(sections);
+    } catch (error) {
+      console.error("Error fetching content sections:", error);
+      res.status(500).json({ message: "خطا در دریافت محتوا" });
+    }
+  });
+
+  // Get content section by key
+  app.get("/api/content-sections/:key", async (req: Request, res: Response) => {
+    try {
+      const { contentSections } = await import("@shared/schema");
+      const [section] = await db
+        .select()
+        .from(contentSections)
+        .where(eq(contentSections.sectionKey, req.params.key))
+        .limit(1);
+      
+      if (!section) {
+        return res.status(404).json({ message: "بخش مورد نظر یافت نشد" });
+      }
+      
+      res.json(section);
+    } catch (error) {
+      console.error("Error fetching content section:", error);
+      res.status(500).json({ message: "خطا در دریافت محتوا" });
+    }
+  });
+
+  // Create or update content section (admin only)
+  app.post("/api/admin/content-sections", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { contentSections, insertContentSectionSchema } = await import("@shared/schema");
+      const validated = insertContentSectionSchema.parse(req.body);
+      
+      // Check if section with this key already exists
+      const [existing] = await db
+        .select()
+        .from(contentSections)
+        .where(eq(contentSections.sectionKey, validated.sectionKey))
+        .limit(1);
+      
+      if (existing) {
+        // Update existing section
+        const [updated] = await db
+          .update(contentSections)
+          .set({
+            ...validated,
+            updatedAt: new Date()
+          })
+          .where(eq(contentSections.id, existing.id))
+          .returning();
+        
+        return res.json(updated);
+      }
+      
+      // Create new section
+      const [created] = await db
+        .insert(contentSections)
+        .values(validated)
+        .returning();
+      
+      res.json(created);
+    } catch (error) {
+      console.error("Error saving content section:", error);
+      res.status(500).json({ message: "خطا در ذخیره محتوا" });
+    }
+  });
+
+  // Update content section (admin only)
+  app.put("/api/admin/content-sections/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { contentSections, updateContentSectionSchema } = await import("@shared/schema");
+      const validated = updateContentSectionSchema.parse({ ...req.body, id: req.params.id });
+      
+      const [updated] = await db
+        .update(contentSections)
+        .set({
+          ...validated,
+          updatedAt: new Date()
+        })
+        .where(eq(contentSections.id, req.params.id))
+        .returning();
+      
+      if (!updated) {
+        return res.status(404).json({ message: "بخش مورد نظر یافت نشد" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating content section:", error);
+      res.status(500).json({ message: "خطا در به‌روزرسانی محتوا" });
+    }
+  });
+
+  // Delete content section (admin only)
+  app.delete("/api/admin/content-sections/:id", authenticateToken, async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { contentSections } = await import("@shared/schema");
+      
+      const [deleted] = await db
+        .delete(contentSections)
+        .where(eq(contentSections.id, req.params.id))
+        .returning();
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "بخش مورد نظر یافت نشد" });
+      }
+      
+      res.json({ message: "بخش با موفقیت حذف شد" });
+    } catch (error) {
+      console.error("Error deleting content section:", error);
+      res.status(500).json({ message: "خطا در حذف محتوا" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

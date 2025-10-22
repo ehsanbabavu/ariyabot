@@ -571,3 +571,24 @@ export type InsertPasswordResetOtp = z.infer<typeof insertPasswordResetOtpSchema
 export type VatSettings = typeof vatSettings.$inferSelect;
 export type InsertVatSettings = z.infer<typeof insertVatSettingsSchema>;
 export type UpdateVatSettings = z.infer<typeof updateVatSettingsSchema>;
+
+// Content Management for Website
+export const contentSections = pgTable("content_sections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectionKey: text("section_key").notNull().unique(), // e.g., "hero", "features", "pricing", etc.
+  title: text("title"),
+  subtitle: text("subtitle"),
+  description: text("description"),
+  content: text("content"), // JSON string for complex content
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertContentSectionSchema = createInsertSchema(contentSections);
+export const updateContentSectionSchema = createInsertSchema(contentSections).partial().required({ id: true });
+
+export type ContentSection = typeof contentSections.$inferSelect;
+export type InsertContentSection = z.infer<typeof insertContentSectionSchema>;
+export type UpdateContentSection = z.infer<typeof updateContentSectionSchema>;
