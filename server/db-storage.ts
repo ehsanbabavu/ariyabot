@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql, desc, and, gte, or, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings } from "@shared/schema";
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings } from "@shared/schema";
+import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type ContentSection, type InsertContentSection } from "@shared/schema";
 import { type IStorage } from "./storage";
 import bcrypt from "bcryptjs";
 
@@ -27,6 +27,9 @@ export class DbStorage implements IStorage {
     
     // Initialize default free subscription
     this.initializeDefaultSubscription();
+    
+    // Initialize landing page content
+    this.initializeLandingPageContent();
     
     // Initialize test data only in development environment
     if (process.env.NODE_ENV === 'development') {
@@ -104,6 +107,150 @@ export class DbStorage implements IStorage {
       }
     } catch (error) {
       console.error("Error initializing default subscription:", error);
+    }
+  }
+
+  private async initializeLandingPageContent() {
+    try {
+      // بررسی اینکه آیا محتوای لندینگ پیج از قبل وجود دارد
+      const existing = await db.select().from(contentSections).limit(1);
+      
+      if (existing.length === 0) {
+        // داده‌های ویژگی‌ها (Features)
+        const features = [
+          { icon: 'fa-regular fa-comments', title: 'استفاده آسان', description: 'برنامه ما با در نظر گرفتن سادگی طراحی شده است. کنترل‌های بصری و رابط کاربری تمیز.' },
+          { icon: 'fa-solid fa-mobile-screen-button', title: 'کاملاً واکنش‌گرا', description: 'در هر اندازه صفحه‌نمایشی، از دسکتاپ تا تلفن‌های همراه، عالی به نظر می‌رسد.' },
+          { icon: 'fa-regular fa-lightbulb', title: 'طراحی خلاقانه', description: 'طراحی جذاب بصری که تجربه کاربری و تعامل را افزایش می‌دهد.' },
+          { icon: 'fa-solid fa-shield-halved', title: 'امنیت بالا', description: 'حفاظت از داده‌های شما با امنیت پیشرفته، اولویت اصلی ماست.' },
+          { icon: 'fa-solid fa-headset', title: 'پشتیبانی ۲۴/۷', description: 'تیم پشتیبانی اختصاصی ما برای کمک به شما به صورت شبانه‌روزی آماده است.' },
+          { icon: 'fa-solid fa-cloud-arrow-up', title: 'به‌روزرسانی رایگان', description: 'جدیدترین ویژگی‌ها و بهبودها را با به‌روزرسانی‌های منظم و رایگان دریافت کنید.' },
+        ];
+
+        // داده‌های چگونه کار می‌کند (How It Works)
+        const howItWorksSteps = [
+          { icon: 'fa-solid fa-download', title: 'برنامه را دانلود کنید', description: 'با دانلود رایگان برنامه ما از اپ استور یا گوگل پلی شروع کنید.' },
+          { icon: 'fa-solid fa-user-plus', title: 'حساب کاربری بسازید', description: 'برای شروع، تنها در چند مرحله ساده برای یک حساب کاربری جدید ثبت نام کنید.' },
+          { icon: 'fa-solid fa-rocket', title: 'از برنامه لذت ببرید', description: 'همه چیز آماده است! تمام ویژگی‌ها را کاوش کنید و از تجربه خود لذت ببرید.' },
+        ];
+
+        // داده‌های اسکرین‌شات‌ها (Screenshots)
+        const screenshots = [
+          "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/1.jpg",
+          "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/2.jpg",
+          "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/3.jpg",
+          "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/4.jpg",
+          "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/5.jpg",
+        ];
+
+        // داده‌های قیمت‌گذاری (Pricing)
+        const pricingPlans = [
+          {
+            name: 'رایگان',
+            monthly: 0,
+            yearly: 0,
+            features: [
+              { text: '۱۰۰ مگابایت فضای دیسک', available: true },
+              { text: '۲ زیر دامنه', available: true },
+              { text: '۵ حساب ایمیل', available: true },
+              { text: 'پشتیبانی مشتری', available: false },
+              { text: 'به‌روزرسانی رایگان', available: false },
+            ],
+            popular: false,
+          },
+          {
+            name: 'استاندارد',
+            monthly: 19,
+            yearly: 199,
+            features: [
+              { text: '۱ گیگابایت فضای دیسک', available: true },
+              { text: '۱۰ زیر دامنه', available: true },
+              { text: '۲۰ حساب ایمیل', available: true },
+              { text: 'پشتیبانی مشتری', available: true },
+              { text: 'به‌روزرسانی رایگان', available: false },
+            ],
+            popular: true,
+          },
+          {
+            name: 'تجاری',
+            monthly: 49,
+            yearly: 499,
+            features: [
+              { text: '۱۰ گیگابایت فضای دیسک', available: true },
+              { text: '۵۰ زیر دامنه', available: true },
+              { text: 'حساب ایمیل نامحدود', available: true },
+              { text: 'پشتیبانی مشتری', available: true },
+              { text: 'به‌روزرسانی رایگان', available: true },
+            ],
+            popular: false,
+          },
+        ];
+
+        // داده‌های نظرات مشتریان (Testimonials)
+        const testimonials = [
+          {
+            quote: "این بهترین برنامه‌ای است که تا به حال استفاده کرده‌ام. طراحی تمیز و ویژگی‌ها فوق‌العاده کاربردی هستند. به شدت توصیه می‌شود!",
+            name: "سارا رضایی",
+            title: "مدیرعامل، شرکت",
+            image: "https://picsum.photos/id/1011/100/100"
+          },
+          {
+            quote: "یک تغییر دهنده بازی برای بهره‌وری تیم ما. ویژگی‌های همکاری یکپارچه و بصری هستند. یک ابزار ضروری.",
+            name: "علی احمدی",
+            title: "مدیر پروژه، راهکارهای فنی",
+            image: "https://picsum.photos/id/1005/100/100"
+          },
+          {
+            quote: "در ابتدا شک داشتم، اما این برنامه از تمام انتظارات من فراتر رفت. پشتیبانی مشتری نیز درجه یک است!",
+            name: "مریم محمدی",
+            title: "طراح فریلنسر",
+            image: "https://picsum.photos/id/1027/100/100"
+          },
+        ];
+
+        // اضافه کردن بخش‌های محتوا به دیتابیس
+        await db.insert(contentSections).values([
+          {
+            sectionKey: 'features',
+            title: 'ویژگی‌های فوق‌العاده',
+            subtitle: 'ویژگی‌های شگفت‌انگیزی را که برنامه ما را به بهترین انتخاب برای شما تبدیل می‌کند، کشف کنید.',
+            content: JSON.stringify(features),
+            isActive: true,
+          },
+          {
+            sectionKey: 'how-it-works',
+            title: 'چگونه کار می‌کند',
+            subtitle: 'یک فرآیند ساده سه مرحله‌ای برای شروع کار با برنامه ما.',
+            content: JSON.stringify(howItWorksSteps),
+            imageUrl: 'https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/how-it-works-mobile.png',
+            isActive: true,
+          },
+          {
+            sectionKey: 'screenshots',
+            title: 'اسکرین‌شات‌های برنامه',
+            subtitle: 'نگاهی به رابط کاربری زیبا و بصری برنامه ما بیندازید.',
+            content: JSON.stringify(screenshots),
+            isActive: true,
+          },
+          {
+            sectionKey: 'pricing',
+            title: 'پلن‌های قیمت‌گذاری',
+            subtitle: 'پلنی را انتخاب کنید که برای شما مناسب باشد. تمام پلن‌ها با ضمانت ۳۰ روزه بازگشت وجه ارائه می‌شوند.',
+            content: JSON.stringify(pricingPlans),
+            isActive: true,
+          },
+          {
+            sectionKey: 'testimonials',
+            title: 'مشتریان ما چه می‌گویند',
+            subtitle: 'از مشتریان راضی ما بشنوید و ببینید چگونه برنامه ما به آنها کمک کرده است.',
+            content: JSON.stringify(testimonials),
+            isActive: true,
+          },
+        ]);
+
+        console.log("✅ محتوای لندینگ پیج با موفقیت ایجاد شد");
+      }
+    } catch (error) {
+      console.error("Error initializing landing page content:", error);
     }
   }
 
