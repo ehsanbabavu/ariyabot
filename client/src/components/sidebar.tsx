@@ -33,7 +33,8 @@ import {
   HelpCircle,
   Truck,
   Receipt,
-  Database
+  Database,
+  FileText
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -162,6 +163,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   ];
 
   const settingsItems = [
+    { path: "/content-management", label: "مدیریت محتوای سایت", icon: FileText, adminOnly: true },
     { path: "/whatsapp-settings", label: "تنظیمات واتس‌اپ", icon: MessageSquare, adminOnly: true },
     { path: "/ai-token", label: "توکن هوش مصنوعی", icon: Bot, adminOnly: true },
     { path: "/profile", label: "اطلاعات کاربری", icon: User, adminOnly: false },
