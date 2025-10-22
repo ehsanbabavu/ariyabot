@@ -275,24 +275,24 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="space-y-8">
+    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+      <div className="space-y-4 sm:space-y-8">
 
         {/* Orders List */}
-        <div className="space-y-6">
+        <div className="space-y-3 sm:space-y-6">
           {orders.length === 0 ? (
-            <Card className="text-center py-16">
+            <Card className="text-center py-12 sm:py-16">
               <CardContent>
-                <ShoppingBag className="w-16 h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+                <ShoppingBag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                   هنوز سفارشی ثبت نکرده‌اید
                 </h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-6">
+                <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mb-6">
                   بعد از خرید محصولات، سفارشات شما اینجا نمایش داده خواهند شد
                 </p>
                 <Button 
                   onClick={() => window.location.href = '/'}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                   data-testid="button-start-shopping"
                 >
                   شروع خرید
@@ -306,23 +306,23 @@ export default function OrdersPage() {
               
               return (
                 <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-shadow" data-testid={`card-order-${order.id}`}>
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Package className="w-6 h-6 text-blue-600" />
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-3 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <Package className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                         <div>
-                          <CardTitle className="text-lg flex items-center gap-2">
+                          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
                             سفارش #{order.orderNumber || order.id.slice(0, 8)}
-                            <StatusIcon className="w-4 h-4" />
+                            <StatusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                           </CardTitle>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                             {new Date(order.createdAt!).toLocaleDateString('fa-IR')}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 self-end sm:self-auto">
                         <Badge 
-                          className={statusColors[order.status as keyof typeof statusColors]}
+                          className={`${statusColors[order.status as keyof typeof statusColors]} text-xs`}
                           data-testid={`status-${order.id}`}
                         >
                           {statusLabels[order.status as keyof typeof statusLabels]}
@@ -331,28 +331,28 @@ export default function OrdersPage() {
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
                       {/* Order Info - Compact */}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-4 mb-3">
+                      <div className="flex-1 w-full">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-2 sm:mb-3">
                           <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm text-gray-600 dark:text-gray-300">
+                            <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                            <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                               {new Date(order.createdAt!).toLocaleDateString('fa-IR')}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Package2 className="w-4 h-4 text-gray-500" />
-                            <span className="font-bold text-green-600" data-testid={`amount-${order.id}`}>
+                            <Package2 className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                            <span className="text-sm sm:text-base font-bold text-green-600" data-testid={`amount-${order.id}`}>
                               {formatPrice(order.totalAmount)}
                             </span>
                           </div>
                         </div>
                         {(order.fullAddress || order.addressTitle) && (
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
-                            <MapPin className="w-3 h-3" />
-                            <span data-testid={`address-${order.id}`}>
+                          <div className="flex items-start gap-2 text-xs sm:text-sm text-gray-500">
+                            <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                            <span data-testid={`address-${order.id}`} className="line-clamp-2">
                               {order.addressTitle ? `${order.addressTitle}: ${order.fullAddress || ''}` : order.fullAddress || 'آدرس تعیین نشده'}
                             </span>
                           </div>
@@ -360,17 +360,17 @@ export default function OrdersPage() {
                       </div>
 
                       {/* Actions - Compact */}
-                      <div className="flex flex-col sm:flex-row gap-2 min-w-fit">
+                      <div className="flex flex-col w-full sm:w-auto gap-2">
                         <div className="flex gap-2">
                           {canPay && (
                             <Button
                               size="sm"
                               onClick={() => handlePayment(order.id)}
-                              className="bg-green-600 hover:bg-green-700"
+                              className="bg-green-600 hover:bg-green-700 flex-1 sm:flex-none h-9"
                               data-testid={`button-pay-${order.id}`}
                             >
-                              <CreditCard className="w-4 h-4 ml-1" />
-                              پرداخت
+                              <CreditCard className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                              <span className="text-xs sm:text-sm">پرداخت</span>
                             </Button>
                           )}
                           <Button
@@ -378,11 +378,12 @@ export default function OrdersPage() {
                             variant="outline"
                             onClick={() => handleDownloadInvoice(order.id)}
                             disabled={downloadingOrderId === order.id}
-                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 disabled:opacity-50"
+                            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200 disabled:opacity-50 flex-1 sm:flex-none h-9"
                             data-testid={`button-download-${order.id}`}
                           >
-                            <Download className="w-4 h-4 ml-1" />
-                            {downloadingOrderId === order.id ? 'در حال آماده‌سازی...' : 'دانلود فاکتور'}
+                            <Download className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                            <span className="text-xs sm:text-sm hidden sm:inline">{downloadingOrderId === order.id ? 'در حال آماده‌سازی...' : 'دانلود فاکتور'}</span>
+                            <span className="text-xs sm:hidden">فاکتور</span>
                           </Button>
                         </div>
                         <Dialog onOpenChange={(isOpen) => !isOpen && setSelectedOrderId(null)}>
@@ -392,9 +393,10 @@ export default function OrdersPage() {
                               size="sm"
                               onClick={() => setSelectedOrderId(order.id)}
                               data-testid={`button-details-${order.id}`}
+                              className="w-full h-9"
                             >
-                              <Eye className="w-4 h-4 ml-1" />
-                              جزئیات
+                              <Eye className="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+                              <span className="text-xs sm:text-sm">جزئیات</span>
                             </Button>
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">

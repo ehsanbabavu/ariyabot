@@ -211,24 +211,24 @@ export default function Addresses() {
     <DashboardLayout title="آدرس‌های من">
       <div className="space-y-6" data-testid="addresses-content">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <MapPin className="h-8 w-8 text-primary" />
+            <MapPin className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
             <div>
-              <h1 className="text-2xl font-bold">آدرس‌های من</h1>
-              <p className="text-muted-foreground">
+              <h1 className="text-xl sm:text-2xl font-bold">آدرس‌های من</h1>
+              <p className="text-sm text-muted-foreground">
                 {addresses.length} آدرس ثبت شده
               </p>
             </div>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openAddDialog} data-testid="button-add-address">
+              <Button onClick={openAddDialog} data-testid="button-add-address" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 ml-2" />
                 افزودن آدرس جدید
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto sm:rounded-lg w-full">
               <DialogHeader>
                 <DialogTitle>
                   {editingAddress ? "ویرایش آدرس" : "افزودن آدرس جدید"}
@@ -241,9 +241,9 @@ export default function Addresses() {
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>عنوان آدرس</FormLabel>
+                        <FormLabel className="text-sm sm:text-base">عنوان آدرس</FormLabel>
                         <FormControl>
-                          <Input placeholder="مثلاً خانه، محل کار" {...field} data-testid="input-address-title" />
+                          <Input placeholder="مثلاً خانه، محل کار" {...field} data-testid="input-address-title" className="h-10 sm:h-11" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -255,11 +255,11 @@ export default function Addresses() {
                     name="fullAddress"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>آدرس کامل</FormLabel>
+                        <FormLabel className="text-sm sm:text-base">آدرس کامل</FormLabel>
                         <FormControl>
                           <Textarea 
                             placeholder="آدرس کامل شامل استان، شهر، خیابان و پلاک"
-                            className="min-h-[80px]"
+                            className="min-h-[100px] text-sm sm:text-base"
                             {...field}
                             data-testid="textarea-full-address"
                           />
@@ -274,24 +274,24 @@ export default function Addresses() {
                     name="postalCode"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>کد پستی</FormLabel>
+                        <FormLabel className="text-sm sm:text-base">کد پستی</FormLabel>
                         <FormControl>
-                          <Input placeholder="1234567890" {...field} value={field.value ?? ""} data-testid="input-postal-code" />
+                          <Input placeholder="1234567890" {...field} value={field.value ?? ""} data-testid="input-postal-code" className="h-10 sm:h-11" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="latitude"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>عرض جغرافیایی (اختیاری)</FormLabel>
+                          <FormLabel className="text-sm sm:text-base">عرض جغرافیایی (اختیاری)</FormLabel>
                           <FormControl>
-                            <Input placeholder="35.6892" {...field} value={field.value ?? ""} data-testid="input-latitude" />
+                            <Input placeholder="35.6892" {...field} value={field.value ?? ""} data-testid="input-latitude" className="h-10 sm:h-11" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -302,9 +302,9 @@ export default function Addresses() {
                       name="longitude"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>طول جغرافیایی (اختیاری)</FormLabel>
+                          <FormLabel className="text-sm sm:text-base">طول جغرافیایی (اختیاری)</FormLabel>
                           <FormControl>
-                            <Input placeholder="51.3890" {...field} value={field.value ?? ""} data-testid="input-longitude" />
+                            <Input placeholder="51.3890" {...field} value={field.value ?? ""} data-testid="input-longitude" className="h-10 sm:h-11" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -335,12 +335,13 @@ export default function Addresses() {
                     )}
                   />
 
-                  <div className="flex justify-end gap-2 pt-4">
+                  <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => setIsDialogOpen(false)}
                       data-testid="button-cancel"
+                      className="w-full sm:w-auto h-11"
                     >
                       لغو
                     </Button>
@@ -348,6 +349,7 @@ export default function Addresses() {
                       type="submit"
                       disabled={addAddressMutation.isPending || updateAddressMutation.isPending}
                       data-testid="button-submit-address"
+                      className="w-full sm:w-auto h-11"
                     >
                       {editingAddress ? "بروزرسانی" : "افزودن"} آدرس
                     </Button>
@@ -363,38 +365,39 @@ export default function Addresses() {
           <Card className="text-center py-12">
             <CardContent>
               <MapPin className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">هنوز آدرسی ثبت نکرده‌اید</h3>
-              <p className="text-muted-foreground mb-4">
+              <h3 className="text-base sm:text-lg font-semibold mb-2">هنوز آدرسی ثبت نکرده‌اید</h3>
+              <p className="text-sm text-muted-foreground mb-4">
                 برای سفارش محصولات، ابتدا آدرس خود را ثبت کنید
               </p>
-              <Button onClick={openAddDialog} data-testid="button-add-first-address">
+              <Button onClick={openAddDialog} data-testid="button-add-first-address" className="w-full sm:w-auto">
                 <Plus className="h-4 w-4 ml-2" />
                 افزودن اولین آدرس
               </Button>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {addresses.map((address) => (
               <Card key={address.id} className="hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <MapPin className="h-5 w-5" />
-                      {address.title}
+                <CardHeader className="pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2 flex-wrap">
+                      <MapPin className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <span className="truncate max-w-[150px] sm:max-w-none">{address.title}</span>
                       {address.isDefault && (
-                        <Badge variant="default" className="text-xs">
+                        <Badge variant="default" className="text-xs shrink-0">
                           <Star className="h-3 w-3 ml-1" />
                           پیش‌فرض
                         </Badge>
                       )}
                     </CardTitle>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 self-end sm:self-auto">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEdit(address)}
                         data-testid={`button-edit-${address.id}`}
+                        className="h-9 w-9"
                       >
                         <Edit2 className="h-4 w-4" />
                       </Button>
@@ -402,7 +405,7 @@ export default function Addresses() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(address.id)}
-                        className="text-destructive hover:text-destructive"
+                        className="text-destructive hover:text-destructive h-9 w-9"
                         data-testid={`button-delete-${address.id}`}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -410,13 +413,13 @@ export default function Addresses() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-3 px-3 sm:px-6">
                   <div className="text-sm">
-                    <p data-testid={`text-address-${address.id}`} className="whitespace-pre-line">
+                    <p data-testid={`text-address-${address.id}`} className="whitespace-pre-line leading-relaxed">
                       {address.fullAddress}
                     </p>
                     {address.postalCode && (
-                      <p className="font-mono text-xs mt-2 bg-muted px-2 py-1 rounded">
+                      <p className="font-mono text-xs mt-2 bg-muted px-2 py-1.5 rounded">
                         کد پستی: {address.postalCode}
                       </p>
                     )}
@@ -433,7 +436,7 @@ export default function Addresses() {
                       size="sm"
                       onClick={() => handleSetDefault(address.id)}
                       disabled={setDefaultMutation.isPending}
-                      className="w-full"
+                      className="w-full h-10"
                       data-testid={`button-set-default-${address.id}`}
                     >
                       <Star className="h-4 w-4 ml-2" />

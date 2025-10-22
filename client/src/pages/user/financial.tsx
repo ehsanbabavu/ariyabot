@@ -192,8 +192,8 @@ export default function FinancialPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-3 sm:p-6">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex justify-end items-center">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -213,17 +213,17 @@ export default function FinancialPage() {
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="gap-2" data-testid="button-new-transaction">
+              <Button className="gap-2 w-full sm:w-auto h-11" data-testid="button-new-transaction">
                 <Plus className="w-4 h-4" />
                 درخواست جدید
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="text-base sm:text-lg">
                   درخواست واریز
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-sm">
                   اطلاعات مورد نیاز را تکمیل کنید
                 </DialogDescription>
               </DialogHeader>
@@ -362,21 +362,24 @@ export default function FinancialPage() {
         </div>
 
         {/* Financial Stats - All in one row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
+                <div className="w-full">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
                     موجودی کل
                   </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xl font-bold text-gray-900 dark:text-gray-100" data-testid="text-balance">
+                  <div className="flex items-center justify-between sm:block">
+                    <p className="text-sm sm:text-xl font-bold text-gray-900 dark:text-gray-100" data-testid="text-balance">
                       {formatPrice(balance)}
                     </p>
+                    <div className="p-1.5 sm:hidden bg-blue-100 dark:bg-blue-900 rounded-full">
+                      <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
                   </div>
                 </div>
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <div className="hidden sm:block p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
                   <Wallet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
@@ -384,17 +387,22 @@ export default function FinancialPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
+                <div className="w-full">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
                     کل واریزی‌ها
                   </p>
-                  <p className="text-xl font-bold text-green-600 dark:text-green-400 mt-1" data-testid="text-deposits">
-                    {formatPrice(totalDeposits)}
-                  </p>
+                  <div className="flex items-center justify-between sm:block">
+                    <p className="text-sm sm:text-xl font-bold text-green-600 dark:text-green-400" data-testid="text-deposits">
+                      {formatPrice(totalDeposits)}
+                    </p>
+                    <div className="p-1.5 sm:hidden bg-green-100 dark:bg-green-900 rounded-full">
+                      <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-2 bg-green-100 dark:bg-green-900 rounded-full">
+                <div className="hidden sm:block p-2 bg-green-100 dark:bg-green-900 rounded-full">
                   <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
               </div>
@@ -402,17 +410,22 @@ export default function FinancialPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
+                <div className="w-full">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
                     کل برداشت‌ها
                   </p>
-                  <p className="text-xl font-bold text-red-600 dark:text-red-400 mt-1" data-testid="text-withdrawals">
-                    {formatPrice(totalWithdraws)}
-                  </p>
+                  <div className="flex items-center justify-between sm:block">
+                    <p className="text-sm sm:text-xl font-bold text-red-600 dark:text-red-400" data-testid="text-withdrawals">
+                      {formatPrice(totalWithdraws)}
+                    </p>
+                    <div className="p-1.5 sm:hidden bg-red-100 dark:bg-red-900 rounded-full">
+                      <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-2 bg-red-100 dark:bg-red-900 rounded-full">
+                <div className="hidden sm:block p-2 bg-red-100 dark:bg-red-900 rounded-full">
                   <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
               </div>
@@ -420,17 +433,22 @@ export default function FinancialPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-2">
+                <div className="w-full">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
                     تعداد تراکنش‌ها
                   </p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-gray-100 mt-1" data-testid="text-transaction-count">
-                    {userOwnTransactions.length}
-                  </p>
+                  <div className="flex items-center justify-between sm:block">
+                    <p className="text-sm sm:text-xl font-bold text-gray-900 dark:text-gray-100" data-testid="text-transaction-count">
+                      {userOwnTransactions.length}
+                    </p>
+                    <div className="p-1.5 sm:hidden bg-gray-100 dark:bg-gray-800 rounded-full">
+                      <DollarSign className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    </div>
+                  </div>
                 </div>
-                <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full">
+                <div className="hidden sm:block p-2 bg-gray-100 dark:bg-gray-800 rounded-full">
                   <DollarSign className="w-5 h-5 text-gray-600 dark:text-gray-400" />
                 </div>
               </div>
@@ -440,110 +458,113 @@ export default function FinancialPage() {
 
         {/* Transactions History */}
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-6">
             {userOwnTransactions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
-                <Wallet className="w-16 h-16 text-gray-400 dark:text-gray-600 mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                <Wallet className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 dark:text-gray-600 mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                   هنوز تراکنشی انجام نداده‌اید
                 </h3>
-                <p className="text-gray-500 dark:text-gray-400 text-center mb-6">
+                <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
                   اولین درخواست مالی خود را ثبت کنید
                 </p>
-                <Button onClick={() => setDialogOpen(true)} data-testid="button-first-transaction">
+                <Button onClick={() => setDialogOpen(true)} data-testid="button-first-transaction" className="w-full sm:w-auto h-11">
                   <Plus className="w-4 h-4 mr-2" />
                   درخواست جدید
                 </Button>
               </div>
             ) : (
               <div className="space-y-4">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">نوع</TableHead>
-                      <TableHead className="text-right">مبلغ</TableHead>
-                      <TableHead className="text-right">وضعیت</TableHead>
-                      <TableHead className="text-right">تاریخ انجام</TableHead>
-                      <TableHead className="text-right">از حساب</TableHead>
-                      <TableHead className="text-right">تاریخ ثبت</TableHead>
-                      <TableHead className="text-right">شماره پیگیری</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedTransactions.map((transaction) => (
-                      <TableRow key={transaction.id} data-testid={`transaction-${transaction.id}`}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className={`p-2 rounded-full ${transactionColors[transaction.type as keyof typeof transactionColors]}`}>
-                              {transaction.type === 'deposit' && <TrendingUp className="w-4 h-4" />}
-                              {transaction.type === 'withdraw' && <TrendingDown className="w-4 h-4" />}
-                              {transaction.type === 'order_payment' && <Minus className="w-4 h-4" />}
-                              {transaction.type === 'commission' && <Plus className="w-4 h-4" />}
-                            </div>
-                            <span className="font-medium">
-                              {transactionLabels[transaction.type as keyof typeof transactionLabels]}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span 
-                            className={`font-bold ${
-                              transaction.type === 'deposit' || transaction.type === 'commission' 
-                                ? 'text-green-600 dark:text-green-400' 
-                                : 'text-red-600 dark:text-red-400'
-                            }`}
-                            data-testid={`amount-${transaction.id}`}
-                          >
-                            {transaction.type === 'deposit' || transaction.type === 'commission' ? '+' : '-'}
-                            {formatPrice(Number(transaction.amount))}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={statusColors[transaction.status as keyof typeof statusColors]}>
-                            {statusLabels[transaction.status as keyof typeof statusLabels]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {transaction.transactionDate && (
-                              <div>{transaction.transactionDate}</div>
-                            )}
-                            {transaction.transactionTime && (
-                              <div className="text-gray-500">{transaction.transactionTime}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {transaction.accountSource || '—'}
-                        </TableCell>
-                        <TableCell>
-                          {transaction.createdAt && (
-                            <span className="text-sm text-gray-500">
-                              {moment(transaction.createdAt).format('jYYYY/jMM/jDD')}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {transaction.referenceId || '—'}
-                        </TableCell>
+                <div className="overflow-x-auto -mx-3 sm:mx-0">
+                  <Table className="min-w-[700px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-right text-xs sm:text-sm">نوع</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">مبلغ</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">وضعیت</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">تاریخ انجام</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">از حساب</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">تاریخ ثبت</TableHead>
+                        <TableHead className="text-right text-xs sm:text-sm">شماره پیگیری</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedTransactions.map((transaction) => (
+                        <TableRow key={transaction.id} data-testid={`transaction-${transaction.id}`}>
+                          <TableCell>
+                            <div className="flex items-center gap-1 sm:gap-2">
+                              <div className={`p-1 sm:p-2 rounded-full ${transactionColors[transaction.type as keyof typeof transactionColors]}`}>
+                                {transaction.type === 'deposit' && <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" />}
+                                {transaction.type === 'withdraw' && <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" />}
+                                {transaction.type === 'order_payment' && <Minus className="w-3 h-3 sm:w-4 sm:h-4" />}
+                                {transaction.type === 'commission' && <Plus className="w-3 h-3 sm:w-4 sm:h-4" />}
+                              </div>
+                              <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
+                                {transactionLabels[transaction.type as keyof typeof transactionLabels]}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span 
+                              className={`font-bold text-xs sm:text-sm ${
+                                transaction.type === 'deposit' || transaction.type === 'commission' 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}
+                              data-testid={`amount-${transaction.id}`}
+                            >
+                              {transaction.type === 'deposit' || transaction.type === 'commission' ? '+' : '-'}
+                              {formatPrice(Number(transaction.amount))}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`${statusColors[transaction.status as keyof typeof statusColors]} text-xs`}>
+                              {statusLabels[transaction.status as keyof typeof statusLabels]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs sm:text-sm">
+                              {transaction.transactionDate && (
+                                <div className="whitespace-nowrap">{transaction.transactionDate}</div>
+                              )}
+                              {transaction.transactionTime && (
+                                <div className="text-gray-500 whitespace-nowrap">{transaction.transactionTime}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs sm:text-sm">{transaction.accountSource || '—'}</span>
+                          </TableCell>
+                          <TableCell>
+                            {transaction.createdAt && (
+                              <span className="text-xs sm:text-sm text-gray-500 whitespace-nowrap">
+                                {moment(transaction.createdAt).format('jYYYY/jMM/jDD')}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-xs sm:text-sm">{transaction.referenceId || '—'}</span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="text-sm text-gray-500">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4 px-3 sm:px-0">
+                    <div className="text-xs sm:text-sm text-gray-500">
                       نمایش {startIndex + 1} تا {Math.min(endIndex, userOwnTransactions.length)} از {userOwnTransactions.length} تراکنش
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                         disabled={currentPage === 1}
                         data-testid="button-prev-page"
+                        className="h-9 text-xs sm:text-sm"
                       >
                         قبلی
                       </Button>
@@ -556,7 +577,7 @@ export default function FinancialPage() {
                             size="sm"
                             onClick={() => setCurrentPage(page)}
                             data-testid={`button-page-${page}`}
-                            className="min-w-[2rem]"
+                            className="min-w-[2rem] h-9 text-xs sm:text-sm"
                           >
                             {page}
                           </Button>
@@ -569,6 +590,7 @@ export default function FinancialPage() {
                         onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage === totalPages}
                         data-testid="button-next-page"
+                        className="h-9 text-xs sm:text-sm"
                       >
                         بعدی
                       </Button>

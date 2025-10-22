@@ -347,13 +347,13 @@ export default function Cart() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-            {/* ستون راست - جدول محصولات (بزرگتر) */}
+            {/* ستون راست - جدول/کارت‌های محصولات (بزرگتر) */}
             <div className="lg:col-span-8">
               <Card>
                 <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <ShoppingCart className="h-5 w-5 text-primary" />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                       محصولات سبد خرید
                     </CardTitle>
                     <Button
@@ -361,7 +361,7 @@ export default function Cart() {
                       size="sm"
                       onClick={handleClearCart}
                       disabled={clearCartMutation.isPending}
-                      className="hover:bg-destructive hover:text-destructive-foreground"
+                      className="hover:bg-destructive hover:text-destructive-foreground w-full sm:w-auto"
                       data-testid="button-clear-cart"
                     >
                       {clearCartMutation.isPending ? (
@@ -374,8 +374,8 @@ export default function Cart() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* جدول محصولات */}
-                  <div className="overflow-x-auto">
+                  {/* جدول محصولات - فقط برای دسکتاپ */}
+                  <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b">
@@ -480,6 +480,98 @@ export default function Cart() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* کارت‌های محصولات - فقط برای موبایل */}
+                  <div className="lg:hidden space-y-3">
+                    {cartItems.map((item) => (
+                      <Card key={item.id} className="border-2">
+                        <CardContent className="p-3">
+                          <div className="flex gap-3">
+                            {item.productImage ? (
+                              <img
+                                src={item.productImage}
+                                alt={item.productName}
+                                className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                                <Package className="h-10 w-10 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-sm mb-1 truncate" data-testid={`text-product-name-${item.id}`}>
+                                {item.productName}
+                              </h4>
+                              <div className="text-xs text-muted-foreground mb-2">
+                                قیمت واحد: {parseFloat(item.unitPrice).toLocaleString()} تومان
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                                    disabled={updateQuantityMutation.isPending || item.quantity <= 1}
+                                    data-testid={`button-decrease-${item.id}`}
+                                    className="h-9 w-9 p-0"
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <Input
+                                    type="number"
+                                    key={`${item.id}-${item.quantity}`}
+                                    defaultValue={item.quantity}
+                                    onBlur={(e) => {
+                                      const newQuantity = Math.max(1, parseInt(e.target.value) || 1);
+                                      if (newQuantity !== item.quantity) {
+                                        handleQuantityChange(item.id, newQuantity);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        const newQuantity = Math.max(1, parseInt(e.currentTarget.value) || 1);
+                                        if (newQuantity !== item.quantity) {
+                                          handleQuantityChange(item.id, newQuantity);
+                                        }
+                                      }
+                                    }}
+                                    className="w-14 text-center text-sm h-9"
+                                    min="1"
+                                    data-testid={`input-quantity-${item.id}`}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                                    disabled={updateQuantityMutation.isPending}
+                                    data-testid={`button-increase-${item.id}`}
+                                    className="h-9 w-9 p-0"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveItem(item.id)}
+                                  disabled={removeItemMutation.isPending}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-9"
+                                  data-testid={`button-remove-${item.id}`}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              <div className="mt-2 text-left">
+                                <span className="font-bold text-primary text-sm" data-testid={`text-total-price-${item.id}`}>
+                                  جمع: {parseFloat(item.totalPrice).toLocaleString()} تومان
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
