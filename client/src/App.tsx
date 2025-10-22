@@ -42,6 +42,8 @@ import AddFaqPage from "@/pages/user/add-faq";
 import ManageFaqsPage from "@/pages/user/manage-faqs";
 import MaintenancePage from "@/pages/maintenance";
 import NotFound from "@/pages/not-found";
+import LandingPage from "@/pages/landing";
+import ContentManagement from "@/pages/admin/content-management";
 
 interface MaintenanceStatus {
   isEnabled: boolean;
@@ -192,17 +194,23 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/reset-password" component={ResetPassword} />
-      <Route path="/" component={() => user ? 
+      <Route path="/" component={() => user ? (
         user.role === "admin" 
           ? <ProtectedRoute component={Dashboard} /> 
           : <ProtectedRoute component={UserDashboard} />
-        : <Login />} />
+      ) : <LandingPage />} />
+      <Route path="/dashboard" component={() => user ? (
+        user.role === "admin" 
+          ? <ProtectedRoute component={Dashboard} /> 
+          : <ProtectedRoute component={UserDashboard} />
+      ) : <Login />} />
       <Route path="/users" component={() => <AdminRoute component={UserManagement} />} />
       <Route path="/tickets" component={() => <AdminRoute component={TicketManagement} />} />
       <Route path="/subscriptions" component={() => <AdminRoute component={Subscriptions} />} />
       <Route path="/categories" component={() => <AdminOrLevel1Route component={Categories} />} />
       <Route path="/ai-token" component={() => <AdminRoute component={AITokenSettings} />} />
       <Route path="/database-backup" component={() => <AdminRoute component={DatabaseBackup} />} />
+      <Route path="/content-management" component={() => <AdminRoute component={ContentManagement} />} />
       <Route path="/admin/welcome-message" component={() => <AdminOrLevel1Route component={WelcomeMessage} />} />
       <Route path="/whatsapp-settings" component={() => <AdminOrLevel1Route component={WhatsappSettings} />} />
       <Route path="/send-message" component={() => <AdminOrLevel1Route component={SendMessage} />} />
