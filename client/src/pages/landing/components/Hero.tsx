@@ -1,6 +1,4 @@
 import React from 'react';
-import AppleIcon from './icons/AppleIcon';
-import PlayStoreIcon from './icons/PlayStoreIcon';
 
 const Hero: React.FC = () => {
     return (
@@ -14,22 +12,6 @@ const Hero: React.FC = () => {
                         <p className="text-lg md:text-xl mb-8 opacity-90 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
                             یک لندینگ پیج قدرتمند و زیبا برای نمایش محصول شما و تبدیل بازدیدکنندگان به کاربران راضی.
                         </p>
-                        <div className="flex justify-start space-x-4 space-x-reverse animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-                            <a href="#" className="flex items-center bg-white text-gray-800 font-semibold py-3 px-6 rounded-full shadow-lg transform hover:scale-105 transition-transform duration-300">
-                                <div className="text-right">
-                                    <p className="text-xs">دانلود از</p>
-                                    <p className="text-lg leading-tight">اپ استور</p>
-                                </div>
-                                <AppleIcon className="w-6 h-6 ml-2" />
-                            </a>
-                            <a href="#" className="flex items-center bg-white text-gray-800 font-semibold py-3 px-6 rounded-full shadow-lg transform hover:scale-105 transition-transform duration-300">
-                                <div className="text-right">
-                                    <p className="text-xs">دریافت از</p>
-                                    <p className="text-lg leading-tight">گوگل پلی</p>
-                                </div>
-                                <PlayStoreIcon className="w-6 h-6 ml-2" />
-                            </a>
-                        </div>
                     </div>
                     <div className="w-full lg:w-1/2 mt-10 lg:mt-0 flex justify-center">
                        <img src="https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/header-mobile.png" alt="App Screenshot" className="max-w-xs md:max-w-sm transform animate-float" />

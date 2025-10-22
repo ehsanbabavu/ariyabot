@@ -1,27 +1,23 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-const testimonialsData = [
-    {
-        quote: "این بهترین برنامه‌ای است که تا به حال استفاده کرده‌ام. طراحی تمیز و ویژگی‌ها فوق‌العاده کاربردی هستند. به شدت توصیه می‌شود!",
-        name: "سارا رضایی",
-        title: "مدیرعامل، شرکت",
-        image: "https://picsum.photos/id/1011/100/100"
-    },
-    {
-        quote: "یک تغییر دهنده بازی برای بهره‌وری تیم ما. ویژگی‌های همکاری یکپارچه و بصری هستند. یک ابزار ضروری.",
-        name: "علی احمدی",
-        title: "مدیر پروژه، راهکارهای فنی",
-        image: "https://picsum.photos/id/1005/100/100"
-    },
-    {
-        quote: "در ابتدا شک داشتم، اما این برنامه از تمام انتظارات من فراتر رفت. پشتیبانی مشتری نیز درجه یک است!",
-        name: "مریم محمدی",
-        title: "طراح فریلنسر",
-        image: "https://picsum.photos/id/1027/100/100"
-    },
-];
+interface Testimonial {
+  quote: string;
+  name: string;
+  title: string;
+  image: string;
+}
 
-const TestimonialCard: React.FC<typeof testimonialsData[0]> = ({ quote, name, title, image }) => (
+interface ContentSection {
+  id: string;
+  sectionKey: string;
+  title?: string;
+  subtitle?: string;
+  content?: string;
+  isActive: boolean;
+}
+
+const TestimonialCard: React.FC<Testimonial> = ({ quote, name, title, image }) => (
     <div className="bg-white p-8 rounded-xl shadow-lg text-center">
         <p className="text-gray-600 italic mb-6">"{quote}"</p>
         <div className="flex items-center justify-center">
@@ -35,15 +31,48 @@ const TestimonialCard: React.FC<typeof testimonialsData[0]> = ({ quote, name, ti
 );
 
 const Testimonials: React.FC = () => {
+    const { data: section, isLoading } = useQuery<ContentSection>({
+        queryKey: ['content-section', 'testimonials'],
+        queryFn: async () => {
+            const response = await fetch('/api/content-sections/testimonials');
+            if (!response.ok) throw new Error('خطا در دریافت محتوا');
+            return response.json();
+        },
+    });
+
+    if (isLoading) {
+        return (
+            <section id="testimonials" className="py-20 bg-gray-50">
+                <div className="container mx-auto px-6">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
+    if (!section || !section.isActive) {
+        return null;
+    }
+
+    let testimonials: Testimonial[] = [];
+    try {
+        testimonials = section.content ? JSON.parse(section.content) : [];
+    } catch (e) {
+        console.error('Error parsing testimonials content:', e);
+        return null;
+    }
+
     return (
         <section id="testimonials" className="py-20 bg-gray-50">
             <div className="container mx-auto px-6">
                 <div className="text-center mb-12">
-                    <h2 className="text-4xl font-extrabold text-gray-800">مشتریان ما چه می‌گویند</h2>
-                    <p className="text-lg text-gray-600 mt-2">از مشتریان راضی ما بشنوید و ببینید چگونه برنامه ما به آنها کمک کرده است.</p>
+                    <h2 className="text-4xl font-extrabold text-gray-800">{section.title || 'مشتریان ما چه می‌گویند'}</h2>
+                    <p className="text-lg text-gray-600 mt-2">{section.subtitle || 'از مشتریان راضی ما بشنوید و ببینید چگونه برنامه ما به آنها کمک کرده است.'}</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {testimonialsData.map((testimonial, index) => (
+                    {testimonials.map((testimonial, index) => (
                         <TestimonialCard key={index} {...testimonial} />
                     ))}
                 </div>

@@ -8,15 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Pencil, Trash2, Plus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Save, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ContentSection {
   id: string;
@@ -31,20 +25,187 @@ interface ContentSection {
   updatedAt: Date;
 }
 
+interface SectionEditorProps {
+  section: ContentSection;
+  onSave: (data: { id: string; title?: string; subtitle?: string; content?: string; imageUrl?: string; isActive: boolean }) => void;
+  isSaving: boolean;
+}
+
+function SectionEditor({ section, onSave, isSaving }: SectionEditorProps) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    title: section.title || "",
+    subtitle: section.subtitle || "",
+    content: section.content || "",
+    imageUrl: section.imageUrl || "",
+    isActive: section.isActive,
+  });
+
+  const [jsonError, setJsonError] = useState("");
+
+  const validateJSON = (value: string) => {
+    if (!value.trim()) return true;
+    try {
+      JSON.parse(value);
+      setJsonError("");
+      return true;
+    } catch (e) {
+      setJsonError("فرمت JSON نامعتبر است");
+      return false;
+    }
+  };
+
+  const handleSave = () => {
+    if (!validateJSON(formData.content)) {
+      toast({
+        title: "خطا",
+        description: "لطفاً فرمت JSON را بررسی کنید",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onSave({
+      id: section.id,
+      ...formData,
+    });
+  };
+
+  const formatJSON = () => {
+    try {
+      const parsed = JSON.parse(formData.content);
+      setFormData({ ...formData, content: JSON.stringify(parsed, null, 2) });
+      setJsonError("");
+    } catch (e) {
+      toast({
+        title: "خطا",
+        description: "نمی‌توان JSON را فرمت کرد",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <Card className="p-6">
+      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-2xl font-bold text-gray-800">{section.title}</h3>
+          <div className="flex gap-2 items-center">
+            <Label htmlFor={`active-${section.id}`} className="text-sm">فعال</Label>
+            <input
+              id={`active-${section.id}`}
+              type="checkbox"
+              checked={formData.isActive}
+              onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+              className="w-4 h-4"
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor={`title-${section.id}`}>عنوان بخش</Label>
+          <Input
+            id={`title-${section.id}`}
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            placeholder="عنوان بخش"
+            className="mt-2"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor={`subtitle-${section.id}`}>توضیحات کوتاه</Label>
+          <Textarea
+            id={`subtitle-${section.id}`}
+            value={formData.subtitle}
+            onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+            placeholder="توضیحات کوتاه"
+            rows={2}
+            className="mt-2"
+          />
+        </div>
+
+        {section.sectionKey === "how-it-works" && (
+          <div>
+            <Label htmlFor={`image-${section.id}`}>آدرس تصویر</Label>
+            <Input
+              id={`image-${section.id}`}
+              value={formData.imageUrl}
+              onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+              placeholder="https://..."
+              className="mt-2"
+            />
+          </div>
+        )}
+
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <Label htmlFor={`content-${section.id}`}>محتوای JSON</Label>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={formatJSON}
+              type="button"
+            >
+              فرمت JSON
+            </Button>
+          </div>
+          <Textarea
+            id={`content-${section.id}`}
+            value={formData.content}
+            onChange={(e) => {
+              setFormData({ ...formData, content: e.target.value });
+              validateJSON(e.target.value);
+            }}
+            placeholder='[{"key": "value"}]'
+            rows={15}
+            className="mt-2 font-mono text-sm"
+            dir="ltr"
+          />
+          {jsonError && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{jsonError}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded">
+          <p className="font-semibold mb-2">راهنمای ویرایش:</p>
+          {section.sectionKey === "features" && (
+            <p>فرمت: لیستی از اشیا با فیلدهای icon, title, description</p>
+          )}
+          {section.sectionKey === "how-it-works" && (
+            <p>فرمت: لیستی از مراحل با فیلدهای icon, title, description</p>
+          )}
+          {section.sectionKey === "screenshots" && (
+            <p>فرمت: لیستی از آدرس تصاویر (آرایه‌ی ساده از stringها)</p>
+          )}
+          {section.sectionKey === "pricing" && (
+            <p>فرمت: لیستی از پلن‌ها با فیلدهای name, monthly, yearly, features[], popular</p>
+          )}
+          {section.sectionKey === "testimonials" && (
+            <p>فرمت: لیستی از نظرات با فیلدهای quote, name, title, image</p>
+          )}
+        </div>
+
+        <Button
+          onClick={handleSave}
+          disabled={isSaving || !!jsonError}
+          className="w-full"
+        >
+          <Save className="ml-2 h-4 w-4" />
+          {isSaving ? "در حال ذخیره..." : "ذخیره تغییرات"}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export default function ContentManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingSection, setEditingSection] = useState<ContentSection | null>(null);
-  const [formData, setFormData] = useState({
-    sectionKey: "",
-    title: "",
-    subtitle: "",
-    description: "",
-    content: "",
-    imageUrl: "",
-    isActive: true,
-  });
+  const [activeTab, setActiveTab] = useState("features");
 
   const { data: sections, isLoading } = useQuery<ContentSection[]>({
     queryKey: ["content-sections"],
@@ -56,249 +217,121 @@ export default function ContentManagement() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: async (data: typeof formData & { id?: string }) => {
-      const url = data.id 
-        ? `/api/admin/content-sections/${data.id}`
-        : "/api/admin/content-sections";
-      const method = data.id ? "PUT" : "POST";
-      
-      const response = await apiRequest(method, url, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["content-sections"] });
-      setIsDialogOpen(false);
-      resetForm();
-      toast({
-        title: "موفق",
-        description: "محتوا با موفقیت ذخیره شد",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "خطا",
-        description: "خطا در ذخیره محتوا",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/content-sections/${id}`);
+    mutationFn: async (data: { id: string; title?: string; subtitle?: string; content?: string; imageUrl?: string; isActive: boolean }) => {
+      const response = await apiRequest("PUT", `/api/admin/content-sections/${data.id}`, data);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["content-sections"] });
       toast({
         title: "موفق",
-        description: "محتوا با موفقیت حذف شد",
+        description: "تغییرات با موفقیت ذخیره شد",
       });
     },
     onError: () => {
       toast({
         title: "خطا",
-        description: "خطا در حذف محتوا",
+        description: "خطا در ذخیره تغییرات",
         variant: "destructive",
       });
     },
   });
 
-  const resetForm = () => {
-    setFormData({
-      sectionKey: "",
-      title: "",
-      subtitle: "",
-      description: "",
-      content: "",
-      imageUrl: "",
-      isActive: true,
-    });
-    setEditingSection(null);
-  };
+  if (isLoading) {
+    return (
+      <DashboardLayout title="مدیریت محتوای سایت">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">در حال بارگذاری...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
-  const handleEdit = (section: ContentSection) => {
-    setEditingSection(section);
-    setFormData({
-      sectionKey: section.sectionKey,
-      title: section.title || "",
-      subtitle: section.subtitle || "",
-      description: section.description || "",
-      content: section.content || "",
-      imageUrl: section.imageUrl || "",
-      isActive: section.isActive,
-    });
-    setIsDialogOpen(true);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const data = editingSection 
-      ? { ...formData, id: editingSection.id }
-      : formData;
-    saveMutation.mutate(data);
-  };
+  const sectionMap = sections?.reduce((acc, section) => {
+    acc[section.sectionKey] = section;
+    return acc;
+  }, {} as Record<string, ContentSection>);
 
   return (
     <DashboardLayout title="مدیریت محتوای سایت">
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">مدیریت محتوای سایت</h1>
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="ml-2 h-4 w-4" />
-                افزودن بخش جدید
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingSection ? "ویرایش بخش" : "افزودن بخش جدید"}
-                </DialogTitle>
-                <DialogDescription>
-                  محتوای بخش‌های مختلف سایت را مدیریت کنید
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                <div>
-                  <Label htmlFor="sectionKey">کلید بخش *</Label>
-                  <Input
-                    id="sectionKey"
-                    value={formData.sectionKey}
-                    onChange={(e) => setFormData({ ...formData, sectionKey: e.target.value })}
-                    placeholder="hero, features, pricing, etc."
-                    required
-                    disabled={!!editingSection}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="title">عنوان</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="subtitle">زیرعنوان</Label>
-                  <Input
-                    id="subtitle"
-                    value={formData.subtitle}
-                    onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">توضیحات</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="content">محتوای JSON (اختیاری)</Label>
-                  <Textarea
-                    id="content"
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    rows={5}
-                    placeholder='{"key": "value"}'
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="imageUrl">آدرس تصویر</Label>
-                  <Input
-                    id="imageUrl"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <Label htmlFor="isActive">فعال</Label>
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    انصراف
-                  </Button>
-                  <Button type="submit" disabled={saveMutation.isPending}>
-                    {saveMutation.isPending ? "در حال ذخیره..." : "ذخیره"}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">مدیریت محتوای صفحه اصلی</h1>
+          <p className="text-gray-600">محتوای تمام بخش‌های صفحه اصلی سایت را ویرایش کنید</p>
         </div>
 
-        {isLoading ? (
-          <div className="text-center py-8">در حال بارگذاری...</div>
-        ) : (
-          <div className="grid gap-4">
-            {sections?.length === 0 ? (
-              <Card className="p-8 text-center text-gray-500">
-                هیچ بخشی یافت نشد. بخش جدیدی اضافه کنید.
-              </Card>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsTrigger value="features">ویژگی‌ها</TabsTrigger>
+            <TabsTrigger value="how-it-works">چگونه کار می‌کند</TabsTrigger>
+            <TabsTrigger value="screenshots">اسکرین‌شات‌ها</TabsTrigger>
+            <TabsTrigger value="pricing">قیمت‌گذاری</TabsTrigger>
+            <TabsTrigger value="testimonials">نظرات</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="features">
+            {sectionMap?.["features"] ? (
+              <SectionEditor 
+                section={sectionMap["features"]} 
+                onSave={(data) => saveMutation.mutate(data)}
+                isSaving={saveMutation.isPending}
+              />
             ) : (
-              sections?.map((section) => (
-                <Card key={section.id} className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold">{section.title || section.sectionKey}</h3>
-                        <span className={`text-xs px-2 py-1 rounded ${section.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                          {section.isActive ? 'فعال' : 'غیرفعال'}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">کلید: {section.sectionKey}</p>
-                      {section.subtitle && (
-                        <p className="text-sm text-gray-600 mb-1">{section.subtitle}</p>
-                      )}
-                      {section.description && (
-                        <p className="text-sm text-gray-500 mt-2">{section.description}</p>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(section)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          if (confirm("آیا از حذف این بخش اطمینان دارید؟")) {
-                            deleteMutation.mutate(section.id);
-                          }
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))
+              <p>بخش یافت نشد</p>
             )}
-          </div>
-        )}
+          </TabsContent>
+
+          <TabsContent value="how-it-works">
+            {sectionMap?.["how-it-works"] ? (
+              <SectionEditor 
+                section={sectionMap["how-it-works"]} 
+                onSave={(data) => saveMutation.mutate(data)}
+                isSaving={saveMutation.isPending}
+              />
+            ) : (
+              <p>بخش یافت نشد</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="screenshots">
+            {sectionMap?.["screenshots"] ? (
+              <SectionEditor 
+                section={sectionMap["screenshots"]} 
+                onSave={(data) => saveMutation.mutate(data)}
+                isSaving={saveMutation.isPending}
+              />
+            ) : (
+              <p>بخش یافت نشد</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="pricing">
+            {sectionMap?.["pricing"] ? (
+              <SectionEditor 
+                section={sectionMap["pricing"]} 
+                onSave={(data) => saveMutation.mutate(data)}
+                isSaving={saveMutation.isPending}
+              />
+            ) : (
+              <p>بخش یافت نشد</p>
+            )}
+          </TabsContent>
+
+          <TabsContent value="testimonials">
+            {sectionMap?.["testimonials"] ? (
+              <SectionEditor 
+                section={sectionMap["testimonials"]} 
+                onSave={(data) => saveMutation.mutate(data)}
+                isSaving={saveMutation.isPending}
+              />
+            ) : (
+              <p>بخش یافت نشد</p>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

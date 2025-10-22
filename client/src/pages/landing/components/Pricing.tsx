@@ -1,50 +1,31 @@
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import CheckIcon from './icons/CheckIcon';
 import XIcon from './icons/XIcon';
 
-const pricingPlans = [
-    {
-        name: 'رایگان',
-        monthly: 0,
-        yearly: 0,
-        features: [
-            { text: '۱۰۰ مگابایت فضای دیسک', available: true },
-            { text: '۲ زیر دامنه', available: true },
-            { text: '۵ حساب ایمیل', available: true },
-            { text: 'پشتیبانی مشتری', available: false },
-            { text: 'به‌روزرسانی رایگان', available: false },
-        ],
-        popular: false,
-    },
-    {
-        name: 'استاندارد',
-        monthly: 19,
-        yearly: 199,
-        features: [
-            { text: '۱ گیگابایت فضای دیسک', available: true },
-            { text: '۱۰ زیر دامنه', available: true },
-            { text: '۲۰ حساب ایمیل', available: true },
-            { text: 'پشتیبانی مشتری', available: true },
-            { text: 'به‌روزرسانی رایگان', available: false },
-        ],
-        popular: true,
-    },
-    {
-        name: 'تجاری',
-        monthly: 49,
-        yearly: 499,
-        features: [
-            { text: '۱۰ گیگابایت فضای دیسک', available: true },
-            { text: '۵۰ زیر دامنه', available: true },
-            { text: 'حساب ایمیل نامحدود', available: true },
-            { text: 'پشتیبانی مشتری', available: true },
-            { text: 'به‌روزرسانی رایگان', available: true },
-        ],
-        popular: false,
-    },
-];
+interface PricingFeature {
+  text: string;
+  available: boolean;
+}
 
-const PricingCard: React.FC<{ plan: typeof pricingPlans[0]; isYearly: boolean }> = ({ plan, isYearly }) => (
+interface PricingPlan {
+  name: string;
+  monthly: number;
+  yearly: number;
+  features: PricingFeature[];
+  popular: boolean;
+}
+
+interface ContentSection {
+  id: string;
+  sectionKey: string;
+  title?: string;
+  subtitle?: string;
+  content?: string;
+  isActive: boolean;
+}
+
+const PricingCard: React.FC<{ plan: PricingPlan; isYearly: boolean }> = ({ plan, isYearly }) => (
     <div className={`relative bg-white rounded-xl shadow-lg p-8 text-center transform transition-transform duration-300 ${plan.popular ? 'scale-105 border-4 border-pink-500' : 'hover:-translate-y-2'}`}>
         {plan.popular && (
             <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold px-4 py-1 rounded-full uppercase">محبوب‌ترین</div>
@@ -71,12 +52,45 @@ const PricingCard: React.FC<{ plan: typeof pricingPlans[0]; isYearly: boolean }>
 const Pricing: React.FC = () => {
     const [isYearly, setIsYearly] = useState(false);
 
+    const { data: section, isLoading } = useQuery<ContentSection>({
+        queryKey: ['content-section', 'pricing'],
+        queryFn: async () => {
+            const response = await fetch('/api/content-sections/pricing');
+            if (!response.ok) throw new Error('خطا در دریافت محتوا');
+            return response.json();
+        },
+    });
+
+    if (isLoading) {
+        return (
+            <section id="pricing" className="py-20 bg-white">
+                <div className="container mx-auto px-6">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+                    </div>
+                </div>
+            </section>
+        );
+    }
+
+    if (!section || !section.isActive) {
+        return null;
+    }
+
+    let pricingPlans: PricingPlan[] = [];
+    try {
+        pricingPlans = section.content ? JSON.parse(section.content) : [];
+    } catch (e) {
+        console.error('Error parsing pricing content:', e);
+        return null;
+    }
+
     return (
         <section id="pricing" className="py-20 bg-white">
             <div className="container mx-auto px-6">
                 <div className="text-center mb-12">
-                    <h2 className="text-4xl font-extrabold text-gray-800">پلن‌های قیمت‌گذاری</h2>
-                    <p className="text-lg text-gray-600 mt-2">پلنی را انتخاب کنید که برای شما مناسب باشد. تمام پلن‌ها با ضمانت ۳۰ روزه بازگشت وجه ارائه می‌شوند.</p>
+                    <h2 className="text-4xl font-extrabold text-gray-800">{section.title || 'پلن‌های قیمت‌گذاری'}</h2>
+                    <p className="text-lg text-gray-600 mt-2">{section.subtitle || 'پلنی را انتخاب کنید که برای شما مناسب باشد. تمام پلن‌ها با ضمانت ۳۰ روزه بازگشت وجه ارائه می‌شوند.'}</p>
                 </div>
 
                 <div className="flex justify-center items-center mb-12">

@@ -11,7 +11,7 @@ const Footer: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
                     {/* Column 1 */}
                     <div>
-                        <h3 className="text-2xl font-bold mb-4">Apper</h3>
+                        <h3 className="text-2xl font-bold mb-4">آریا بات</h3>
                         <p className="text-gray-400 mb-4">
                             بهترین راه برای ارتباط با مشتریان و رشد کسب و کار شما.
                         </p>
@@ -57,7 +57,7 @@ const Footer: React.FC = () => {
                     </div>
                 </div>
                 <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-500">
-                    <p>&copy; {new Date().getFullYear()} Apper. تمامی حقوق محفوظ است.</p>
+                    <p>&copy; {new Date().getFullYear()} آریا بات. تمامی حقوق محفوظ است.</p>
                 </div>
             </div>
         </footer>
