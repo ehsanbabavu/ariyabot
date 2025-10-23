@@ -238,8 +238,8 @@ export const shippingSettings = pgTable("shipping_settings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id), // کاربر سطح 1 فروشنده
   postPishtazEnabled: boolean("post_pishtaz_enabled").notNull().default(false),
-  postNormalEnabled: boolean("post_normal_enabled").notNull().default(false),
-  piykEnabled: boolean("piyk_enabled").notNull().default(false),
+  postNormalEnabled: boolean("post_normal_enabled").notNull().default(true),
+  piykEnabled: boolean("piyk_enabled").notNull().default(true),
   freeShippingEnabled: boolean("free_shipping_enabled").notNull().default(false),
   freeShippingMinAmount: decimal("free_shipping_min_amount", { precision: 15, scale: 2 }), // مبلغ حداقل برای ارسال رایگان
   createdAt: timestamp("created_at").defaultNow(),
