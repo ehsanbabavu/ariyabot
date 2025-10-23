@@ -120,22 +120,10 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-semibold text-foreground" data-testid="text-page-title">{title}</h1>
+            <h1 className="hidden md:block text-xl font-semibold text-foreground" data-testid="text-page-title">{title}</h1>
           </div>
           
           <div className="flex items-center space-x-4 space-x-reverse">
-            {/* Notifications - Only for level 1 users */}
-            {user?.role === "user_level_1" && (
-              <Button variant="ghost" size="sm" className="relative" data-testid="button-notifications">
-                <Bell className="h-5 w-5" />
-                {notificationsData && notificationsData.newOrdersCount > 0 && (
-                  <span className="absolute -top-1 -left-1 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center" data-testid="text-notification-count">
-                    {notificationsData.newOrdersCount}
-                  </span>
-                )}
-              </Button>
-            )}
-            
             {/* Shopping Cart - Only for level 2 users */}
             {user?.role === "user_level_2" && (
               <DropdownMenu open={cartOpen} onOpenChange={setCartOpen}>
