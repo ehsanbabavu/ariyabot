@@ -285,30 +285,34 @@ export default function SuccessfulTransactionsPage() {
               />
             </div>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-status-filter">
-                <SelectValue placeholder="وضعیت" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">همه</SelectItem>
-                <SelectItem value="pending">در انتظار</SelectItem>
-                <SelectItem value="completed">تکمیل شده</SelectItem>
-                <SelectItem value="failed">رد شده</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="hidden md:block">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-28 h-8 text-xs" data-testid="select-status-filter">
+                  <SelectValue placeholder="وضعیت" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">همه</SelectItem>
+                  <SelectItem value="pending">در انتظار</SelectItem>
+                  <SelectItem value="completed">تکمیل شده</SelectItem>
+                  <SelectItem value="failed">رد شده</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs" data-testid="select-type-filter">
-                <SelectValue placeholder="نوع تراکنش" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">همه</SelectItem>
-                <SelectItem value="deposit">واریز</SelectItem>
-                <SelectItem value="withdraw">برداشت</SelectItem>
-                <SelectItem value="order_payment">پرداخت سفارش</SelectItem>
-                <SelectItem value="commission">کمیسیون</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="hidden md:block">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-32 h-8 text-xs" data-testid="select-type-filter">
+                  <SelectValue placeholder="نوع تراکنش" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">همه</SelectItem>
+                  <SelectItem value="deposit">واریز</SelectItem>
+                  <SelectItem value="withdraw">برداشت</SelectItem>
+                  <SelectItem value="order_payment">پرداخت سفارش</SelectItem>
+                  <SelectItem value="commission">کمیسیون</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {(statusFilter !== "all" || typeFilter !== "all" || searchTerm) && (
               <Button 

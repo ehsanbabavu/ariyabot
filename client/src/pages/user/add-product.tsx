@@ -179,15 +179,6 @@ export default function AddProduct() {
   return (
     <DashboardLayout title="افزودن محصول">
       <div className="max-w-4xl mx-auto space-y-4" data-testid="page-add-product">
-        {/* Header */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            افزودن محصول جدید
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">اطلاعات محصول جدید خود را وارد کنید</p>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4" data-testid="form-add-product">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Image Upload - Left */}

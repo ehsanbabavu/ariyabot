@@ -615,8 +615,8 @@ export default function Categories() {
           {/* فرم ایجاد دسته‌بندی - سمت راست */}
           <Card data-testid="card-create-category">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+                <Plus className="w-4 h-4 md:w-5 md:h-5" />
                 ایجاد دسته‌بندی جدید
               </CardTitle>
             </CardHeader>
@@ -681,8 +681,8 @@ export default function Categories() {
           {/* لیست درختی دسته‌بندی‌ها - سمت چپ */}
           <Card data-testid="card-categories-tree">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FolderTree className="w-5 h-5" />
+              <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+                <FolderTree className="w-4 h-4 md:w-5 md:h-5" />
                 ساختار درختی دسته‌بندی‌ها
               </CardTitle>
               

@@ -355,14 +355,16 @@ export default function ProductList() {
     <DashboardLayout title="لیست محصولات">
       <div className="space-y-6" data-testid="page-product-list">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">
-              {isLevel2User ? "فروشگاه محصولات" : "لیست محصولات"}
-            </h2>
-            <p className="text-muted-foreground">
-              {isLevel2User ? "مشاهده و خرید محصولات موجود" : "مدیریت محصولات اضافه شده توسط شما"}
-            </p>
-          </div>
+          {isLevel2User && (
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">
+                فروشگاه محصولات
+              </h2>
+              <p className="text-muted-foreground">
+                مشاهده و خرید محصولات موجود
+              </p>
+            </div>
+          )}
           {!isLevel2User && (
             <Link href="/add-product">
               <Button data-testid="button-add-product">
