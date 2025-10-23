@@ -9,11 +9,68 @@ var __export = (target, all) => {
 };
 
 // shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  addresses: () => addresses,
+  aiTokenSettings: () => aiTokenSettings,
+  cartItems: () => cartItems,
+  carts: () => carts,
+  categories: () => categories,
+  contentSections: () => contentSections,
+  faqs: () => faqs,
+  insertAddressSchema: () => insertAddressSchema,
+  insertAiTokenSettingsSchema: () => insertAiTokenSettingsSchema,
+  insertCartItemSchema: () => insertCartItemSchema,
+  insertCartSchema: () => insertCartSchema,
+  insertCategorySchema: () => insertCategorySchema,
+  insertContentSectionSchema: () => insertContentSectionSchema,
+  insertFaqSchema: () => insertFaqSchema,
+  insertInternalChatSchema: () => insertInternalChatSchema,
+  insertOrderItemSchema: () => insertOrderItemSchema,
+  insertOrderSchema: () => insertOrderSchema,
+  insertPasswordResetOtpSchema: () => insertPasswordResetOtpSchema,
+  insertProductSchema: () => insertProductSchema,
+  insertReceivedMessageSchema: () => insertReceivedMessageSchema,
+  insertSentMessageSchema: () => insertSentMessageSchema,
+  insertShippingSettingsSchema: () => insertShippingSettingsSchema,
+  insertSubUserSchema: () => insertSubUserSchema,
+  insertSubscriptionSchema: () => insertSubscriptionSchema,
+  insertTicketSchema: () => insertTicketSchema,
+  insertTransactionSchema: () => insertTransactionSchema,
+  insertUserSchema: () => insertUserSchema,
+  insertUserSubscriptionSchema: () => insertUserSubscriptionSchema,
+  insertVatSettingsSchema: () => insertVatSettingsSchema,
+  insertWhatsappSettingsSchema: () => insertWhatsappSettingsSchema,
+  internalChats: () => internalChats,
+  maintenanceMode: () => maintenanceMode,
+  orderItems: () => orderItems,
+  orders: () => orders,
+  passwordResetOtps: () => passwordResetOtps,
+  products: () => products,
+  receivedMessages: () => receivedMessages,
+  resetPasswordSchema: () => resetPasswordSchema,
+  sentMessages: () => sentMessages,
+  shippingSettings: () => shippingSettings,
+  subscriptions: () => subscriptions,
+  ticketReplySchema: () => ticketReplySchema,
+  tickets: () => tickets,
+  transactions: () => transactions,
+  updateAddressSchema: () => updateAddressSchema,
+  updateCategoryOrderSchema: () => updateCategoryOrderSchema,
+  updateContentSectionSchema: () => updateContentSectionSchema,
+  updateFaqSchema: () => updateFaqSchema,
+  updateShippingSettingsSchema: () => updateShippingSettingsSchema,
+  updateVatSettingsSchema: () => updateVatSettingsSchema,
+  userSubscriptions: () => userSubscriptions,
+  users: () => users,
+  vatSettings: () => vatSettings,
+  whatsappSettings: () => whatsappSettings
+});
 import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, boolean, decimal, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema;
+var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, shippingSettings, passwordResetOtps, vatSettings, maintenanceMode, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, insertShippingSettingsSchema, updateShippingSettingsSchema, insertPasswordResetOtpSchema, insertVatSettingsSchema, updateVatSettingsSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema, contentSections, insertContentSectionSchema, updateContentSectionSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -123,12 +180,16 @@ var init_schema = __esm({
     aiTokenSettings = pgTable("ai_token_settings", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       token: text("token").notNull(),
-      provider: text("provider").notNull().default("openai"),
-      // openai, claude, etc
-      isActive: boolean("is_active").notNull().default(true),
+      provider: text("provider").notNull(),
+      // gemini, liara
+      workspaceId: text("workspace_id"),
+      // workspace ID for Liara (optional)
+      isActive: boolean("is_active").notNull().default(false),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
-    });
+    }, (table) => ({
+      providerUnique: unique("ai_token_settings_provider_unique").on(table.provider)
+    }));
     internalChats = pgTable("internal_chats", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       senderId: varchar("sender_id").notNull().references(() => users.id),
@@ -210,6 +271,8 @@ var init_schema = __esm({
       // تاریخچه تغییر وضعیت
       orderNumber: text("order_number").notNull().unique(),
       // شماره سفارش منحصر به فرد
+      shippingMethod: text("shipping_method"),
+      // روش ارسال: post_pishtaz, post_normal, piyk, free
       notes: text("notes"),
       // یادداشت‌های کاربر
       createdAt: timestamp("created_at").defaultNow(),
@@ -265,9 +328,66 @@ var init_schema = __esm({
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
+    shippingSettings = pgTable("shipping_settings", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull().references(() => users.id),
+      // کاربر سطح 1 فروشنده
+      postPishtazEnabled: boolean("post_pishtaz_enabled").notNull().default(false),
+      postNormalEnabled: boolean("post_normal_enabled").notNull().default(false),
+      piykEnabled: boolean("piyk_enabled").notNull().default(false),
+      freeShippingEnabled: boolean("free_shipping_enabled").notNull().default(false),
+      freeShippingMinAmount: decimal("free_shipping_min_amount", { precision: 15, scale: 2 }),
+      // مبلغ حداقل برای ارسال رایگان
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    passwordResetOtps = pgTable("password_reset_otps", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull().references(() => users.id),
+      otp: text("otp").notNull(),
+      // کد 6 رقمی
+      isUsed: boolean("is_used").notNull().default(false),
+      // آیا استفاده شده
+      expiresAt: timestamp("expires_at").notNull(),
+      // زمان انقضا (5 دقیقه)
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    vatSettings = pgTable("vat_settings", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull().unique().references(() => users.id),
+      // کاربر سطح 1 فروشنده
+      vatPercentage: decimal("vat_percentage", { precision: 5, scale: 2 }).notNull().default("9"),
+      // درصد ارزش افزوده (پیش‌فرض 9%)
+      isEnabled: boolean("is_enabled").notNull().default(false),
+      // فعال/غیرفعال
+      companyName: text("company_name"),
+      // نام شرکت
+      address: text("address"),
+      // آدرس
+      phoneNumber: varchar("phone_number", { length: 20 }),
+      // شماره تلفن ثابت
+      nationalId: varchar("national_id", { length: 20 }),
+      // شناسه ملی
+      economicCode: varchar("economic_code", { length: 20 }),
+      // کد اقتصادی
+      stampImage: text("stamp_image"),
+      // عکس مهر و امضا شرکت
+      thankYouMessage: text("thank_you_message").default("\u0627\u0632 \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u0645\u062A\u0634\u06A9\u0631\u06CC\u0645"),
+      // متن تشکر در فاکتور
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
+    maintenanceMode = pgTable("maintenance_mode", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      isEnabled: boolean("is_enabled").notNull().default(false),
+      // فعال/غیرفعال
+      updatedAt: timestamp("updated_at").defaultNow()
+    });
     insertUserSchema = createInsertSchema(users).omit({
       id: true,
       createdAt: true
+    }).extend({
+      email: z.string().email("\u0627\u06CC\u0645\u06CC\u0644 \u0645\u0639\u062A\u0628\u0631 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F").optional()
     });
     insertSubUserSchema = createInsertSchema(users).omit({
       id: true,
@@ -394,6 +514,70 @@ var init_schema = __esm({
       createdAt: true,
       updatedAt: true
     }).partial();
+    insertShippingSettingsSchema = createInsertSchema(shippingSettings).omit({
+      id: true,
+      userId: true,
+      // Server controls this field
+      createdAt: true,
+      updatedAt: true
+    }).extend({
+      freeShippingMinAmount: z.union([z.string(), z.number(), z.null()]).transform((val) => val === null ? null : String(val))
+    });
+    updateShippingSettingsSchema = createInsertSchema(shippingSettings).omit({
+      id: true,
+      userId: true,
+      // Cannot change owner
+      createdAt: true,
+      updatedAt: true
+    }).extend({
+      freeShippingMinAmount: z.union([z.string(), z.number(), z.null()]).transform((val) => val === null ? null : String(val))
+    }).partial();
+    insertPasswordResetOtpSchema = createInsertSchema(passwordResetOtps).omit({
+      id: true,
+      createdAt: true
+    });
+    insertVatSettingsSchema = createInsertSchema(vatSettings).omit({
+      id: true,
+      userId: true,
+      // Server controls this field
+      createdAt: true,
+      updatedAt: true
+    }).extend({
+      vatPercentage: z.union([z.string(), z.number()]).transform((val) => String(val)),
+      companyName: z.string().optional(),
+      address: z.string().optional(),
+      phoneNumber: z.string().optional(),
+      nationalId: z.string().optional(),
+      economicCode: z.string().optional()
+    }).refine((data) => {
+      if (data.isEnabled) {
+        return !!(data.companyName && data.address && data.phoneNumber && data.nationalId && data.economicCode);
+      }
+      return true;
+    }, {
+      message: "\u0647\u0646\u06AF\u0627\u0645 \u0641\u0639\u0627\u0644\u200C\u0633\u0627\u0632\u06CC \u0627\u0631\u0632\u0634 \u0627\u0641\u0632\u0648\u062F\u0647\u060C \u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0634\u0631\u06A9\u062A \u0628\u0627\u06CC\u062F \u067E\u0631 \u0634\u0648\u0646\u062F"
+    });
+    updateVatSettingsSchema = createInsertSchema(vatSettings).omit({
+      id: true,
+      userId: true,
+      // Cannot change owner
+      createdAt: true,
+      updatedAt: true
+    }).extend({
+      vatPercentage: z.union([z.string(), z.number()]).transform((val) => String(val)),
+      companyName: z.string().optional(),
+      address: z.string().optional(),
+      phoneNumber: z.string().optional(),
+      nationalId: z.string().optional(),
+      economicCode: z.string().optional()
+    }).partial().refine((data) => {
+      if (data.isEnabled) {
+        return !!(data.companyName && data.address && data.phoneNumber && data.nationalId && data.economicCode);
+      }
+      return true;
+    }, {
+      message: "\u0647\u0646\u06AF\u0627\u0645 \u0641\u0639\u0627\u0644\u200C\u0633\u0627\u0632\u06CC \u0627\u0631\u0632\u0634 \u0627\u0641\u0632\u0648\u062F\u0647\u060C \u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0634\u0631\u06A9\u062A \u0628\u0627\u06CC\u062F \u067E\u0631 \u0634\u0648\u0646\u062F"
+    });
     updateCategoryOrderSchema = z.object({
       categoryId: z.string().uuid(),
       newOrder: z.number().int().min(0),
@@ -405,6 +589,22 @@ var init_schema = __esm({
     resetPasswordSchema = z.object({
       password: z.string().min(6, "\u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0628\u0627\u06CC\u062F \u062D\u062F\u0627\u0642\u0644 \u06F6 \u06A9\u0627\u0631\u0627\u06A9\u062A\u0631 \u0628\u0627\u0634\u062F")
     });
+    contentSections = pgTable("content_sections", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      sectionKey: text("section_key").notNull().unique(),
+      // e.g., "hero", "features", "pricing", etc.
+      title: text("title"),
+      subtitle: text("subtitle"),
+      description: text("description"),
+      content: text("content"),
+      // JSON string for complex content
+      imageUrl: text("image_url"),
+      isActive: boolean("is_active").notNull().default(true),
+      updatedAt: timestamp("updated_at").defaultNow(),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertContentSectionSchema = createInsertSchema(contentSections);
+    updateContentSectionSchema = createInsertSchema(contentSections).partial().required({ id: true });
   }
 });
 
@@ -431,6 +631,7 @@ var init_db_storage = __esm({
       constructor() {
         this.initializeAdminUser();
         this.initializeDefaultSubscription();
+        this.initializeLandingPageContent();
         if (process.env.NODE_ENV === "development") {
           this.initializeTestData().catch(console.error);
         }
@@ -451,7 +652,7 @@ var init_db_storage = __esm({
               firstName: "\u0627\u062D\u0633\u0627\u0646",
               lastName: "\u0645\u062F\u06CC\u0631",
               email: "ehsan@admin.com",
-              phone: "09123456789",
+              phone: "989135621232",
               password: hashedPassword,
               role: "admin"
             });
@@ -489,6 +690,135 @@ var init_db_storage = __esm({
           }
         } catch (error) {
           console.error("Error initializing default subscription:", error);
+        }
+      }
+      async initializeLandingPageContent() {
+        try {
+          const existing = await db.select().from(contentSections).limit(1);
+          if (existing.length === 0) {
+            const features = [
+              { icon: "fa-regular fa-comments", title: "\u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0622\u0633\u0627\u0646", description: "\u0628\u0631\u0646\u0627\u0645\u0647 \u0645\u0627 \u0628\u0627 \u062F\u0631 \u0646\u0638\u0631 \u06AF\u0631\u0641\u062A\u0646 \u0633\u0627\u062F\u06AF\u06CC \u0637\u0631\u0627\u062D\u06CC \u0634\u062F\u0647 \u0627\u0633\u062A. \u06A9\u0646\u062A\u0631\u0644\u200C\u0647\u0627\u06CC \u0628\u0635\u0631\u06CC \u0648 \u0631\u0627\u0628\u0637 \u06A9\u0627\u0631\u0628\u0631\u06CC \u062A\u0645\u06CC\u0632." },
+              { icon: "fa-solid fa-mobile-screen-button", title: "\u06A9\u0627\u0645\u0644\u0627\u064B \u0648\u0627\u06A9\u0646\u0634\u200C\u06AF\u0631\u0627", description: "\u062F\u0631 \u0647\u0631 \u0627\u0646\u062F\u0627\u0632\u0647 \u0635\u0641\u062D\u0647\u200C\u0646\u0645\u0627\u06CC\u0634\u06CC\u060C \u0627\u0632 \u062F\u0633\u06A9\u062A\u0627\u067E \u062A\u0627 \u062A\u0644\u0641\u0646\u200C\u0647\u0627\u06CC \u0647\u0645\u0631\u0627\u0647\u060C \u0639\u0627\u0644\u06CC \u0628\u0647 \u0646\u0638\u0631 \u0645\u06CC\u200C\u0631\u0633\u062F." },
+              { icon: "fa-regular fa-lightbulb", title: "\u0637\u0631\u0627\u062D\u06CC \u062E\u0644\u0627\u0642\u0627\u0646\u0647", description: "\u0637\u0631\u0627\u062D\u06CC \u062C\u0630\u0627\u0628 \u0628\u0635\u0631\u06CC \u06A9\u0647 \u062A\u062C\u0631\u0628\u0647 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0648 \u062A\u0639\u0627\u0645\u0644 \u0631\u0627 \u0627\u0641\u0632\u0627\u06CC\u0634 \u0645\u06CC\u200C\u062F\u0647\u062F." },
+              { icon: "fa-solid fa-shield-halved", title: "\u0627\u0645\u0646\u06CC\u062A \u0628\u0627\u0644\u0627", description: "\u062D\u0641\u0627\u0638\u062A \u0627\u0632 \u062F\u0627\u062F\u0647\u200C\u0647\u0627\u06CC \u0634\u0645\u0627 \u0628\u0627 \u0627\u0645\u0646\u06CC\u062A \u067E\u06CC\u0634\u0631\u0641\u062A\u0647\u060C \u0627\u0648\u0644\u0648\u06CC\u062A \u0627\u0635\u0644\u06CC \u0645\u0627\u0633\u062A." },
+              { icon: "fa-solid fa-headset", title: "\u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u06F2\u06F4/\u06F7", description: "\u062A\u06CC\u0645 \u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u0627\u062E\u062A\u0635\u0627\u0635\u06CC \u0645\u0627 \u0628\u0631\u0627\u06CC \u06A9\u0645\u06A9 \u0628\u0647 \u0634\u0645\u0627 \u0628\u0647 \u0635\u0648\u0631\u062A \u0634\u0628\u0627\u0646\u0647\u200C\u0631\u0648\u0632\u06CC \u0622\u0645\u0627\u062F\u0647 \u0627\u0633\u062A." },
+              { icon: "fa-solid fa-cloud-arrow-up", title: "\u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0631\u0627\u06CC\u06AF\u0627\u0646", description: "\u062C\u062F\u06CC\u062F\u062A\u0631\u06CC\u0646 \u0648\u06CC\u0698\u06AF\u06CC\u200C\u0647\u0627 \u0648 \u0628\u0647\u0628\u0648\u062F\u0647\u0627 \u0631\u0627 \u0628\u0627 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC\u200C\u0647\u0627\u06CC \u0645\u0646\u0638\u0645 \u0648 \u0631\u0627\u06CC\u06AF\u0627\u0646 \u062F\u0631\u06CC\u0627\u0641\u062A \u06A9\u0646\u06CC\u062F." }
+            ];
+            const howItWorksSteps = [
+              { icon: "fa-solid fa-download", title: "\u0628\u0631\u0646\u0627\u0645\u0647 \u0631\u0627 \u062F\u0627\u0646\u0644\u0648\u062F \u06A9\u0646\u06CC\u062F", description: "\u0628\u0627 \u062F\u0627\u0646\u0644\u0648\u062F \u0631\u0627\u06CC\u06AF\u0627\u0646 \u0628\u0631\u0646\u0627\u0645\u0647 \u0645\u0627 \u0627\u0632 \u0627\u067E \u0627\u0633\u062A\u0648\u0631 \u06CC\u0627 \u06AF\u0648\u06AF\u0644 \u067E\u0644\u06CC \u0634\u0631\u0648\u0639 \u06A9\u0646\u06CC\u062F." },
+              { icon: "fa-solid fa-user-plus", title: "\u062D\u0633\u0627\u0628 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0628\u0633\u0627\u0632\u06CC\u062F", description: "\u0628\u0631\u0627\u06CC \u0634\u0631\u0648\u0639\u060C \u062A\u0646\u0647\u0627 \u062F\u0631 \u0686\u0646\u062F \u0645\u0631\u062D\u0644\u0647 \u0633\u0627\u062F\u0647 \u0628\u0631\u0627\u06CC \u06CC\u06A9 \u062D\u0633\u0627\u0628 \u06A9\u0627\u0631\u0628\u0631\u06CC \u062C\u062F\u06CC\u062F \u062B\u0628\u062A \u0646\u0627\u0645 \u06A9\u0646\u06CC\u062F." },
+              { icon: "fa-solid fa-rocket", title: "\u0627\u0632 \u0628\u0631\u0646\u0627\u0645\u0647 \u0644\u0630\u062A \u0628\u0628\u0631\u06CC\u062F", description: "\u0647\u0645\u0647 \u0686\u06CC\u0632 \u0622\u0645\u0627\u062F\u0647 \u0627\u0633\u062A! \u062A\u0645\u0627\u0645 \u0648\u06CC\u0698\u06AF\u06CC\u200C\u0647\u0627 \u0631\u0627 \u06A9\u0627\u0648\u0634 \u06A9\u0646\u06CC\u062F \u0648 \u0627\u0632 \u062A\u062C\u0631\u0628\u0647 \u062E\u0648\u062F \u0644\u0630\u062A \u0628\u0628\u0631\u06CC\u062F." }
+            ];
+            const screenshots = [
+              "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/1.jpg",
+              "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/2.jpg",
+              "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/3.jpg",
+              "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/4.jpg",
+              "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/screenshots/5.jpg"
+            ];
+            const pricingPlans = [
+              {
+                name: "\u0631\u0627\u06CC\u06AF\u0627\u0646",
+                monthly: 0,
+                yearly: 0,
+                features: [
+                  { text: "\u06F1\u06F0\u06F0 \u0645\u06AF\u0627\u0628\u0627\u06CC\u062A \u0641\u0636\u0627\u06CC \u062F\u06CC\u0633\u06A9", available: true },
+                  { text: "\u06F2 \u0632\u06CC\u0631 \u062F\u0627\u0645\u0646\u0647", available: true },
+                  { text: "\u06F5 \u062D\u0633\u0627\u0628 \u0627\u06CC\u0645\u06CC\u0644", available: true },
+                  { text: "\u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u0645\u0634\u062A\u0631\u06CC", available: false },
+                  { text: "\u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0631\u0627\u06CC\u06AF\u0627\u0646", available: false }
+                ],
+                popular: false
+              },
+              {
+                name: "\u0627\u0633\u062A\u0627\u0646\u062F\u0627\u0631\u062F",
+                monthly: 19,
+                yearly: 199,
+                features: [
+                  { text: "\u06F1 \u06AF\u06CC\u06AF\u0627\u0628\u0627\u06CC\u062A \u0641\u0636\u0627\u06CC \u062F\u06CC\u0633\u06A9", available: true },
+                  { text: "\u06F1\u06F0 \u0632\u06CC\u0631 \u062F\u0627\u0645\u0646\u0647", available: true },
+                  { text: "\u06F2\u06F0 \u062D\u0633\u0627\u0628 \u0627\u06CC\u0645\u06CC\u0644", available: true },
+                  { text: "\u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u0645\u0634\u062A\u0631\u06CC", available: true },
+                  { text: "\u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0631\u0627\u06CC\u06AF\u0627\u0646", available: false }
+                ],
+                popular: true
+              },
+              {
+                name: "\u062A\u062C\u0627\u0631\u06CC",
+                monthly: 49,
+                yearly: 499,
+                features: [
+                  { text: "\u06F1\u06F0 \u06AF\u06CC\u06AF\u0627\u0628\u0627\u06CC\u062A \u0641\u0636\u0627\u06CC \u062F\u06CC\u0633\u06A9", available: true },
+                  { text: "\u06F5\u06F0 \u0632\u06CC\u0631 \u062F\u0627\u0645\u0646\u0647", available: true },
+                  { text: "\u062D\u0633\u0627\u0628 \u0627\u06CC\u0645\u06CC\u0644 \u0646\u0627\u0645\u062D\u062F\u0648\u062F", available: true },
+                  { text: "\u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u0645\u0634\u062A\u0631\u06CC", available: true },
+                  { text: "\u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0631\u0627\u06CC\u06AF\u0627\u0646", available: true }
+                ],
+                popular: false
+              }
+            ];
+            const testimonials = [
+              {
+                quote: "\u0627\u06CC\u0646 \u0628\u0647\u062A\u0631\u06CC\u0646 \u0628\u0631\u0646\u0627\u0645\u0647\u200C\u0627\u06CC \u0627\u0633\u062A \u06A9\u0647 \u062A\u0627 \u0628\u0647 \u062D\u0627\u0644 \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u06A9\u0631\u062F\u0647\u200C\u0627\u0645. \u0637\u0631\u0627\u062D\u06CC \u062A\u0645\u06CC\u0632 \u0648 \u0648\u06CC\u0698\u06AF\u06CC\u200C\u0647\u0627 \u0641\u0648\u0642\u200C\u0627\u0644\u0639\u0627\u062F\u0647 \u06A9\u0627\u0631\u0628\u0631\u062F\u06CC \u0647\u0633\u062A\u0646\u062F. \u0628\u0647 \u0634\u062F\u062A \u062A\u0648\u0635\u06CC\u0647 \u0645\u06CC\u200C\u0634\u0648\u062F!",
+                name: "\u0633\u0627\u0631\u0627 \u0631\u0636\u0627\u06CC\u06CC",
+                title: "\u0645\u062F\u06CC\u0631\u0639\u0627\u0645\u0644\u060C \u0634\u0631\u06A9\u062A",
+                image: "https://picsum.photos/id/1011/100/100"
+              },
+              {
+                quote: "\u06CC\u06A9 \u062A\u063A\u06CC\u06CC\u0631 \u062F\u0647\u0646\u062F\u0647 \u0628\u0627\u0632\u06CC \u0628\u0631\u0627\u06CC \u0628\u0647\u0631\u0647\u200C\u0648\u0631\u06CC \u062A\u06CC\u0645 \u0645\u0627. \u0648\u06CC\u0698\u06AF\u06CC\u200C\u0647\u0627\u06CC \u0647\u0645\u06A9\u0627\u0631\u06CC \u06CC\u06A9\u067E\u0627\u0631\u0686\u0647 \u0648 \u0628\u0635\u0631\u06CC \u0647\u0633\u062A\u0646\u062F. \u06CC\u06A9 \u0627\u0628\u0632\u0627\u0631 \u0636\u0631\u0648\u0631\u06CC.",
+                name: "\u0639\u0644\u06CC \u0627\u062D\u0645\u062F\u06CC",
+                title: "\u0645\u062F\u06CC\u0631 \u067E\u0631\u0648\u0698\u0647\u060C \u0631\u0627\u0647\u06A9\u0627\u0631\u0647\u0627\u06CC \u0641\u0646\u06CC",
+                image: "https://picsum.photos/id/1005/100/100"
+              },
+              {
+                quote: "\u062F\u0631 \u0627\u0628\u062A\u062F\u0627 \u0634\u06A9 \u062F\u0627\u0634\u062A\u0645\u060C \u0627\u0645\u0627 \u0627\u06CC\u0646 \u0628\u0631\u0646\u0627\u0645\u0647 \u0627\u0632 \u062A\u0645\u0627\u0645 \u0627\u0646\u062A\u0638\u0627\u0631\u0627\u062A \u0645\u0646 \u0641\u0631\u0627\u062A\u0631 \u0631\u0641\u062A. \u067E\u0634\u062A\u06CC\u0628\u0627\u0646\u06CC \u0645\u0634\u062A\u0631\u06CC \u0646\u06CC\u0632 \u062F\u0631\u062C\u0647 \u06CC\u06A9 \u0627\u0633\u062A!",
+                name: "\u0645\u0631\u06CC\u0645 \u0645\u062D\u0645\u062F\u06CC",
+                title: "\u0637\u0631\u0627\u062D \u0641\u0631\u06CC\u0644\u0646\u0633\u0631",
+                image: "https://picsum.photos/id/1027/100/100"
+              }
+            ];
+            await db.insert(contentSections).values([
+              {
+                sectionKey: "features",
+                title: "\u0648\u06CC\u0698\u06AF\u06CC\u200C\u0647\u0627\u06CC \u0641\u0648\u0642\u200C\u0627\u0644\u0639\u0627\u062F\u0647",
+                subtitle: "\u0648\u06CC\u0698\u06AF\u06CC\u200C\u0647\u0627\u06CC \u0634\u06AF\u0641\u062A\u200C\u0627\u0646\u06AF\u06CC\u0632\u06CC \u0631\u0627 \u06A9\u0647 \u0628\u0631\u0646\u0627\u0645\u0647 \u0645\u0627 \u0631\u0627 \u0628\u0647 \u0628\u0647\u062A\u0631\u06CC\u0646 \u0627\u0646\u062A\u062E\u0627\u0628 \u0628\u0631\u0627\u06CC \u0634\u0645\u0627 \u062A\u0628\u062F\u06CC\u0644 \u0645\u06CC\u200C\u06A9\u0646\u062F\u060C \u06A9\u0634\u0641 \u06A9\u0646\u06CC\u062F.",
+                content: JSON.stringify(features),
+                isActive: true
+              },
+              {
+                sectionKey: "how-it-works",
+                title: "\u0686\u06AF\u0648\u0646\u0647 \u06A9\u0627\u0631 \u0645\u06CC\u200C\u06A9\u0646\u062F",
+                subtitle: "\u06CC\u06A9 \u0641\u0631\u0622\u06CC\u0646\u062F \u0633\u0627\u062F\u0647 \u0633\u0647 \u0645\u0631\u062D\u0644\u0647\u200C\u0627\u06CC \u0628\u0631\u0627\u06CC \u0634\u0631\u0648\u0639 \u06A9\u0627\u0631 \u0628\u0627 \u0628\u0631\u0646\u0627\u0645\u0647 \u0645\u0627.",
+                content: JSON.stringify(howItWorksSteps),
+                imageUrl: "https://atiyehahmadi.ir/apper-demo/all-demo/03-app-landing-page-wave-animation/images/how-it-works-mobile.png",
+                isActive: true
+              },
+              {
+                sectionKey: "screenshots",
+                title: "\u0627\u0633\u06A9\u0631\u06CC\u0646\u200C\u0634\u0627\u062A\u200C\u0647\u0627\u06CC \u0628\u0631\u0646\u0627\u0645\u0647",
+                subtitle: "\u0646\u06AF\u0627\u0647\u06CC \u0628\u0647 \u0631\u0627\u0628\u0637 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0632\u06CC\u0628\u0627 \u0648 \u0628\u0635\u0631\u06CC \u0628\u0631\u0646\u0627\u0645\u0647 \u0645\u0627 \u0628\u06CC\u0646\u062F\u0627\u0632\u06CC\u062F.",
+                content: JSON.stringify(screenshots),
+                isActive: true
+              },
+              {
+                sectionKey: "pricing",
+                title: "\u067E\u0644\u0646\u200C\u0647\u0627\u06CC \u0642\u06CC\u0645\u062A\u200C\u06AF\u0630\u0627\u0631\u06CC",
+                subtitle: "\u067E\u0644\u0646\u06CC \u0631\u0627 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646\u06CC\u062F \u06A9\u0647 \u0628\u0631\u0627\u06CC \u0634\u0645\u0627 \u0645\u0646\u0627\u0633\u0628 \u0628\u0627\u0634\u062F. \u062A\u0645\u0627\u0645 \u067E\u0644\u0646\u200C\u0647\u0627 \u0628\u0627 \u0636\u0645\u0627\u0646\u062A \u06F3\u06F0 \u0631\u0648\u0632\u0647 \u0628\u0627\u0632\u06AF\u0634\u062A \u0648\u062C\u0647 \u0627\u0631\u0627\u0626\u0647 \u0645\u06CC\u200C\u0634\u0648\u0646\u062F.",
+                content: JSON.stringify(pricingPlans),
+                isActive: true
+              },
+              {
+                sectionKey: "testimonials",
+                title: "\u0645\u0634\u062A\u0631\u06CC\u0627\u0646 \u0645\u0627 \u0686\u0647 \u0645\u06CC\u200C\u06AF\u0648\u06CC\u0646\u062F",
+                subtitle: "\u0627\u0632 \u0645\u0634\u062A\u0631\u06CC\u0627\u0646 \u0631\u0627\u0636\u06CC \u0645\u0627 \u0628\u0634\u0646\u0648\u06CC\u062F \u0648 \u0628\u0628\u06CC\u0646\u06CC\u062F \u0686\u06AF\u0648\u0646\u0647 \u0628\u0631\u0646\u0627\u0645\u0647 \u0645\u0627 \u0628\u0647 \u0622\u0646\u0647\u0627 \u06A9\u0645\u06A9 \u06A9\u0631\u062F\u0647 \u0627\u0633\u062A.",
+                content: JSON.stringify(testimonials),
+                isActive: true
+              }
+            ]);
+            console.log("\u2705 \u0645\u062D\u062A\u0648\u0627\u06CC \u0644\u0646\u062F\u06CC\u0646\u06AF \u067E\u06CC\u062C \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0627\u06CC\u062C\u0627\u062F \u0634\u062F");
+          }
+        } catch (error) {
+          console.error("Error initializing landing page content:", error);
         }
       }
       async initializeTestData() {
@@ -853,14 +1183,25 @@ var init_db_storage = __esm({
         return result[0];
       }
       // AI Token Settings
-      async getAiTokenSettings() {
-        const result = await db.select().from(aiTokenSettings).limit(1);
+      async getAiTokenSettings(provider) {
+        if (provider) {
+          const result2 = await db.select().from(aiTokenSettings).where(eq(aiTokenSettings.provider, provider)).limit(1);
+          return result2[0];
+        }
+        const result = await db.select().from(aiTokenSettings).where(eq(aiTokenSettings.isActive, true)).limit(1);
         return result[0];
       }
+      async getAllAiTokenSettings() {
+        const result = await db.select().from(aiTokenSettings);
+        return result;
+      }
       async updateAiTokenSettings(settings) {
-        const existing = await this.getAiTokenSettings();
+        const existing = await this.getAiTokenSettings(settings.provider);
+        if (settings.isActive) {
+          await db.update(aiTokenSettings).set({ isActive: false, updatedAt: /* @__PURE__ */ new Date() }).where(eq(aiTokenSettings.isActive, true));
+        }
         if (existing) {
-          const result = await db.update(aiTokenSettings).set(settings).where(eq(aiTokenSettings.id, existing.id)).returning();
+          const result = await db.update(aiTokenSettings).set({ ...settings, updatedAt: /* @__PURE__ */ new Date() }).where(eq(aiTokenSettings.id, existing.id)).returning();
           return result[0];
         } else {
           const result = await db.insert(aiTokenSettings).values(settings).returning();
@@ -1267,6 +1608,12 @@ var init_db_storage = __esm({
         ));
         return result[0]?.count || 0;
       }
+      async getAwaitingPaymentOrdersByUser(userId) {
+        return await db.select().from(orders).where(and(
+          eq(orders.userId, userId),
+          eq(orders.status, "awaiting_payment")
+        )).orderBy(orders.createdAt);
+      }
       // Order Items
       async getOrderItems(orderId) {
         return await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
@@ -1558,6 +1905,137 @@ var init_db_storage = __esm({
           return void 0;
         }
       }
+      // Shipping Settings
+      async getShippingSettings(userId) {
+        try {
+          const result = await db.select().from(shippingSettings).where(eq(shippingSettings.userId, userId)).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error("Error getting shipping settings:", error);
+          return void 0;
+        }
+      }
+      async updateShippingSettings(userId, settings) {
+        try {
+          const existing = await this.getShippingSettings(userId);
+          if (existing) {
+            const result = await db.update(shippingSettings).set({
+              ...settings,
+              updatedAt: /* @__PURE__ */ new Date()
+            }).where(eq(shippingSettings.userId, userId)).returning();
+            return result[0];
+          } else {
+            const result = await db.insert(shippingSettings).values({
+              userId,
+              postPishtazEnabled: settings.postPishtazEnabled ?? false,
+              postNormalEnabled: settings.postNormalEnabled ?? false,
+              piykEnabled: settings.piykEnabled ?? false,
+              freeShippingEnabled: settings.freeShippingEnabled ?? false,
+              freeShippingMinAmount: settings.freeShippingMinAmount ?? null,
+              createdAt: /* @__PURE__ */ new Date(),
+              updatedAt: /* @__PURE__ */ new Date()
+            }).returning();
+            return result[0];
+          }
+        } catch (error) {
+          console.error("Error updating shipping settings:", error);
+          throw error;
+        }
+      }
+      // Password Reset OTP methods
+      async createPasswordResetOtp(userId, otp, expiresAt) {
+        try {
+          const result = await db.insert(passwordResetOtps).values({
+            userId,
+            otp,
+            expiresAt,
+            isUsed: false,
+            createdAt: /* @__PURE__ */ new Date()
+          }).returning();
+          return result[0];
+        } catch (error) {
+          console.error("Error creating password reset OTP:", error);
+          throw error;
+        }
+      }
+      async getValidPasswordResetOtp(userId, otp) {
+        try {
+          const result = await db.select().from(passwordResetOtps).where(
+            and(
+              eq(passwordResetOtps.userId, userId),
+              eq(passwordResetOtps.otp, otp),
+              eq(passwordResetOtps.isUsed, false),
+              gte(passwordResetOtps.expiresAt, /* @__PURE__ */ new Date())
+            )
+          ).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error("Error getting valid password reset OTP:", error);
+          return void 0;
+        }
+      }
+      async markOtpAsUsed(id) {
+        try {
+          const result = await db.update(passwordResetOtps).set({ isUsed: true }).where(eq(passwordResetOtps.id, id)).returning();
+          return result.length > 0;
+        } catch (error) {
+          console.error("Error marking OTP as used:", error);
+          return false;
+        }
+      }
+      async deleteExpiredOtps() {
+        try {
+          await db.delete(passwordResetOtps).where(
+            or(
+              eq(passwordResetOtps.isUsed, true),
+              sql2`${passwordResetOtps.expiresAt} < NOW()`
+            )
+          );
+        } catch (error) {
+          console.error("Error deleting expired OTPs:", error);
+        }
+      }
+      // VAT Settings
+      async getVatSettings(userId) {
+        try {
+          const result = await db.select().from(vatSettings).where(eq(vatSettings.userId, userId)).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error("Error getting VAT settings:", error);
+          return void 0;
+        }
+      }
+      async updateVatSettings(userId, settings) {
+        try {
+          const existing = await this.getVatSettings(userId);
+          if (existing) {
+            const result = await db.update(vatSettings).set({
+              ...settings,
+              updatedAt: /* @__PURE__ */ new Date()
+            }).where(eq(vatSettings.userId, userId)).returning();
+            return result[0];
+          } else {
+            const result = await db.insert(vatSettings).values({
+              userId,
+              vatPercentage: settings.vatPercentage ?? "9",
+              isEnabled: settings.isEnabled ?? false,
+              companyName: settings.companyName ?? null,
+              address: settings.address ?? null,
+              phoneNumber: settings.phoneNumber ?? null,
+              nationalId: settings.nationalId ?? null,
+              economicCode: settings.economicCode ?? null,
+              stampImage: settings.stampImage ?? null,
+              thankYouMessage: settings.thankYouMessage ?? "\u0627\u0632 \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u0645\u062A\u0634\u06A9\u0631\u06CC\u0645",
+              createdAt: /* @__PURE__ */ new Date(),
+              updatedAt: /* @__PURE__ */ new Date()
+            }).returning();
+            return result[0];
+          }
+        } catch (error) {
+          console.error("Error updating VAT settings:", error);
+          throw error;
+        }
+      }
     };
   }
 });
@@ -1589,6 +2067,9 @@ var init_storage = __esm({
       transactions;
       internalChats;
       faqs;
+      shippingSettings;
+      passwordResetOtps;
+      vatSettings;
       constructor() {
         this.users = /* @__PURE__ */ new Map();
         this.tickets = /* @__PURE__ */ new Map();
@@ -1597,7 +2078,7 @@ var init_storage = __esm({
         this.whatsappSettings = void 0;
         this.sentMessages = /* @__PURE__ */ new Map();
         this.receivedMessages = /* @__PURE__ */ new Map();
-        this.aiTokenSettings = void 0;
+        this.aiTokenSettings = /* @__PURE__ */ new Map();
         this.userSubscriptions = /* @__PURE__ */ new Map();
         this.categories = /* @__PURE__ */ new Map();
         this.carts = /* @__PURE__ */ new Map();
@@ -1608,6 +2089,9 @@ var init_storage = __esm({
         this.transactions = /* @__PURE__ */ new Map();
         this.internalChats = /* @__PURE__ */ new Map();
         this.faqs = /* @__PURE__ */ new Map();
+        this.shippingSettings = /* @__PURE__ */ new Map();
+        this.passwordResetOtps = /* @__PURE__ */ new Map();
+        this.vatSettings = /* @__PURE__ */ new Map();
         this.initializeAdminUser();
         this.initializeDefaultSubscription();
         this.initializeTestData().catch(console.error);
@@ -2083,19 +2567,37 @@ var init_storage = __esm({
         return updatedMessage;
       }
       // AI Token Settings
-      async getAiTokenSettings() {
-        return this.aiTokenSettings;
+      async getAiTokenSettings(provider) {
+        if (provider) {
+          return Array.from(this.aiTokenSettings.values()).find((s) => s.provider === provider);
+        }
+        return Array.from(this.aiTokenSettings.values()).find((s) => s.isActive);
+      }
+      async getAllAiTokenSettings() {
+        return Array.from(this.aiTokenSettings.values());
       }
       async updateAiTokenSettings(settings) {
+        const existing = Array.from(this.aiTokenSettings.values()).find((s) => s.provider === settings.provider);
+        if (settings.isActive) {
+          for (const [id, tokenSetting] of this.aiTokenSettings.entries()) {
+            if (tokenSetting.provider !== settings.provider && tokenSetting.isActive) {
+              this.aiTokenSettings.set(id, {
+                ...tokenSetting,
+                isActive: false,
+                updatedAt: /* @__PURE__ */ new Date()
+              });
+            }
+          }
+        }
         const aiTokenSettings2 = {
           ...settings,
-          id: this.aiTokenSettings?.id || randomUUID(),
-          provider: settings.provider || "openai",
-          isActive: settings.isActive !== void 0 ? settings.isActive : true,
-          createdAt: this.aiTokenSettings?.createdAt || /* @__PURE__ */ new Date(),
+          id: existing?.id || randomUUID(),
+          provider: settings.provider,
+          isActive: settings.isActive !== void 0 ? settings.isActive : false,
+          createdAt: existing?.createdAt || /* @__PURE__ */ new Date(),
           updatedAt: /* @__PURE__ */ new Date()
         };
-        this.aiTokenSettings = aiTokenSettings2;
+        this.aiTokenSettings.set(aiTokenSettings2.id, aiTokenSettings2);
         return aiTokenSettings2;
       }
       // User Subscriptions
@@ -2454,6 +2956,7 @@ var init_storage = __esm({
           id,
           orderNumber,
           addressId: insertOrder.addressId || null,
+          shippingMethod: insertOrder.shippingMethod || null,
           status: "pending",
           statusHistory: ["pending"],
           notes: insertOrder.notes || null,
@@ -2501,6 +3004,13 @@ var init_storage = __esm({
       async getPendingPaymentOrdersCount(userId) {
         const userPendingPaymentOrders = Array.from(this.orders.values()).filter((order) => order.userId === userId && order.status === "awaiting_payment");
         return userPendingPaymentOrders.length;
+      }
+      async getAwaitingPaymentOrdersByUser(userId) {
+        return Array.from(this.orders.values()).filter((order) => order.userId === userId && order.status === "awaiting_payment").sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateA - dateB;
+        });
       }
       // Order Items
       async getOrderItems(orderId) {
@@ -2762,6 +3272,109 @@ var init_storage = __esm({
         this.faqs.set(id, updatedFaq);
         return updatedFaq;
       }
+      // Shipping Settings
+      async getShippingSettings(userId) {
+        return Array.from(this.shippingSettings.values()).find((s) => s.userId === userId);
+      }
+      async updateShippingSettings(userId, settings) {
+        const existing = await this.getShippingSettings(userId);
+        if (existing) {
+          const updated = {
+            ...existing,
+            ...settings,
+            updatedAt: /* @__PURE__ */ new Date()
+          };
+          this.shippingSettings.set(existing.id, updated);
+          return updated;
+        } else {
+          const id = randomUUID();
+          const newSettings = {
+            id,
+            userId,
+            postPishtazEnabled: settings.postPishtazEnabled ?? false,
+            postNormalEnabled: settings.postNormalEnabled ?? false,
+            piykEnabled: settings.piykEnabled ?? false,
+            freeShippingEnabled: settings.freeShippingEnabled ?? false,
+            freeShippingMinAmount: settings.freeShippingMinAmount ?? null,
+            createdAt: /* @__PURE__ */ new Date(),
+            updatedAt: /* @__PURE__ */ new Date()
+          };
+          this.shippingSettings.set(id, newSettings);
+          return newSettings;
+        }
+      }
+      // VAT Settings
+      async getVatSettings(userId) {
+        return Array.from(this.vatSettings.values()).find((s) => s.userId === userId);
+      }
+      async updateVatSettings(userId, settings) {
+        const existing = await this.getVatSettings(userId);
+        if (existing) {
+          const updated = {
+            ...existing,
+            ...settings,
+            updatedAt: /* @__PURE__ */ new Date()
+          };
+          this.vatSettings.set(existing.id, updated);
+          return updated;
+        } else {
+          const id = randomUUID();
+          const newSettings = {
+            id,
+            userId,
+            vatPercentage: settings.vatPercentage ?? "9",
+            isEnabled: settings.isEnabled ?? false,
+            companyName: settings.companyName ?? null,
+            address: settings.address ?? null,
+            phoneNumber: settings.phoneNumber ?? null,
+            nationalId: settings.nationalId ?? null,
+            economicCode: settings.economicCode ?? null,
+            stampImage: settings.stampImage ?? null,
+            thankYouMessage: settings.thankYouMessage ?? "\u0627\u0632 \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u0645\u062A\u0634\u06A9\u0631\u06CC\u0645",
+            createdAt: /* @__PURE__ */ new Date(),
+            updatedAt: /* @__PURE__ */ new Date()
+          };
+          this.vatSettings.set(id, newSettings);
+          return newSettings;
+        }
+      }
+      // Password Reset OTP
+      async createPasswordResetOtp(userId, otp, expiresAt) {
+        const id = randomUUID();
+        const newOtp = {
+          id,
+          userId,
+          otp,
+          isUsed: false,
+          expiresAt,
+          createdAt: /* @__PURE__ */ new Date()
+        };
+        this.passwordResetOtps.set(id, newOtp);
+        return newOtp;
+      }
+      async getValidPasswordResetOtp(userId, otp) {
+        const now = /* @__PURE__ */ new Date();
+        return Array.from(this.passwordResetOtps.values()).find(
+          (otpRecord) => otpRecord.userId === userId && otpRecord.otp === otp && !otpRecord.isUsed && otpRecord.expiresAt > now
+        );
+      }
+      async markOtpAsUsed(id) {
+        const otp = this.passwordResetOtps.get(id);
+        if (otp) {
+          otp.isUsed = true;
+          this.passwordResetOtps.set(id, otp);
+          return true;
+        }
+        return false;
+      }
+      async deleteExpiredOtps() {
+        const now = /* @__PURE__ */ new Date();
+        for (const [id, otp] of this.passwordResetOtps.entries()) {
+          if (otp.isUsed || otp.expiresAt < now) {
+            this.passwordResetOtps.delete(id);
+          }
+        }
+      }
     };
     storage = process.env.NODE_ENV === "test" ? new MemStorage() : new DbStorage();
   }
@@ -2829,6 +3442,11 @@ async function generateInvoiceHTML(orderId) {
   const address = order.addressId ? await storage.getAddress(order.addressId) : null;
   const buyer = await storage.getUser(order.userId);
   const seller = await storage.getUser(order.sellerId);
+  const vatSettings2 = await storage.getVatSettings(order.sellerId);
+  const vatPercentage = vatSettings2?.isEnabled ? parseFloat(vatSettings2.vatPercentage) : 0;
+  const subtotal = items.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+  const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+  const totalWithVat = subtotal + vatAmount;
   const isLargeOrder = items.length > 8;
   const fontSize = isLargeOrder ? "12px" : "14px";
   const padding = isLargeOrder ? "6px" : "8px";
@@ -2858,7 +3476,6 @@ async function generateInvoiceHTML(orderId) {
         .invoice-container {
           width: ${isLargeOrder ? "595px" : "842px"};
           margin: 0 auto;
-          border: 2px solid #000;
           background: white;
         }
         
@@ -2914,6 +3531,7 @@ async function generateInvoiceHTML(orderId) {
           text-align: center;
           font-weight: bold;
           font-size: 14px;
+          vertical-align: middle;
         }
         
         td {
@@ -2921,6 +3539,7 @@ async function generateInvoiceHTML(orderId) {
           padding: ${padding};
           font-size: ${fontSize};
           text-align: center;
+          vertical-align: middle;
         }
         
         .text-right {
@@ -2956,28 +3575,23 @@ async function generateInvoiceHTML(orderId) {
       <div class="invoice-container">
         <!-- Header -->
         <div class="header">
-          <div class="header-date">
+          <div style="width: 100px;"></div>
+          <h1 class="header-title">\u0641\u0627\u06A9\u062A\u0648\u0631 \u0641\u0631\u0648\u0634</h1>
+          <div class="header-date" style="text-align: left;">
             \u062A\u0627\u0631\u06CC\u062E: ${new Date(order.createdAt).toLocaleDateString("fa-IR")}
           </div>
-          <h1 class="header-title">\u0641\u0627\u06A9\u062A\u0648\u0631 \u0641\u0631\u0648\u0634</h1>
-          <div style="width: 100px;"></div>
         </div>
         
         <!-- Seller Section -->
-        <div class="section-header">\u0645\u0634\u062E\u0635\u0627\u062A \u0641\u0631\u0648\u0634\u0646\u062F\u0647</div>
+        <div class="section-header" style="text-align: right;">\u0645\u0634\u062E\u0635\u0627\u062A \u0641\u0631\u0648\u0634\u0646\u062F\u0647</div>
         <div class="section-content">
-          \u0646\u0627\u0645 \u0634\u062E\u0635 / \u0633\u0627\u0632\u0645\u0627\u0646 : ${seller?.firstName && seller?.lastName ? `${seller.firstName} ${seller.lastName}` : "\u0641\u0631\u0648\u0634\u0646\u062F\u0647"}
+          ${vatSettings2?.isEnabled ? `\u0646\u0627\u0645 \u0634\u0631\u06A9\u062A: ${vatSettings2.companyName || "-"} - \u0634\u0646\u0627\u0633\u0647 \u0645\u0644\u06CC: ${vatSettings2.nationalId || "-"} - \u06A9\u062F \u0627\u0642\u062A\u0635\u0627\u062F\u06CC: ${vatSettings2.economicCode || "-"} - \u062A\u0644\u0641\u0646: ${vatSettings2.phoneNumber || "-"} - \u0622\u062F\u0631\u0633: ${vatSettings2.address || "-"}` : `\u0646\u0627\u0645 \u0634\u062E\u0635 / \u0633\u0627\u0632\u0645\u0627\u0646 : ${seller?.firstName && seller?.lastName ? `${seller.firstName} ${seller.lastName}` : "\u0641\u0631\u0648\u0634\u0646\u062F\u0647"}`}
         </div>
         
         <!-- Customer Section -->
-        <div class="section-header">\u0645\u0634\u062E\u0635\u0627\u062A \u062E\u0631\u06CC\u062F\u0627\u0631</div>
+        <div class="section-header" style="text-align: right;">\u0645\u0634\u062E\u0635\u0627\u062A \u062E\u0631\u06CC\u062F\u0627\u0631</div>
         <div class="section-content customer-details">
-          <div>\u0646\u0627\u0645 \u0634\u062E\u0635 / \u0633\u0627\u0632\u0645\u0627\u0646 : ${buyer?.firstName && buyer?.lastName ? `${buyer.firstName} ${buyer.lastName}` : "\u0645\u0634\u062A\u0631\u06CC \u06AF\u0631\u0627\u0645\u06CC"}</div>
-          <div>\u0622\u062F\u0631\u0633 - \u06A9\u062F \u067E\u0633\u062A\u06CC - \u062A\u0644\u0641\u0646 : ${[
-    address?.fullAddress || "-",
-    address?.postalCode || "-",
-    buyer?.whatsappNumber || "-"
-  ].join(" - ")}</div>
+          \u0646\u0627\u0645 \u0634\u062E\u0635 / \u0633\u0627\u0632\u0645\u0627\u0646 : ${buyer?.firstName && buyer?.lastName ? `${buyer.firstName} ${buyer.lastName}` : "\u0645\u0634\u062A\u0631\u06CC \u06AF\u0631\u0627\u0645\u06CC"} - \u0622\u062F\u0631\u0633 : ${address?.fullAddress || "-"} - \u06A9\u062F \u067E\u0633\u062A\u06CC : ${address?.postalCode || "-"} - \u062A\u0644\u0641\u0646 : ${buyer?.whatsappNumber || "-"}
         </div>
         
         <!-- Items Table -->
@@ -2985,38 +3599,53 @@ async function generateInvoiceHTML(orderId) {
           <thead>
             <tr>
               <th style="width: 8%;">\u0631\u062F\u06CC\u0641</th>
-              <th style="width: 44%;">\u0634\u0631\u062D \u06A9\u0627\u0644\u0627 \u06CC\u0627 \u062E\u062F\u0645\u0627\u062A</th>
-              <th style="width: 12%;">\u062A\u0639\u062F\u0627\u062F</th>
-              <th style="width: 18%;">\u0642\u06CC\u0645\u062A \u0648\u0627\u062D\u062F<br />(\u0631\u06CC\u0627\u0644)</th>
-              <th style="width: 18%;">\u0642\u06CC\u0645\u062A \u06A9\u0644<br />(\u0631\u06CC\u0627\u0644)</th>
+              <th style="width: 36%;">\u0634\u0631\u062D \u06A9\u0627\u0644\u0627 \u06CC\u0627 \u062E\u062F\u0645\u0627\u062A</th>
+              <th style="width: 10%;">\u062A\u0639\u062F\u0627\u062F</th>
+              <th style="width: 15%;">\u0642\u06CC\u0645\u062A \u0648\u0627\u062D\u062F<br />(\u0631\u06CC\u0627\u0644)</th>
+              <th style="width: 15%;">\u0627\u0631\u0632\u0634 \u0627\u0641\u0632\u0648\u062F\u0647<br />(\u0631\u06CC\u0627\u0644)</th>
+              <th style="width: 16%;">\u0642\u06CC\u0645\u062A \u06A9\u0644<br />(\u0631\u06CC\u0627\u0644)</th>
             </tr>
           </thead>
           <tbody>
-            ${items.map((item, index) => `
+            ${items.map((item, index) => {
+    const itemSubtotal = parseFloat(item.totalPrice);
+    const itemVat = vatPercentage > 0 ? Math.round(itemSubtotal * (vatPercentage / 100)) : 0;
+    const itemTotal = itemSubtotal + itemVat;
+    return `
               <tr>
                 <td>${index + 1}</td>
                 <td class="text-right">${item.productName}</td>
                 <td>${item.quantity}</td>
                 <td>${formatPriceRial(item.unitPrice)}</td>
-                <td>${formatPriceRial(item.totalPrice)}</td>
+                <td>${vatPercentage > 0 ? formatPriceRial(itemVat) : "-"}</td>
+                <td>${formatPriceRial(itemTotal)}</td>
               </tr>
-            `).join("")}
+            `;
+  }).join("")}
+            <tr style="background-color: #d3d3d3; font-weight: bold;">
+              <td colspan="4" class="text-right" style="padding: 12px;"></td>
+              <td>${vatPercentage > 0 ? formatPriceRial(vatAmount).replace(" \u0631\u06CC\u0627\u0644", "") : "-"}</td>
+              <td>${formatPriceRial(vatPercentage > 0 ? totalWithVat : subtotal).replace(" \u0631\u06CC\u0627\u0644", "")}</td>
+            </tr>
           </tbody>
         </table>
         
-        <!-- Total Section -->
-        <div class="total-section">
-          \u062C\u0645\u0639 \u06A9\u0644: ${formatPriceRial(order.totalAmount)}
-        </div>
-        
         <!-- Total in Words -->
         <div class="total-words">
-          \u062C\u0645\u0639 \u06A9\u0644 \u0628\u0647 \u062D\u0631\u0648\u0641: ${numberToPersianWords(Number(order.totalAmount) * 10)} \u0631\u06CC\u0627\u0644
+          ${vatPercentage > 0 ? "\u0645\u0628\u0644\u063A \u0642\u0627\u0628\u0644 \u067E\u0631\u062F\u0627\u062E\u062A" : "\u062C\u0645\u0639 \u06A9\u0644"} \u0628\u0647 \u062D\u0631\u0648\u0641: ${numberToPersianWords((vatPercentage > 0 ? totalWithVat : subtotal) * 10)} \u0631\u06CC\u0627\u0644
         </div>
         
         <!-- Thank You Message -->
-        <div class="thank-you">
-          \u0627\u0632 \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u0645\u062A\u0634\u06A9\u0631\u06CC\u0645 \u0645\u0646\u062A\u0638\u0631 \u0634\u0645\u0627 \u0647\u0633\u062A\u06CC\u0645
+        <div class="thank-you" style="position: relative; display: flex; align-items: center; justify-content: center; min-height: 60px;">
+          <div style="flex: 1; text-align: center;">${vatSettings2?.thankYouMessage || "\u0627\u0632 \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u0645\u062A\u0634\u06A9\u0631\u06CC\u0645"}</div>
+          ${vatPercentage > 0 ? `
+          <div style="position: absolute; left: 40px; top: -80px; width: 150px; height: 150px; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 10; pointer-events: none;">
+            ${vatSettings2?.stampImage ? `<div style="position: relative; width: 100%; height: 100%;">
+                <img src="${vatSettings2.stampImage}" alt="\u0645\u0647\u0631 \u0648 \u0627\u0645\u0636\u0627" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.5; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));" />
+                <div style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; color: #333; font-weight: bold; white-space: nowrap;">\u0645\u0647\u0631 \u0648 \u0627\u0645\u0636\u0627 \u0634\u0631\u06A9\u062A</div>
+              </div>` : `<div style="font-size: 14px; color: #999; opacity: 0.3;">\u0645\u0647\u0631 \u0648 \u0627\u0645\u0636\u0627 \u0634\u0631\u06A9\u062A</div>`}
+          </div>
+          ` : ""}
         </div>
       </div>
     </body>
@@ -3031,6 +3660,7 @@ async function generateInvoiceImage(orderId) {
     const html = await generateInvoiceHTML(orderId);
     browser = await puppeteer.launch({
       headless: true,
+      executablePath: "/nix/store/qa9cnw4v5xkxyip6mb9kxqfq1z4x2dx1-chromium-138.0.7204.100/bin/chromium-browser",
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -3090,6 +3720,183 @@ var init_invoice_service = __esm({
   }
 });
 
+// server/whatsapp-queue.ts
+var WhatsAppQueue, whatsAppQueue;
+var init_whatsapp_queue = __esm({
+  "server/whatsapp-queue.ts"() {
+    "use strict";
+    WhatsAppQueue = class {
+      queues = /* @__PURE__ */ new Map();
+      MESSAGES_PER_SECOND = 3;
+      INTERVAL_MS = 1e3 / this.MESSAGES_PER_SECOND;
+      // ~333ms between messages
+      MAX_RETRIES = 3;
+      async addMessage(type, recipient, message, userId, token, imageUrl) {
+        const messageId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const queuedMessage = {
+          id: messageId,
+          type,
+          recipient,
+          message,
+          imageUrl,
+          userId,
+          token,
+          retryCount: 0,
+          timestamp: Date.now()
+        };
+        if (!this.queues.has(token)) {
+          this.queues.set(token, {
+            messages: [],
+            isProcessing: false,
+            lastSentTime: 0
+          });
+        }
+        const queue = this.queues.get(token);
+        queue.messages.push(queuedMessage);
+        console.log(`\u{1F4E5} \u067E\u06CC\u0627\u0645 \u0628\u0647 \u0635\u0641 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F - \u062A\u0648\u06A9\u0646: ${token.substring(0, 8)}..., \u062A\u0639\u062F\u0627\u062F \u062F\u0631 \u0635\u0641: ${queue.messages.length}, \u0646\u0648\u0639: ${type}`);
+        if (!queue.isProcessing) {
+          this.processQueue(token);
+        }
+        return messageId;
+      }
+      async processQueue(token) {
+        const queue = this.queues.get(token);
+        if (!queue || queue.isProcessing) {
+          return;
+        }
+        queue.isProcessing = true;
+        while (queue.messages.length > 0) {
+          const now = Date.now();
+          const timeSinceLastSent = now - queue.lastSentTime;
+          if (timeSinceLastSent < this.INTERVAL_MS) {
+            const waitTime = this.INTERVAL_MS - timeSinceLastSent;
+            await this.sleep(waitTime);
+          }
+          const message = queue.messages.shift();
+          if (!message) {
+            break;
+          }
+          try {
+            const success = await this.sendMessageDirect(message);
+            if (success) {
+              queue.lastSentTime = Date.now();
+              console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u0627\u0631\u0633\u0627\u0644 \u0634\u062F - \u0635\u0641: ${queue.messages.length} \u0628\u0627\u0642\u06CC \u0645\u0627\u0646\u062F\u0647`);
+            } else {
+              if (message.retryCount < this.MAX_RETRIES) {
+                message.retryCount++;
+                queue.messages.push(message);
+                console.log(`\u{1F504} \u067E\u06CC\u0627\u0645 \u0628\u0647 \u0635\u0641 \u0628\u0631\u06AF\u0634\u062A \u0628\u0631\u0627\u06CC \u062A\u0644\u0627\u0634 \u0645\u062C\u062F\u062F (${message.retryCount}/${this.MAX_RETRIES})`);
+              } else {
+                console.error(`\u274C \u067E\u06CC\u0627\u0645 \u0628\u0639\u062F \u0627\u0632 ${this.MAX_RETRIES} \u062A\u0644\u0627\u0634 \u062D\u0630\u0641 \u0634\u062F: ${message.id}`);
+              }
+            }
+          } catch (error) {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u067E\u06CC\u0627\u0645 ${message.id}:`, error);
+            if (message.retryCount < this.MAX_RETRIES) {
+              message.retryCount++;
+              queue.messages.push(message);
+            }
+          }
+        }
+        queue.isProcessing = false;
+        if (queue.messages.length === 0) {
+          console.log(`\u{1F9F9} \u0635\u0641 \u0628\u0631\u0627\u06CC \u062A\u0648\u06A9\u0646 ${token.substring(0, 8)}... \u062E\u0627\u0644\u06CC \u0634\u062F`);
+        }
+      }
+      async sendMessageDirect(message) {
+        try {
+          if (message.type === "text") {
+            return await this.sendTextMessage(message);
+          } else if (message.type === "image") {
+            return await this.sendImageMessage(message);
+          }
+          return false;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0645\u0633\u062A\u0642\u06CC\u0645 \u067E\u06CC\u0627\u0645:", error);
+          return false;
+        }
+      }
+      async sendTextMessage(message) {
+        try {
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${message.token}?phonenumber=${message.recipient}&message=${encodeURIComponent(message.message)}`;
+          const response = await fetch(sendUrl, { method: "GET" });
+          if (!response.ok) {
+            console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0645\u062A\u0646\u06CC:", response.status, response.statusText);
+            return false;
+          }
+          console.log(`\u{1F4E4} \u067E\u06CC\u0627\u0645 \u0645\u062A\u0646\u06CC \u0627\u0631\u0633\u0627\u0644 \u0634\u062F \u0628\u0647 ${message.recipient}`);
+          return true;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 sendTextMessage:", error);
+          return false;
+        }
+      }
+      async sendImageMessage(message) {
+        try {
+          if (!message.imageUrl) {
+            console.error("\u274C URL \u0639\u06A9\u0633 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
+            return false;
+          }
+          const formData = new FormData();
+          formData.append("phonenumber", message.recipient);
+          formData.append("message", message.message);
+          formData.append("link", message.imageUrl);
+          const sendUrl = `https://api.whatsiplus.com/sendMsg/${message.token}`;
+          const response = await fetch(sendUrl, {
+            method: "POST",
+            body: formData
+          });
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633:`, errorText);
+            return false;
+          }
+          console.log(`\u{1F4E4} \u0639\u06A9\u0633 \u0627\u0631\u0633\u0627\u0644 \u0634\u062F \u0628\u0647 ${message.recipient}`);
+          return true;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 sendImageMessage:", error);
+          return false;
+        }
+      }
+      sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+      getQueueStatus(token) {
+        if (token) {
+          const queue = this.queues.get(token);
+          if (!queue) {
+            return { exists: false };
+          }
+          return {
+            exists: true,
+            messageCount: queue.messages.length,
+            isProcessing: queue.isProcessing,
+            lastSentTime: queue.lastSentTime
+          };
+        }
+        const allQueues = {};
+        this.queues.forEach((queue, token2) => {
+          allQueues[token2.substring(0, 8) + "..."] = {
+            messageCount: queue.messages.length,
+            isProcessing: queue.isProcessing
+          };
+        });
+        return allQueues;
+      }
+      clearQueue(token) {
+        const queue = this.queues.get(token);
+        if (queue) {
+          queue.messages = [];
+          console.log(`\u{1F9F9} \u0635\u0641 \u0628\u0631\u0627\u06CC \u062A\u0648\u06A9\u0646 ${token.substring(0, 8)}... \u067E\u0627\u06A9 \u0634\u062F`);
+          return true;
+        }
+        return false;
+      }
+    };
+    whatsAppQueue = new WhatsAppQueue();
+  }
+});
+
 // server/whatsapp-sender.ts
 var whatsapp_sender_exports = {};
 __export(whatsapp_sender_exports, {
@@ -3101,6 +3908,7 @@ var init_whatsapp_sender = __esm({
   "server/whatsapp-sender.ts"() {
     "use strict";
     init_storage();
+    init_whatsapp_queue();
     WhatsAppSender = class {
       async sendMessage(recipient, message, userId) {
         try {
@@ -3134,47 +3942,80 @@ var init_whatsapp_sender = __esm({
             console.log("\u26A0\uFE0F \u0647\u06CC\u0686 \u062A\u0648\u06A9\u0646 \u0645\u0639\u062A\u0628\u0631\u06CC \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
             return false;
           }
-          const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${recipient}&message=${encodeURIComponent(message)}`;
-          console.log(`\u{1F4E4} \u062F\u0631\u062D\u0627\u0644 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0628\u0647 ${recipient} \u0627\u0632 \u0637\u0631\u06CC\u0642 \u062A\u0648\u06A9\u0646...`);
-          const response = await fetch(sendUrl, { method: "GET" });
-          if (!response.ok) {
-            console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", response.status, response.statusText);
-            return false;
-          }
+          const messageId = await whatsAppQueue.addMessage(
+            "text",
+            recipient,
+            message,
+            userId,
+            whatsappToken
+          );
           await storage.createSentMessage({
             userId,
             recipient,
             message,
-            status: "sent"
+            status: "queued"
           });
-          console.log(`\u{1F4E4} \u067E\u06CC\u0627\u0645 \u0628\u0647 ${recipient} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F: ${message.substring(0, 50)}...`);
+          console.log(`\u{1F4E4} \u067E\u06CC\u0627\u0645 \u0628\u0647 \u0635\u0641 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F (ID: ${messageId}): ${message.substring(0, 50)}...`);
           return true;
         } catch (error) {
-          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error);
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0636\u0627\u0641\u0647 \u06A9\u0631\u062F\u0646 \u067E\u06CC\u0627\u0645 \u0628\u0647 \u0635\u0641:", error);
           return false;
         }
       }
-      async sendWhatsAppImage(token, phoneNumber, message, imageUrl) {
+      async sendWhatsAppImage(token, phoneNumber, message, imageUrl, userId) {
         try {
-          const formData = new FormData();
-          formData.append("phonenumber", phoneNumber);
-          formData.append("message", message);
-          formData.append("link", imageUrl);
-          const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}`;
-          const response = await fetch(sendUrl, {
-            method: "POST",
-            body: formData
-          });
-          if (response.ok) {
-            console.log(`\u2705 \u0639\u06A9\u0633 \u0628\u0647 ${phoneNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
-            return true;
+          const messageId = await whatsAppQueue.addMessage(
+            "image",
+            phoneNumber,
+            message,
+            userId || "system",
+            token,
+            imageUrl
+          );
+          console.log(`\u2705 \u0639\u06A9\u0633 \u0628\u0647 \u0635\u0641 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F (ID: ${messageId}) \u0628\u0631\u0627\u06CC ${phoneNumber}`);
+          return true;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0636\u0627\u0641\u0647 \u06A9\u0631\u062F\u0646 \u0639\u06A9\u0633 \u0628\u0647 \u0635\u0641:", error);
+          return false;
+        }
+      }
+      async sendImage(recipient, message, imageUrl, userId) {
+        try {
+          const senderUser = await storage.getUser(userId);
+          let whatsappToken;
+          if (senderUser && senderUser.role === "user_level_1" && senderUser.whatsappToken && senderUser.whatsappToken.trim() !== "") {
+            whatsappToken = senderUser.whatsappToken;
+            console.log("\u{1F50D} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0634\u062E\u0635\u06CC \u06A9\u0627\u0631\u0628\u0631 \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633");
           } else {
-            const errorText = await response.text();
-            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u0628\u0647 ${phoneNumber}:`, errorText);
+            const settings = await storage.getWhatsappSettings();
+            if (!settings || !settings.token || !settings.isEnabled) {
+              console.log("\u26A0\uFE0F \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A");
+              return false;
+            }
+            whatsappToken = settings.token;
+          }
+          if (!whatsappToken) {
+            console.log("\u26A0\uFE0F \u0647\u06CC\u0686 \u062A\u0648\u06A9\u0646 \u0645\u0639\u062A\u0628\u0631\u06CC \u0628\u0631\u0627\u06CC \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
             return false;
           }
+          const messageId = await whatsAppQueue.addMessage(
+            "image",
+            recipient,
+            message,
+            userId,
+            whatsappToken,
+            imageUrl
+          );
+          await storage.createSentMessage({
+            userId,
+            recipient,
+            message: `${message} (\u0639\u06A9\u0633: ${imageUrl})`,
+            status: "queued"
+          });
+          console.log(`\u2705 \u0639\u06A9\u0633 \u0628\u0647 \u0635\u0641 \u0627\u0636\u0627\u0641\u0647 \u0634\u062F (ID: ${messageId}): ${imageUrl}`);
+          return true;
         } catch (error) {
-          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u0648\u0627\u062A\u0633\u0627\u067E:", error);
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0636\u0627\u0641\u0647 \u06A9\u0631\u062F\u0646 \u0639\u06A9\u0633 \u0628\u0647 \u0635\u0641:", error);
           return false;
         }
       }
@@ -3184,11 +4025,6 @@ var init_whatsapp_sender = __esm({
 });
 
 // server/gemini-service.ts
-var gemini_service_exports = {};
-__export(gemini_service_exports, {
-  GeminiService: () => GeminiService,
-  geminiService: () => geminiService
-});
 import { GoogleGenerativeAI } from "@google/generative-ai";
 var GeminiService, geminiService;
 var init_gemini_service = __esm({
@@ -3203,7 +4039,7 @@ var init_gemini_service = __esm({
       }
       async initialize() {
         try {
-          const tokenSettings = await storage.getAiTokenSettings();
+          const tokenSettings = await storage.getAiTokenSettings("gemini");
           if (tokenSettings?.token && tokenSettings.isActive) {
             this.genAI = new GoogleGenerativeAI(tokenSettings.token);
             this.model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
@@ -3730,6 +4566,746 @@ ${faqList}
   }
 });
 
+// server/liara-service.ts
+import OpenAI from "openai";
+var LiaraService, liaraService;
+var init_liara_service = __esm({
+  "server/liara-service.ts"() {
+    "use strict";
+    init_storage();
+    LiaraService = class {
+      openai = null;
+      model = "google/gemini-2.0-flash-001";
+      constructor() {
+        this.initialize();
+      }
+      async initialize() {
+        try {
+          const tokenSettings = await storage.getAiTokenSettings("liara");
+          if (tokenSettings?.token && tokenSettings.isActive) {
+            const workspaceId = tokenSettings.workspaceId;
+            if (!workspaceId) {
+              console.log("\u26A0\uFE0F Workspace ID \u0628\u0631\u0627\u06CC Liara AI \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A");
+              return;
+            }
+            this.openai = new OpenAI({
+              baseURL: `https://ai.liara.ir/api/${workspaceId}/v1`,
+              apiKey: tokenSettings.token
+            });
+            console.log("\u{1F916} \u0633\u0631\u0648\u06CC\u0633 Liara AI \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0631\u0627\u0647\u200C\u0627\u0646\u062F\u0627\u0632\u06CC \u0634\u062F");
+          } else {
+            console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 Liara AI \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u06CC\u0627 \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A");
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0631\u0627\u0647\u200C\u0627\u0646\u062F\u0627\u0632\u06CC Liara AI:", error);
+        }
+      }
+      async reinitialize() {
+        await this.initialize();
+      }
+      async generateResponse(message, userId) {
+        if (!this.openai) {
+          throw new Error("Liara AI \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0648\u06A9\u0646 API \u0631\u0627 \u062A\u0646\u0638\u06CC\u0645 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          let aiName = "\u0645\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC \u0647\u0633\u062A\u0645";
+          try {
+            const whatsappSettings2 = await storage.getWhatsappSettings();
+            if (whatsappSettings2?.aiName) {
+              aiName = whatsappSettings2.aiName;
+            }
+          } catch (settingsError) {
+            console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0646\u0627\u0645 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC:", settingsError);
+          }
+          const normalizeText = (text3) => {
+            return text3.normalize("NFKC").replace(/\u200C|\u200F|\u200E/g, "").replace(/[\u064A]/g, "\u06CC").replace(/[\u0643]/g, "\u06A9").replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]/g, "").replace(/[؟?!.،,]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+          };
+          const normalizedMessage = normalizeText(message);
+          const nameQuestionPatterns = [
+            /(اسم(ت| شما)?\s*(چیه|چیست|چی\s*هست))/,
+            /(نام(ت| شما)?\s*(چیه|چیست))/,
+            /(تو\s*کی(ی|\s*هستی)?)/,
+            /(چه\s*اسمی\s*داری)/,
+            /(خودت\s*رو\s*معرفی\s*کن)/,
+            /(who\s*are\s*you)/,
+            /(what'?s\s*your\s*name)/
+          ];
+          const isNameQuestion = nameQuestionPatterns.some(
+            (pattern) => pattern.test(normalizedMessage)
+          );
+          if (isNameQuestion) {
+            return aiName;
+          }
+          const prompt = `${aiName} \u0648 \u0628\u0647 \u0632\u0628\u0627\u0646 \u0641\u0627\u0631\u0633\u06CC \u067E\u0627\u0633\u062E \u0645\u06CC\u200C\u062F\u0647\u0645. \u0644\u0637\u0641\u0627\u064B \u0628\u0647 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645 \u067E\u0627\u0633\u062E \u062F\u0647\u06CC\u062F:
+
+${message}
+
+\u067E\u0627\u0633\u062E \u0645\u0646 \u0628\u0627\u06CC\u062F:
+- \u0628\u0647 \u0632\u0628\u0627\u0646 \u0641\u0627\u0631\u0633\u06CC \u0628\u0627\u0634\u062F
+- \u062D\u062F\u0627\u06A9\u062B\u0631 20 \u06A9\u0644\u0645\u0647 \u0628\u0627\u0634\u062F
+- \u0645\u0624\u062F\u0628\u0627\u0646\u0647 \u0648 \u0645\u0633\u062A\u0642\u06CC\u0645 \u0628\u0627\u0634\u062F
+- \u0628\u062F\u0648\u0646 \u062A\u0648\u0636\u06CC\u062D\u0627\u062A \u0627\u0636\u0627\u0641\u06CC \u0628\u0627\u0634\u062F`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = completion.choices[0].message.content || "\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u0646\u062A\u0648\u0627\u0646\u0633\u062A\u0645 \u067E\u0627\u0633\u062E \u0645\u0646\u0627\u0633\u0628\u06CC \u062A\u0648\u0644\u06CC\u062F \u06A9\u0646\u0645.";
+          const finalText = text2.trim();
+          if (finalText.length > 200) {
+            return finalText.substring(0, 200) + "...";
+          }
+          return finalText;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u067E\u0627\u0633\u062E Liara:", error);
+          throw new Error("\u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u067E\u0627\u0633\u062E \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC");
+        }
+      }
+      isActive() {
+        return this.openai !== null;
+      }
+      async extractDepositInfo(message) {
+        if (!this.openai) {
+          throw new Error("Liara AI \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0648\u06A9\u0646 API \u0631\u0627 \u062A\u0646\u0638\u06CC\u0645 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          const prompt = `\u0627\u0632 \u0645\u062A\u0646 \u0632\u06CC\u0631 \u06A9\u0647 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC \u0627\u0633\u062A\u060C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0645\u0627\u0644\u06CC \u0631\u0627 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646 \u0648 \u0628\u0647 \u0635\u0648\u0631\u062A JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646:
+
+${message}
+
+\u0641\u0631\u0645\u062A JSON \u062E\u0631\u0648\u062C\u06CC:
+{
+  "amount": "\u0645\u0628\u0644\u063A \u0628\u0647 \u0631\u06CC\u0627\u0644 (\u0641\u0642\u0637 \u0639\u062F\u062F)",
+  "transactionDate": "\u062A\u0627\u0631\u06CC\u062E (\u0634\u0645\u0633\u06CC \u06CC\u0627 \u0645\u06CC\u0644\u0627\u062F\u06CC)",
+  "transactionTime": "\u0633\u0627\u0639\u062A",
+  "accountSource": "\u0646\u0627\u0645 \u0628\u0627\u0646\u06A9 \u06CC\u0627 \u0627\u0632 \u062D\u0633\u0627\u0628",
+  "paymentMethod": "\u0631\u0648\u0634 \u067E\u0631\u062F\u0627\u062E\u062A (\u0645\u062B\u0644\u0627 \u0627\u0646\u062A\u0642\u0627\u0644 \u0648\u062C\u0647\u060C \u06A9\u0627\u0631\u062A \u0628\u0647 \u06A9\u0627\u0631\u062A)",
+  "referenceId": "\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u06CC\u0627 \u0634\u0645\u0627\u0631\u0647 \u0645\u0631\u062C\u0639"
+}
+
+\u0645\u0647\u0645:
+- \u0627\u06AF\u0631 \u0647\u0631 \u0641\u06CC\u0644\u062F\u06CC \u062F\u0631 \u0645\u062A\u0646 \u0646\u0628\u0648\u062F\u060C \u0645\u0642\u062F\u0627\u0631 null \u0628\u062F\u0647
+- amount \u0631\u0648 \u0641\u0642\u0637 \u0628\u0647 \u0635\u0648\u0631\u062A \u0639\u062F\u062F \u0628\u062F\u0648\u0646 \u0645\u0645\u06CC\u0632 \u0648 \u0648\u0627\u062D\u062F \u0628\u0631\u06AF\u0631\u062F\u0627\u0646
+- \u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0628\u0627\u06CC\u062F string \u06CC\u0627 null \u0628\u0627\u0634\u0646\u062F
+- \u0641\u0642\u0637 JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646\u060C \u0628\u062F\u0648\u0646 \u062A\u0648\u0636\u06CC\u062D \u0627\u0636\u0627\u0641\u06CC`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim();
+          let jsonText = text2;
+          if (jsonText.includes("```json")) {
+            jsonText = jsonText.split("```json")[1].split("```")[0].trim();
+          } else if (jsonText.includes("```")) {
+            jsonText = jsonText.split("```")[1].split("```")[0].trim();
+          }
+          const extractedData = JSON.parse(jsonText);
+          return {
+            amount: extractedData.amount || null,
+            transactionDate: extractedData.transactionDate || null,
+            transactionTime: extractedData.transactionTime || null,
+            accountSource: extractedData.accountSource || null,
+            paymentMethod: extractedData.paymentMethod || null,
+            referenceId: extractedData.referenceId || null
+          };
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+          return {
+            amount: null,
+            transactionDate: null,
+            transactionTime: null,
+            accountSource: null,
+            paymentMethod: null,
+            referenceId: null
+          };
+        }
+      }
+      async isDepositMessage(message) {
+        if (!this.openai) {
+          return false;
+        }
+        try {
+          const normalizeText = (text3) => {
+            return text3.normalize("NFKC").replace(/\u200C|\u200F|\u200E/g, "").toLowerCase();
+          };
+          const normalizedMessage = normalizeText(message);
+          const depositKeywords = [
+            "\u0648\u0627\u0631\u06CC\u0632",
+            "\u0631\u0633\u06CC\u062F",
+            "\u067E\u0631\u062F\u0627\u062E\u062A",
+            "\u0627\u0646\u062A\u0642\u0627\u0644",
+            "\u06A9\u0627\u0631\u062A \u0628\u0647 \u06A9\u0627\u0631\u062A",
+            "\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC",
+            "\u0645\u0628\u0644\u063A",
+            "\u0628\u0627\u0646\u06A9",
+            "\u062D\u0633\u0627\u0628",
+            "\u062A\u0631\u0627\u06A9\u0646\u0634",
+            "\u0645\u0631\u062C\u0639",
+            "\u0631\u06CC\u0627\u0644",
+            "\u062A\u0648\u0645\u0627\u0646"
+          ];
+          const keywordCount = depositKeywords.filter(
+            (keyword) => normalizedMessage.includes(keyword)
+          ).length;
+          if (keywordCount < 5) {
+            return false;
+          }
+          const prompt = `\u0622\u06CC\u0627 \u0645\u062A\u0646 \u0632\u06CC\u0631 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC\u060C \u0627\u0637\u0644\u0627\u0639 \u0648\u0627\u0631\u06CC\u0632\u060C \u06CC\u0627 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u067E\u0631\u062F\u0627\u062E\u062A \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u061F
+      
+${message}
+
+\u062A\u0648\u062C\u0647: \u0641\u0642\u0637 \u0627\u06AF\u0631 \u0645\u0637\u0645\u0626\u0646 \u0647\u0633\u062A\u06CC \u06A9\u0647 \u0627\u06CC\u0646 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0648\u0627\u0642\u0639\u06CC \u0628\u0627 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u06A9\u0627\u0645\u0644 \u0627\u0633\u062A\u060C "\u0628\u0644\u0647" \u0628\u06AF\u0648. \u062F\u0631 \u063A\u06CC\u0631 \u0627\u06CC\u0646 \u0635\u0648\u0631\u062A "\u062E\u06CC\u0631" \u0628\u06AF\u0648.
+
+\u0641\u0642\u0637 \u0628\u0627 "\u0628\u0644\u0647" \u06CC\u0627 "\u062E\u06CC\u0631" \u067E\u0627\u0633\u062E \u0628\u062F\u0647.`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim().toLowerCase();
+          return text2.includes("\u0628\u0644\u0647") || text2.includes("yes");
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0634\u062E\u06CC\u0635 \u067E\u06CC\u0627\u0645 \u0648\u0627\u0631\u06CC\u0632\u06CC:", error);
+          return false;
+        }
+      }
+      extractImageUrl(message) {
+        try {
+          const urlPattern = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|bmp|webp))/gi;
+          const match = message.match(urlPattern);
+          if (match && match.length > 0) {
+            return match[0];
+          }
+          const whatsiPlusPattern = /(https?:\/\/api\.whatsiplus\.com\/[^\s]+)/gi;
+          const whatsiMatch = message.match(whatsiPlusPattern);
+          if (whatsiMatch && whatsiMatch.length > 0) {
+            return whatsiMatch[0];
+          }
+          return null;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0644\u06CC\u0646\u06A9 \u0639\u06A9\u0633:", error);
+          return null;
+        }
+      }
+      async downloadImage(imageUrl) {
+        try {
+          console.log(`\u{1F4E5} \u062F\u0631 \u062D\u0627\u0644 \u062F\u0627\u0646\u0644\u0648\u062F \u0639\u06A9\u0633 \u0627\u0632: ${imageUrl}`);
+          const response = await fetch(imageUrl, {
+            method: "GET",
+            headers: {
+              "User-Agent": "WhatsApp-Service/1.0"
+            }
+          });
+          if (!response.ok) {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0627\u0646\u0644\u0648\u062F \u0639\u06A9\u0633: ${response.status} ${response.statusText}`);
+            return null;
+          }
+          const contentType = response.headers.get("content-type") || "image/jpeg";
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          const base64Data = buffer.toString("base64");
+          console.log(`\u2705 \u0639\u06A9\u0633 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0627\u0646\u0644\u0648\u062F \u0634\u062F (${contentType})`);
+          return {
+            mimeType: contentType,
+            data: base64Data
+          };
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0627\u0646\u0644\u0648\u062F \u0639\u06A9\u0633:", error);
+          return null;
+        }
+      }
+      async extractDepositInfoFromImage(imageUrl) {
+        if (!this.openai) {
+          throw new Error("Liara AI \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0648\u06A9\u0646 API \u0631\u0627 \u062A\u0646\u0638\u06CC\u0645 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0627\u0632 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F...`);
+          const imageData = await this.downloadImage(imageUrl);
+          if (!imageData) {
+            console.error("\u274C \u0646\u062A\u0648\u0627\u0646\u0633\u062A\u06CC\u0645 \u0639\u06A9\u0633 \u0631\u0627 \u062F\u0627\u0646\u0644\u0648\u062F \u06A9\u0646\u06CC\u0645");
+            return {
+              amount: null,
+              transactionDate: null,
+              transactionTime: null,
+              accountSource: null,
+              paymentMethod: null,
+              referenceId: null
+            };
+          }
+          const prompt = `\u0627\u06CC\u0646 \u062A\u0635\u0648\u06CC\u0631 \u06CC\u06A9 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0628\u0627\u0646\u06A9\u06CC \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0645\u0627\u0644\u06CC \u0631\u0627 \u0627\u0632 \u0622\u0646 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646 \u0648 \u0628\u0647 \u0635\u0648\u0631\u062A JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646:
+
+\u0641\u0631\u0645\u062A JSON \u062E\u0631\u0648\u062C\u06CC:
+{
+  "amount": "\u0645\u0628\u0644\u063A \u0628\u0647 \u0631\u06CC\u0627\u0644 (\u0641\u0642\u0637 \u0639\u062F\u062F)",
+  "transactionDate": "\u062A\u0627\u0631\u06CC\u062E (\u0634\u0645\u0633\u06CC \u06CC\u0627 \u0645\u06CC\u0644\u0627\u062F\u06CC)",
+  "transactionTime": "\u0633\u0627\u0639\u062A",
+  "accountSource": "\u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A \u0645\u0628\u062F\u0627 (\u0627\u0632 \u06A9\u0627\u0631\u062A / \u0645\u0628\u062F\u0627) - \u0641\u0642\u0637 16 \u0631\u0642\u0645 \u06A9\u0627\u0631\u062A",
+  "paymentMethod": "\u0631\u0648\u0634 \u067E\u0631\u062F\u0627\u062E\u062A (\u0645\u062B\u0644\u0627 \u0627\u0646\u062A\u0642\u0627\u0644 \u0648\u062C\u0647\u060C \u06A9\u0627\u0631\u062A \u0628\u0647 \u06A9\u0627\u0631\u062A)",
+  "referenceId": "\u0634\u0645\u0627\u0631\u0647 \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u06CC\u0627 \u0634\u0645\u0627\u0631\u0647 \u0645\u0631\u062C\u0639"
+}
+
+\u0645\u0647\u0645:
+- \u0627\u06AF\u0631 \u0647\u0631 \u0641\u06CC\u0644\u062F\u06CC \u062F\u0631 \u062A\u0635\u0648\u06CC\u0631 \u0646\u0628\u0648\u062F\u060C \u0645\u0642\u062F\u0627\u0631 null \u0628\u062F\u0647
+- amount \u0631\u0648 \u0641\u0642\u0637 \u0628\u0647 \u0635\u0648\u0631\u062A \u0639\u062F\u062F \u0628\u062F\u0648\u0646 \u0645\u0645\u06CC\u0632 \u0648 \u0648\u0627\u062D\u062F \u0628\u0631\u06AF\u0631\u062F\u0627\u0646
+- accountSource \u0628\u0627\u06CC\u062F \u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A 16 \u0631\u0642\u0645\u06CC \u0645\u0628\u062F\u0627 \u0628\u0627\u0634\u0647 (\u0627\u0632 \u0642\u0633\u0645\u062A "\u0627\u0632 \u06A9\u0627\u0631\u062A" \u06CC\u0627 "\u0645\u0628\u062F\u0627" \u06CC\u0627 \u0646\u0632\u062F\u06CC\u06A9 \u0645\u0628\u0644\u063A)
+- \u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A \u0631\u0648 \u06A9\u0627\u0645\u0644 \u0628\u0646\u0648\u06CC\u0633\u060C \u062D\u062A\u06CC \u0627\u06AF\u0631 \u0628\u0639\u0636\u06CC \u0627\u0631\u0642\u0627\u0645 \u0633\u062A\u0627\u0631\u0647 (*) \u0647\u0633\u062A\u0646\u062F
+- \u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0628\u0627\u06CC\u062F string \u06CC\u0627 null \u0628\u0627\u0634\u0646\u062F
+- \u0641\u0642\u0637 JSON \u0628\u0631\u06AF\u0631\u062F\u0627\u0646\u060C \u0628\u062F\u0648\u0646 \u062A\u0648\u0636\u06CC\u062D \u0627\u0636\u0627\u0641\u06CC
+- \u062F\u0642\u062A \u06A9\u0646 \u06A9\u0647 \u0627\u0639\u062F\u0627\u062F \u0641\u0627\u0631\u0633\u06CC \u0631\u0627 \u0628\u0647 \u0627\u0646\u06AF\u0644\u06CC\u0633\u06CC \u062A\u0628\u062F\u06CC\u0644 \u06A9\u0646\u06CC`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: prompt
+                  },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: `data:${imageData.mimeType};base64,${imageData.data}`
+                    }
+                  }
+                ]
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim();
+          console.log(`\u{1F4CA} Liara Vision Response:`, text2);
+          let jsonText = text2;
+          if (jsonText.includes("```json")) {
+            jsonText = jsonText.split("```json")[1].split("```")[0].trim();
+          } else if (jsonText.includes("```")) {
+            jsonText = jsonText.split("```")[1].split("```")[0].trim();
+          }
+          const extractedData = JSON.parse(jsonText);
+          console.log(`\u2705 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0627\u0632 \u0639\u06A9\u0633 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F:`, extractedData);
+          return {
+            amount: extractedData.amount || null,
+            transactionDate: extractedData.transactionDate || null,
+            transactionTime: extractedData.transactionTime || null,
+            accountSource: extractedData.accountSource || null,
+            paymentMethod: extractedData.paymentMethod || null,
+            referenceId: extractedData.referenceId || null
+          };
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0627\u0632 \u0639\u06A9\u0633:", error);
+          return {
+            amount: null,
+            transactionDate: null,
+            transactionTime: null,
+            accountSource: null,
+            paymentMethod: null,
+            referenceId: null
+          };
+        }
+      }
+      async isProductOrderRequest(message) {
+        if (!this.openai) return false;
+        try {
+          const prompt = `\u0622\u06CC\u0627 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645 \u06CC\u06A9 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0633\u0641\u0627\u0631\u0634 \u0645\u062D\u0635\u0648\u0644 \u0627\u0633\u062A\u061F \u0641\u0642\u0637 "\u0628\u0644\u0647" \u06CC\u0627 "\u062E\u06CC\u0631" \u062C\u0648\u0627\u0628 \u0628\u062F\u0647.
+
+\u067E\u06CC\u0627\u0645: "${message}"
+
+\u0646\u06A9\u062A\u0647: \u0627\u06AF\u0631 \u06A9\u0627\u0631\u0628\u0631 \u0646\u0627\u0645 \u06CC\u06A9 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u06AF\u0641\u062A\u0647\u060C \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u062F \u0628\u062E\u0631\u062F\u060C \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0642\u06CC\u0645\u062A \u06A9\u0631\u062F\u0647\u060C \u06CC\u0627 \u0647\u0631 \u06A9\u0644\u0645\u0647\u200C\u0627\u06CC \u0645\u062B\u0644 "\u0645\u06CC\u062E\u0648\u0627\u0645"\u060C "\u0628\u062F\u0647"\u060C "\u0633\u0641\u0627\u0631\u0634"\u060C "\u062E\u0631\u06CC\u062F" \u0648... \u0628\u0647 \u0647\u0645\u0631\u0627\u0647 \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644 \u0627\u0633\u062A\u060C \u062C\u0648\u0627\u0628 "\u0628\u0644\u0647" \u0627\u0633\u062A.`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim();
+          return text2.includes("\u0628\u0644\u0647") || text2.toLowerCase().includes("yes");
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0634\u062E\u06CC\u0635 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0645\u062D\u0635\u0648\u0644:", error);
+          return false;
+        }
+      }
+      async extractProductName(message) {
+        if (!this.openai) return null;
+        try {
+          const prompt = `\u0627\u0632 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645\u060C \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644\u06CC \u06A9\u0647 \u06A9\u0627\u0631\u0628\u0631 \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u062F \u0631\u0627 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646. \u0641\u0642\u0637 \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633\u060C \u0628\u062F\u0648\u0646 \u062A\u0648\u0636\u06CC\u062D \u0627\u0636\u0627\u0641\u06CC.
+
+\u067E\u06CC\u0627\u0645: "${message}"
+
+\u0627\u06AF\u0631 \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644\u06CC \u067E\u06CC\u062F\u0627 \u0646\u06A9\u0631\u062F\u06CC\u060C \u0641\u0642\u0637 \u06A9\u0644\u0645\u0647 "\u0646\u0627\u0645\u0634\u062E\u0635" \u0628\u0646\u0648\u06CC\u0633.`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim();
+          if (text2 === "\u0646\u0627\u0645\u0634\u062E\u0635" || text2.toLowerCase() === "unknown") {
+            return null;
+          }
+          return text2;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644:", error);
+          return null;
+        }
+      }
+      async extractQuantity(message) {
+        if (!this.openai) return null;
+        try {
+          const prompt = `\u0627\u0632 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645\u060C \u062A\u0639\u062F\u0627\u062F \u06CC\u0627 \u0639\u062F\u062F \u0631\u0627 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u06A9\u0646. \u0641\u0642\u0637 \u06CC\u06A9 \u0639\u062F\u062F \u0628\u0646\u0648\u06CC\u0633.
+
+\u067E\u06CC\u0627\u0645: "${message}"
+
+\u0627\u06AF\u0631 \u0639\u062F\u062F\u06CC \u067E\u06CC\u062F\u0627 \u0646\u06A9\u0631\u062F\u06CC \u06CC\u0627 \u062A\u0639\u062F\u0627\u062F \u0645\u0634\u062E\u0635 \u0646\u0628\u0648\u062F\u060C \u0641\u0642\u0637 \u0639\u062F\u062F 0 \u0628\u0646\u0648\u06CC\u0633.`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim();
+          const persianToEnglish = (str) => {
+            return str.replace(/[۰-۹]/g, (d) => "\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9".indexOf(d).toString()).replace(/[٠-٩]/g, (d) => "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669".indexOf(d).toString());
+          };
+          const numberText = persianToEnglish(text2.replace(/[^0-9۰-۹٠-٩]/g, ""));
+          const quantity = parseInt(numberText);
+          if (isNaN(quantity) || quantity <= 0) {
+            return null;
+          }
+          return quantity;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u062A\u0639\u062F\u0627\u062F:", error);
+          return null;
+        }
+      }
+      async isPositiveResponse(message) {
+        if (!this.openai) return false;
+        try {
+          const normalizeText = (text3) => {
+            return text3.normalize("NFKC").replace(/\u200C|\u200F|\u200E/g, "").replace(/[\u064A]/g, "\u06CC").replace(/[\u0643]/g, "\u06A9").trim().toLowerCase();
+          };
+          const normalizedMessage = normalizeText(message);
+          const negativeKeywords = [
+            "\u0646\u0647",
+            "\u0646\u062E\u06CC\u0631",
+            "\u0646\u0645\u06CC\u062E\u0648\u0627\u0645",
+            "\u0646\u0645\u06CC \u062E\u0648\u0627\u0645",
+            "\u0646\u0645\u06CC\u062E\u0648\u0627\u0647\u0645",
+            "\u0646\u0645\u06CC \u062E\u0648\u0627\u0647\u0645",
+            "\u062E\u06CC\u0631",
+            "\u06A9\u0627\u0641\u06CC\u0647",
+            "\u06A9\u0627\u0641\u06CC \u0627\u0633\u062A",
+            "\u0628\u0633\u0647",
+            "\u0628\u0633 \u0627\u0633\u062A",
+            "\u0647\u0645\u06CC\u0646",
+            "\u0647\u0645\u06CC\u0646\u0627",
+            "\u062A\u06A9\u0645\u06CC\u0644",
+            "\u062B\u0628\u062A",
+            "\u0646\u0647\u0627\u06CC\u06CC",
+            "\u062A\u0645\u0648\u0645",
+            "\u062A\u0645\u0627\u0645",
+            "\u067E\u0631\u062F\u0627\u062E\u062A",
+            "\u062E\u0631\u06CC\u062F",
+            "no",
+            "nope",
+            "enough",
+            "done",
+            "finish",
+            "complete"
+          ];
+          for (const keyword of negativeKeywords) {
+            if (normalizedMessage.includes(keyword)) {
+              console.log(`\u{1F50D} \u06A9\u0644\u0645\u0647 \u06A9\u0644\u06CC\u062F\u06CC \u0645\u0646\u0641\u06CC \u06CC\u0627\u0641\u062A \u0634\u062F: "${keyword}" - \u067E\u0627\u0633\u062E: \u0645\u0646\u0641\u06CC`);
+              return false;
+            }
+          }
+          const positiveKeywords = [
+            "\u0628\u0644\u0647",
+            "\u0622\u0631\u0647",
+            "\u0627\u0631\u0647",
+            "\u0645\u06CC\u062E\u0648\u0627\u0645",
+            "\u0645\u06CC \u062E\u0648\u0627\u0645",
+            "\u0645\u06CC\u062E\u0648\u0627\u0647\u0645",
+            "\u0645\u06CC \u062E\u0648\u0627\u0647\u0645",
+            "\u0628\u0627\u0634\u0647",
+            "\u0628\u0627\u0634\u062F",
+            "\u062D\u062A\u0645\u0627",
+            "\u0627\u0644\u0628\u062A\u0647",
+            "\u0686\u0631\u0627 \u06A9\u0647 \u0646\u0647",
+            "yes",
+            "yeah",
+            "yep",
+            "sure",
+            "ok",
+            "okay"
+          ];
+          for (const keyword of positiveKeywords) {
+            if (normalizedMessage.includes(keyword)) {
+              console.log(`\u{1F50D} \u06A9\u0644\u0645\u0647 \u06A9\u0644\u06CC\u062F\u06CC \u0645\u062B\u0628\u062A \u06CC\u0627\u0641\u062A \u0634\u062F: "${keyword}" - \u067E\u0627\u0633\u062E: \u0645\u062B\u0628\u062A`);
+              return true;
+            }
+          }
+          console.log(`\u{1F916} \u0647\u06CC\u0686 \u06A9\u0644\u0645\u0647 \u06A9\u0644\u06CC\u062F\u06CC \u0645\u0633\u062A\u0642\u06CC\u0645 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F\u060C \u0627\u0632 AI \u0645\u06CC\u200C\u067E\u0631\u0633\u06CC\u0645...`);
+          const prompt = `\u0622\u06CC\u0627 \u0627\u06CC\u0646 \u067E\u06CC\u0627\u0645 \u06CC\u06A9 \u067E\u0627\u0633\u062E \u0645\u062B\u0628\u062A (\u0628\u0644\u0647\u060C \u0622\u0631\u0647\u060C \u0645\u06CC\u062E\u0648\u0627\u0645\u060C \u062F\u0627\u0631\u0645 \u0648...) \u0627\u0633\u062A\u061F \u0641\u0642\u0637 "\u0628\u0644\u0647" \u06CC\u0627 "\u062E\u06CC\u0631" \u062C\u0648\u0627\u0628 \u0628\u062F\u0647.
+
+\u067E\u06CC\u0627\u0645: "${message}"`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim();
+          const isPositive = text2.includes("\u0628\u0644\u0647") || text2.toLowerCase().includes("yes");
+          console.log(`\u{1F916} \u067E\u0627\u0633\u062E AI: ${text2} - \u0646\u062A\u06CC\u062C\u0647: ${isPositive ? "\u0645\u062B\u0628\u062A" : "\u0645\u0646\u0641\u06CC"}`);
+          return isPositive;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0634\u062E\u06CC\u0635 \u067E\u0627\u0633\u062E \u0645\u062B\u0628\u062A:", error);
+          return false;
+        }
+      }
+      async findMatchingFaq(userQuestion) {
+        if (!this.openai) return null;
+        try {
+          const faqs2 = await storage.getActiveFaqs();
+          if (faqs2.length === 0) {
+            return null;
+          }
+          const faqList = faqs2.map(
+            (faq, index) => `${index + 1}. ${faq.question}`
+          ).join("\n");
+          const prompt = `\u0633\u0648\u0627\u0644 \u06A9\u0627\u0631\u0628\u0631: "${userQuestion}"
+
+\u0644\u06CC\u0633\u062A \u0633\u0648\u0627\u0644\u0627\u062A \u0645\u062A\u062F\u0627\u0648\u0644:
+${faqList}
+
+\u0622\u06CC\u0627 \u0633\u0648\u0627\u0644 \u06A9\u0627\u0631\u0628\u0631 \u0628\u0627 \u06CC\u06A9\u06CC \u0627\u0632 \u0633\u0648\u0627\u0644\u0627\u062A \u0645\u062A\u062F\u0627\u0648\u0644 \u0628\u0627\u0644\u0627 \u062A\u0637\u0627\u0628\u0642 \u062F\u0627\u0631\u062F\u061F \u0627\u06AF\u0631 \u0628\u0644\u0647\u060C \u0641\u0642\u0637 \u0634\u0645\u0627\u0631\u0647 \u0633\u0648\u0627\u0644 \u062A\u0637\u0627\u0628\u0642 \u06CC\u0627\u0641\u062A\u0647 \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633. \u0627\u06AF\u0631 \u0647\u06CC\u0686\u06A9\u062F\u0627\u0645 \u062A\u0637\u0627\u0628\u0642 \u0646\u062F\u0627\u0631\u062F\u060C \u0641\u0642\u0637 \u0639\u062F\u062F 0 \u0628\u0646\u0648\u06CC\u0633.`;
+          const completion = await this.openai.chat.completions.create({
+            model: this.model,
+            messages: [
+              {
+                role: "user",
+                content: prompt
+              }
+            ]
+          });
+          const text2 = (completion.choices[0].message.content || "").trim();
+          const matchedIndex = parseInt(text2) - 1;
+          if (matchedIndex >= 0 && matchedIndex < faqs2.length) {
+            const matchedFaq = faqs2[matchedIndex];
+            return {
+              question: matchedFaq.question,
+              answer: matchedFaq.answer
+            };
+          }
+          return null;
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u06CC\u0627\u0641\u062A\u0646 FAQ \u0645\u0637\u0627\u0628\u0642:", error);
+          return null;
+        }
+      }
+    };
+    liaraService = new LiaraService();
+  }
+});
+
+// server/ai-service.ts
+var ai_service_exports = {};
+__export(ai_service_exports, {
+  aiService: () => aiService
+});
+var AIService, aiService;
+var init_ai_service = __esm({
+  "server/ai-service.ts"() {
+    "use strict";
+    init_gemini_service();
+    init_liara_service();
+    init_storage();
+    AIService = class {
+      currentProvider = null;
+      async initialize() {
+        try {
+          const providers = await storage.getAllAiTokenSettings();
+          const geminiProvider = providers.find((p) => p.provider === "gemini" && p.isActive);
+          const liaraProvider = providers.find((p) => p.provider === "liara" && p.isActive);
+          if (geminiProvider) {
+            this.currentProvider = "gemini";
+            await geminiService.reinitialize();
+            console.log("\u{1F3AF} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 Gemini AI \u0628\u0647 \u0639\u0646\u0648\u0627\u0646 \u0627\u0631\u0627\u0626\u0647\u200C\u062F\u0647\u0646\u062F\u0647 \u0641\u0639\u0627\u0644");
+          } else if (liaraProvider) {
+            this.currentProvider = "liara";
+            await liaraService.reinitialize();
+            console.log("\u{1F3AF} \u0627\u0633\u062A\u0641\u0627\u062F\u0647 \u0627\u0632 Liara AI \u0628\u0647 \u0639\u0646\u0648\u0627\u0646 \u0627\u0631\u0627\u0626\u0647\u200C\u062F\u0647\u0646\u062F\u0647 \u0641\u0639\u0627\u0644");
+          } else {
+            this.currentProvider = null;
+            console.log("\u26A0\uFE0F \u0647\u06CC\u0686 \u0627\u0631\u0627\u0626\u0647\u200C\u062F\u0647\u0646\u062F\u0647 AI \u0641\u0639\u0627\u0644\u06CC \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
+          }
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 initialize \u06A9\u0631\u062F\u0646 AI Service:", error);
+          this.currentProvider = null;
+        }
+      }
+      async reinitialize() {
+        await this.initialize();
+      }
+      getActiveService() {
+        if (this.currentProvider === "gemini") {
+          return geminiService;
+        } else if (this.currentProvider === "liara") {
+          return liaraService;
+        }
+        return null;
+      }
+      async generateResponse(message, userId) {
+        const service = this.getActiveService();
+        if (!service) {
+          throw new Error("\u0647\u06CC\u0686 \u0633\u0631\u0648\u06CC\u0633 AI \u0641\u0639\u0627\u0644\u06CC \u0648\u062C\u0648\u062F \u0646\u062F\u0627\u0631\u062F. \u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u06CC\u06A9\u06CC \u0627\u0632 \u0633\u0631\u0648\u06CC\u0633\u200C\u0647\u0627 \u0631\u0627 \u0641\u0639\u0627\u0644 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          return await service.generateResponse(message, userId);
+        } catch (error) {
+          if (this.currentProvider === "gemini" && liaraService.isActive()) {
+            console.log("\u26A0\uFE0F \u062E\u0637\u0627 \u062F\u0631 Gemini\u060C \u0633\u0648\u0626\u06CC\u0686 \u0628\u0647 Liara...");
+            this.currentProvider = "liara";
+            return await liaraService.generateResponse(message, userId);
+          } else if (this.currentProvider === "liara" && geminiService.isActive()) {
+            console.log("\u26A0\uFE0F \u062E\u0637\u0627 \u062F\u0631 Liara\u060C \u0633\u0648\u0626\u06CC\u0686 \u0628\u0647 Gemini...");
+            this.currentProvider = "gemini";
+            return await geminiService.generateResponse(message, userId);
+          }
+          throw error;
+        }
+      }
+      isActive() {
+        const service = this.getActiveService();
+        return service ? service.isActive() : false;
+      }
+      async extractDepositInfo(message) {
+        const service = this.getActiveService();
+        if (!service) {
+          throw new Error("\u0647\u06CC\u0686 \u0633\u0631\u0648\u06CC\u0633 AI \u0641\u0639\u0627\u0644\u06CC \u0648\u062C\u0648\u062F \u0646\u062F\u0627\u0631\u062F. \u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u06CC\u06A9\u06CC \u0627\u0632 \u0633\u0631\u0648\u06CC\u0633\u200C\u0647\u0627 \u0631\u0627 \u0641\u0639\u0627\u0644 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          return await service.extractDepositInfo(message);
+        } catch (error) {
+          if (this.currentProvider === "gemini" && liaraService.isActive()) {
+            console.log("\u26A0\uFE0F \u062E\u0637\u0627 \u062F\u0631 Gemini\u060C \u0633\u0648\u0626\u06CC\u0686 \u0628\u0647 Liara...");
+            this.currentProvider = "liara";
+            return await liaraService.extractDepositInfo(message);
+          } else if (this.currentProvider === "liara" && geminiService.isActive()) {
+            console.log("\u26A0\uFE0F \u062E\u0637\u0627 \u062F\u0631 Liara\u060C \u0633\u0648\u0626\u06CC\u0686 \u0628\u0647 Gemini...");
+            this.currentProvider = "gemini";
+            return await geminiService.extractDepositInfo(message);
+          }
+          throw error;
+        }
+      }
+      async extractDepositInfoFromImage(imageUrl) {
+        const service = this.getActiveService();
+        if (!service) {
+          throw new Error("\u0647\u06CC\u0686 \u0633\u0631\u0648\u06CC\u0633 AI \u0641\u0639\u0627\u0644\u06CC \u0648\u062C\u0648\u062F \u0646\u062F\u0627\u0631\u062F. \u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u06CC\u06A9\u06CC \u0627\u0632 \u0633\u0631\u0648\u06CC\u0633\u200C\u0647\u0627 \u0631\u0627 \u0641\u0639\u0627\u0644 \u06A9\u0646\u06CC\u062F.");
+        }
+        try {
+          return await service.extractDepositInfoFromImage(imageUrl);
+        } catch (error) {
+          if (this.currentProvider === "gemini" && liaraService.isActive()) {
+            console.log("\u26A0\uFE0F \u062E\u0637\u0627 \u062F\u0631 Gemini\u060C \u0633\u0648\u0626\u06CC\u0686 \u0628\u0647 Liara...");
+            this.currentProvider = "liara";
+            return await liaraService.extractDepositInfoFromImage(imageUrl);
+          } else if (this.currentProvider === "liara" && geminiService.isActive()) {
+            console.log("\u26A0\uFE0F \u062E\u0637\u0627 \u062F\u0631 Liara\u060C \u0633\u0648\u0626\u06CC\u0686 \u0628\u0647 Gemini...");
+            this.currentProvider = "gemini";
+            return await geminiService.extractDepositInfoFromImage(imageUrl);
+          }
+          throw error;
+        }
+      }
+      async isDepositMessage(message) {
+        const service = this.getActiveService();
+        if (!service) {
+          return false;
+        }
+        return await service.isDepositMessage(message);
+      }
+      extractImageUrl(message) {
+        const service = this.getActiveService();
+        if (!service) {
+          return null;
+        }
+        return service.extractImageUrl(message);
+      }
+      async isProductOrderRequest(message) {
+        const service = this.getActiveService();
+        if (!service) {
+          return false;
+        }
+        return await service.isProductOrderRequest(message);
+      }
+      async extractProductName(message) {
+        const service = this.getActiveService();
+        if (!service) {
+          return null;
+        }
+        return await service.extractProductName(message);
+      }
+      async extractQuantity(message) {
+        const service = this.getActiveService();
+        if (!service) {
+          return null;
+        }
+        return await service.extractQuantity(message);
+      }
+      async isPositiveResponse(message) {
+        const service = this.getActiveService();
+        if (!service) {
+          return false;
+        }
+        return await service.isPositiveResponse(message);
+      }
+      async findMatchingFaq(userQuestion, faqs2) {
+        const service = this.getActiveService();
+        if (!service) {
+          return null;
+        }
+        if (this.currentProvider === "gemini" && geminiService.isActive()) {
+          const activeFaqs = faqs2 || await storage.getActiveFaqs();
+          return await geminiService.findMatchingFaq(userQuestion, activeFaqs);
+        } else if (this.currentProvider === "liara" && liaraService.isActive()) {
+          return await liaraService.findMatchingFaq(userQuestion);
+        }
+        return null;
+      }
+      getCurrentProvider() {
+        return this.currentProvider;
+      }
+    };
+    aiService = new AIService();
+  }
+});
+
 // server/order-session-service.ts
 var OrderSessionService, orderSessionService;
 var init_order_session_service = __esm({
@@ -3806,7 +5382,8 @@ var init_whatsapp_service = __esm({
   "server/whatsapp-service.ts"() {
     "use strict";
     init_storage();
-    init_gemini_service();
+    init_ai_service();
+    init_whatsapp_sender();
     init_order_session_service();
     init_invoice_service();
     WhatsAppMessageService = class {
@@ -3856,7 +5433,7 @@ var init_whatsapp_service = __esm({
             (user) => user.role === "user_level_1" && user.whatsappToken && user.whatsappToken.trim() !== ""
           );
           if (usersWithTokens.length === 0) {
-            await this.fetchMessagesForGlobalToken();
+            console.log("\u26A0\uFE0F \u0647\u06CC\u0686 \u06A9\u0627\u0631\u0628\u0631 \u0633\u0637\u062D 1 \u0628\u0627 \u062A\u0648\u06A9\u0646 \u0634\u062E\u0635\u06CC \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
             return;
           }
           for (const user of usersWithTokens) {
@@ -3905,7 +5482,7 @@ var init_whatsapp_service = __esm({
                 console.log(`\u{1F5BC}\uFE0F \u067E\u06CC\u0627\u0645 \u0646\u0648\u0639 file \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F \u0628\u0627 \u0622\u062F\u0631\u0633: ${imageUrl}`);
               } else if (message.message) {
                 messageContent = message.message;
-                imageUrl = geminiService.extractImageUrl(message.message);
+                imageUrl = aiService.extractImageUrl(message.message);
                 if (imageUrl) {
                   console.log(`\u{1F5BC}\uFE0F \u0622\u062F\u0631\u0633 \u0639\u06A9\u0633 \u0627\u0632 \u0645\u062A\u0646 \u067E\u06CC\u0627\u0645 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F: ${imageUrl}`);
                 }
@@ -3926,7 +5503,7 @@ var init_whatsapp_service = __esm({
                   status: "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647",
                   originalDate: message.date
                 });
-                if (geminiService.isActive() && !isUserInRegistrationProcess) {
+                if (aiService.isActive() && !isUserInRegistrationProcess) {
                   await this.handleAutoResponse(message.from, messageContent, message.id, user.id);
                 }
                 newMessagesCount++;
@@ -3944,94 +5521,6 @@ var init_whatsapp_service = __esm({
             console.error(`\u23F1\uFE0F Timeout: \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u0631\u0627\u06CC ${user.username} \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0627\u0646\u062A\u0638\u0627\u0631 \u0637\u0648\u0644 \u06A9\u0634\u06CC\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC ${user.username}:`, error.message || error);
-          }
-        }
-      }
-      /**
-       * دریافت پیام‌ها با استفاده از توکن عمومی (برای ادمین)
-       */
-      async fetchMessagesForGlobalToken() {
-        try {
-          const settings = await storage.getWhatsappSettings();
-          if (!settings || !settings.token || !settings.isEnabled) {
-            console.log("\u26A0\uFE0F \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A \u06CC\u0627 \u062A\u0648\u06A9\u0646 \u0645\u0648\u062C\u0648\u062F \u0646\u06CC\u0633\u062A");
-            return;
-          }
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 1e4);
-          const response = await fetch(`https://api.whatsiplus.com/receivedMessages/${settings.token}?page=1`, {
-            method: "GET",
-            signal: controller.signal,
-            headers: {
-              "User-Agent": "WhatsApp-Service/1.0",
-              "Accept": "application/json",
-              "Cache-Control": "no-cache"
-            }
-          });
-          clearTimeout(timeoutId);
-          if (!response.ok) {
-            console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC:", response.status, response.statusText);
-            return;
-          }
-          const data = await response.json();
-          if (!data.data || data.data.length === 0) {
-            return;
-          }
-          let newMessagesCount = 0;
-          const adminUsers = await storage.getAllUsers();
-          const admin = adminUsers.find((user) => user.role === "admin");
-          if (!admin) {
-            console.error("\u274C \u0647\u06CC\u0686 \u06A9\u0627\u0631\u0628\u0631 \u0627\u062F\u0645\u06CC\u0646 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
-            return;
-          }
-          for (const message of data.data) {
-            try {
-              let messageContent = "";
-              let imageUrl = null;
-              if (message.type === "file" && message.mediaUrl) {
-                messageContent = message.mediaUrl;
-                imageUrl = message.mediaUrl;
-                console.log(`\u{1F5BC}\uFE0F \u067E\u06CC\u0627\u0645 \u0646\u0648\u0639 file \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F \u0628\u0627 \u0622\u062F\u0631\u0633: ${imageUrl}`);
-              } else if (message.message) {
-                messageContent = message.message;
-                imageUrl = geminiService.extractImageUrl(message.message);
-                if (imageUrl) {
-                  console.log(`\u{1F5BC}\uFE0F \u0622\u062F\u0631\u0633 \u0639\u06A9\u0633 \u0627\u0632 \u0645\u062A\u0646 \u067E\u06CC\u0627\u0645 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0634\u062F: ${imageUrl}`);
-                }
-              }
-              if (!messageContent || messageContent.trim() === "") {
-                continue;
-              }
-              const existingMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(message.id, admin.id);
-              if (!existingMessage) {
-                const isUserInRegistrationProcess = await this.handleAutoRegistration(message.from, messageContent, admin.id);
-                await storage.createReceivedMessage({
-                  userId: admin.id,
-                  whatsiPlusId: message.id,
-                  sender: message.from,
-                  message: messageContent,
-                  imageUrl,
-                  status: "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647",
-                  originalDate: message.date
-                });
-                if (geminiService.isActive() && !isUserInRegistrationProcess) {
-                  await this.handleAutoResponse(message.from, messageContent, message.id, admin.id);
-                }
-                newMessagesCount++;
-              }
-            } catch (error) {
-              console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u067E\u06CC\u0627\u0645:", error);
-            }
-          }
-          if (newMessagesCount > 0) {
-            console.log(`\u{1F4E8} ${newMessagesCount} \u067E\u06CC\u0627\u0645 \u062C\u062F\u06CC\u062F \u0627\u0632 \u062A\u0648\u06A9\u0646 \u0639\u0645\u0648\u0645\u06CC \u062F\u0631\u06CC\u0627\u0641\u062A \u0648 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F`);
-            this.lastFetchTime = /* @__PURE__ */ new Date();
-          }
-        } catch (error) {
-          if (error.name === "AbortError") {
-            console.error("\u23F1\uFE0F Timeout: \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0627\u0646\u062A\u0638\u0627\u0631 \u0637\u0648\u0644 \u06A9\u0634\u06CC\u062F");
-          } else {
-            console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error.message || error);
           }
         }
       }
@@ -4059,8 +5548,10 @@ var init_whatsapp_service = __esm({
       async sendNameRequestMessage(whatsappNumber, fromUser) {
         try {
           let whatsappToken;
+          let senderId;
           if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
             whatsappToken = fromUser.whatsappToken;
+            senderId = fromUser.id;
           } else {
             const whatsappSettings2 = await storage.getWhatsappSettings();
             if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
@@ -4068,6 +5559,7 @@ var init_whatsapp_service = __esm({
               return false;
             }
             whatsappToken = whatsappSettings2.token;
+            senderId = fromUser?.id || "system";
           }
           const nameRequestMessage = `\u0633\u0644\u0627\u0645! \u{1F44B}
       
@@ -4079,6 +5571,12 @@ var init_whatsapp_service = __esm({
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(nameRequestMessage)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            await storage.createSentMessage({
+              userId: senderId,
+              recipient: whatsappNumber,
+              message: nameRequestMessage,
+              status: "sent"
+            });
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0646\u0627\u0645 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
             return true;
           } else {
@@ -4192,14 +5690,17 @@ var init_whatsapp_service = __esm({
       async sendWelcomeMessage(whatsappNumber, firstName, fromUser) {
         try {
           let whatsappToken;
+          let senderId;
           if (fromUser && fromUser.role === "user_level_1" && fromUser.whatsappToken && fromUser.whatsappToken.trim() !== "") {
             whatsappToken = fromUser.whatsappToken;
+            senderId = fromUser.id;
           } else {
             const whatsappSettings2 = await storage.getWhatsappSettings();
             if (!whatsappSettings2?.token || !whatsappSettings2.isEnabled) {
               return;
             }
             whatsappToken = whatsappSettings2.token;
+            senderId = fromUser?.id || "system";
           }
           let welcomeMessage = fromUser?.welcomeMessage;
           if (!welcomeMessage || welcomeMessage.trim() === "") {
@@ -4216,6 +5717,12 @@ var init_whatsapp_service = __esm({
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(welcomeMessage)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            await storage.createSentMessage({
+              userId: senderId,
+              recipient: whatsappNumber,
+              message: welcomeMessage,
+              status: "sent"
+            });
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062E\u0648\u0634\u0627\u0645\u062F\u06AF\u0648\u06CC\u06CC \u0628\u0647 ${whatsappNumber}`);
@@ -4243,7 +5750,7 @@ var init_whatsapp_service = __esm({
             console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 ${sender} \u0633\u0637\u062D 2 \u0646\u06CC\u0633\u062A`);
             return false;
           }
-          const depositInfo = await geminiService.extractDepositInfo(message);
+          const depositInfo = await aiService.extractDepositInfo(message);
           console.log(`\u{1F4CA} Telemetry - Deposit extraction attempt:`, JSON.stringify({
             sender,
             extractedAmount: depositInfo.amount,
@@ -4313,7 +5820,7 @@ var init_whatsapp_service = __esm({
             console.log(`\u26A0\uFE0F \u06A9\u0627\u0631\u0628\u0631 ${sender} \u0633\u0637\u062D 2 \u0646\u06CC\u0633\u062A`);
             return false;
           }
-          const depositInfo = await geminiService.extractDepositInfoFromImage(imageUrl);
+          const depositInfo = await aiService.extractDepositInfoFromImage(imageUrl);
           console.log(`\u{1F4CA} Telemetry - Deposit extraction from image:`, JSON.stringify({
             sender,
             imageUrl,
@@ -4399,6 +5906,12 @@ ${missingFieldsText}
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(clarificationMessage)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            await storage.createSentMessage({
+              userId: fromUserId,
+              recipient: whatsappNumber,
+              message: clarificationMessage,
+              status: "sent"
+            });
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u0647 ${whatsappNumber}`);
@@ -4437,6 +5950,12 @@ ${missingFieldsText}
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(warningMessage)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            await storage.createSentMessage({
+              userId: fromUserId,
+              recipient: whatsappNumber,
+              message: warningMessage,
+              status: "sent"
+            });
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u0647\u0634\u062F\u0627\u0631 \u062A\u0631\u0627\u06A9\u0646\u0634 \u062A\u06A9\u0631\u0627\u0631\u06CC \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0647\u0634\u062F\u0627\u0631 \u0628\u0647 ${whatsappNumber}`);
@@ -4472,6 +5991,12 @@ ${missingFieldsText}
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(confirmationMessage)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            await storage.createSentMessage({
+              userId: fromUserId,
+              recipient: whatsappNumber,
+              message: confirmationMessage,
+              status: "sent"
+            });
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F\u06CC\u0647 \u0648\u0627\u0631\u06CC\u0632 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F\u06CC\u0647 \u0648\u0627\u0631\u06CC\u0632 \u0628\u0647 ${whatsappNumber}`);
@@ -4509,6 +6034,12 @@ ${missingFieldsText}
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(approvedMessage)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            await storage.createSentMessage({
+              userId: fromUserId,
+              recipient: whatsappNumber,
+              message: approvedMessage,
+              status: "sent"
+            });
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u062A\u0627\u06CC\u06CC\u062F \u0628\u0647 ${whatsappNumber}`);
@@ -4546,6 +6077,12 @@ ${missingFieldsText}
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${whatsappNumber}&message=${encodeURIComponent(rejectedMessage)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            await storage.createSentMessage({
+              userId: fromUserId,
+              recipient: whatsappNumber,
+              message: rejectedMessage,
+              status: "sent"
+            });
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u0631\u062F \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0631\u062F \u0628\u0647 ${whatsappNumber}`);
@@ -4571,18 +6108,18 @@ ${missingFieldsText}
           }
           const session = orderSessionService.getSession(senderUser.id, sender);
           if (session.state === "idle") {
-            const isOrder = await geminiService.isProductOrderRequest(message);
+            const isOrder = await aiService.isProductOrderRequest(message);
             if (!isOrder) {
               return false;
             }
-            const productName = await geminiService.extractProductName(message);
+            const productName = await aiService.extractProductName(message);
             if (!productName) {
-              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0645\u062A\u0648\u062C\u0647 \u0646\u0634\u062F\u0645 \u0686\u0647 \u0645\u062D\u0635\u0648\u0644\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F. \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0648\u0627\u0636\u062D\u200C\u062A\u0631 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.");
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0645\u062A\u0648\u062C\u0647 \u0646\u0634\u062F\u0645 \u0686\u0647 \u0645\u062D\u0635\u0648\u0644\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F. \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0648\u0627\u0636\u062D\u200C\u062A\u0631 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.", receiverUserId);
               return true;
             }
             const parentUser = await storage.getUser(senderUser.parentUserId || "");
             if (!parentUser) {
-              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u0628\u0639\u062F\u0627\u064B \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.");
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u0628\u0639\u062F\u0627\u064B \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", receiverUserId);
               return true;
             }
             const products2 = await storage.getAllProducts(parentUser.id, "user_level_1");
@@ -4590,7 +6127,7 @@ ${missingFieldsText}
               (p) => p.isActive && (p.name.toLowerCase().includes(productName.toLowerCase()) || p.description && p.description.toLowerCase().includes(productName.toLowerCase()))
             );
             if (matchedProducts.length === 0) {
-              await this.sendWhatsAppMessage(whatsappToken, sender, `\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u0645\u062D\u0635\u0648\u0644 "${productName}" \u06CC\u0627\u0641\u062A \u0646\u0634\u062F. \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u062F\u06CC\u06AF\u0631\u06CC \u0631\u0627 \u0627\u0645\u062A\u062D\u0627\u0646 \u06A9\u0646\u06CC\u062F.`);
+              await this.sendWhatsAppMessage(whatsappToken, sender, `\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u0645\u062D\u0635\u0648\u0644 "${productName}" \u06CC\u0627\u0641\u062A \u0646\u0634\u062F. \u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u062F\u06CC\u06AF\u0631\u06CC \u0631\u0627 \u0627\u0645\u062A\u062D\u0627\u0646 \u06A9\u0646\u06CC\u062F.`, receiverUserId);
               orderSessionService.clearSession(senderUser.id);
               return true;
             }
@@ -4599,7 +6136,7 @@ ${missingFieldsText}
               await this.sendWhatsAppMessage(whatsappToken, sender, `\u0686\u0646\u062F \u0645\u062D\u0635\u0648\u0644 \u067E\u06CC\u062F\u0627 \u0634\u062F:
 ${productList}
 
-\u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u062F\u0642\u06CC\u0642 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.`);
+\u0644\u0637\u0641\u0627\u064B \u0646\u0627\u0645 \u062F\u0642\u06CC\u0642 \u0645\u062D\u0635\u0648\u0644 \u0631\u0627 \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F.`, receiverUserId);
               orderSessionService.clearSession(senderUser.id);
               return true;
             }
@@ -4609,15 +6146,35 @@ ${productList}
               state: "asking_quantity"
             });
             const price = product.priceAfterDiscount || product.priceBeforeDiscount;
-            await this.sendWhatsAppMessage(whatsappToken, sender, `\u2705 ${product.name}
+            const productMessage = `\u2705 ${product.name}
 \u0642\u06CC\u0645\u062A: ${this.formatAmount(price)} \u0631\u06CC\u0627\u0644
 
-\u0686\u0647 \u062A\u0639\u062F\u0627\u062F\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F`);
+\u0686\u0647 \u062A\u0639\u062F\u0627\u062F\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F`;
+            if (product.image) {
+              let productImageUrl = product.image;
+              if (!productImageUrl.startsWith("http")) {
+                if (process.env.REPLIT_DEV_DOMAIN) {
+                  productImageUrl = `https://${process.env.REPLIT_DEV_DOMAIN}${productImageUrl}`;
+                } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+                  productImageUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co${productImageUrl}`;
+                } else {
+                  productImageUrl = `http://localhost:5000${productImageUrl}`;
+                }
+              }
+              await whatsAppSender.sendImage(
+                sender,
+                productMessage,
+                productImageUrl,
+                parentUser.id
+              );
+            } else {
+              await this.sendWhatsAppMessage(whatsappToken, sender, productMessage, receiverUserId);
+            }
             return true;
           } else if (session.state === "asking_quantity") {
-            const quantity = await geminiService.extractQuantity(message);
+            const quantity = await aiService.extractQuantity(message);
             if (!quantity || quantity <= 0) {
-              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0644\u0637\u0641\u0627\u064B \u062A\u0639\u062F\u0627\u062F \u0631\u0627 \u0628\u0647 \u0635\u0648\u0631\u062A \u0639\u062F\u062F \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F. \u0645\u062B\u0644\u0627\u064B: 2 \u06CC\u0627 \u0633\u0647");
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0644\u0637\u0641\u0627\u064B \u062A\u0639\u062F\u0627\u062F \u0631\u0627 \u0628\u0647 \u0635\u0648\u0631\u062A \u0639\u062F\u062F \u0628\u0646\u0648\u06CC\u0633\u06CC\u062F. \u0645\u062B\u0644\u0627\u064B: 2 \u06CC\u0627 \u0633\u0647", receiverUserId);
               return true;
             }
             if (!session.currentProduct) {
@@ -4625,7 +6182,7 @@ ${productList}
               return false;
             }
             if (session.currentProduct.quantity < quantity) {
-              await this.sendWhatsAppMessage(whatsappToken, sender, `\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062A\u0646\u0647\u0627 ${session.currentProduct.quantity} \u0639\u062F\u062F \u0645\u0648\u062C\u0648\u062F \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0639\u062F\u0627\u062F \u06A9\u0645\u062A\u0631\u06CC \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.`);
+              await this.sendWhatsAppMessage(whatsappToken, sender, `\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062A\u0646\u0647\u0627 ${session.currentProduct.quantity} \u0639\u062F\u062F \u0645\u0648\u062C\u0648\u062F \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u062A\u0639\u062F\u0627\u062F \u06A9\u0645\u062A\u0631\u06CC \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.`, receiverUserId);
               return true;
             }
             try {
@@ -4637,7 +6194,8 @@ ${productList}
                 `\u2705 ${quantity} \u0639\u062F\u062F ${session.currentProduct.name} \u0628\u0647 \u0633\u0628\u062F \u062E\u0631\u06CC\u062F \u0627\u0636\u0627\u0641\u0647 \u0634\u062F.
 \u062C\u0645\u0639: ${this.formatAmount(totalPrice.toString())} \u0631\u06CC\u0627\u0644
 
-\u0645\u062D\u0635\u0648\u0644 \u062F\u06CC\u06AF\u0647\u200C\u0627\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F`
+\u0645\u062D\u0635\u0648\u0644 \u062F\u06CC\u06AF\u0647\u200C\u0627\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F`,
+                receiverUserId
               );
               orderSessionService.updateSession(senderUser.id, {
                 state: "asking_more_products",
@@ -4646,20 +6204,86 @@ ${productList}
               return true;
             } catch (error) {
               console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0636\u0627\u0641\u0647 \u06A9\u0631\u062F\u0646 \u0628\u0647 \u0633\u0628\u062F \u062E\u0631\u06CC\u062F:", error);
-              await this.sendWhatsAppMessage(whatsappToken, sender, "\u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.");
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", receiverUserId);
               orderSessionService.clearSession(senderUser.id);
               return true;
             }
           } else if (session.state === "asking_more_products") {
-            const wantsMore = await geminiService.isPositiveResponse(message);
+            const wantsMore = await aiService.isPositiveResponse(message);
             if (wantsMore) {
               orderSessionService.updateSession(senderUser.id, { state: "idle" });
-              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0628\u0627\u0634\u0647! \u0686\u0647 \u0645\u062D\u0635\u0648\u0644\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F");
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0628\u0627\u0634\u0647! \u0686\u0647 \u0645\u062D\u0635\u0648\u0644\u06CC \u0645\u06CC\u200C\u062E\u0648\u0627\u0647\u06CC\u062F\u061F", receiverUserId);
               return true;
             } else {
-              await this.finalizeOrder(senderUser, sender, whatsappToken);
+              const addresses2 = await storage.getAddressesByUser(senderUser.id);
+              if (!addresses2 || addresses2.length === 0) {
+                orderSessionService.updateSession(senderUser.id, {
+                  state: "asking_address_title",
+                  addressData: {}
+                });
+                await this.sendWhatsAppMessage(whatsappToken, sender, "\u{1F4CD} \u0644\u0637\u0641\u0627\u064B \u0639\u0646\u0648\u0627\u0646 \u0622\u062F\u0631\u0633 \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.\n\u0645\u062B\u0627\u0644: \u0645\u0646\u0632\u0644\u060C \u0645\u062D\u0644 \u06A9\u0627\u0631", receiverUserId);
+                return true;
+              } else {
+                await this.askShippingMethod(senderUser, sender, whatsappToken, receiverUserId);
+                return true;
+              }
+            }
+          } else if (session.state === "asking_address_title") {
+            orderSessionService.updateSession(senderUser.id, {
+              addressData: { ...session.addressData, title: message }
+            });
+            orderSessionService.updateSession(senderUser.id, { state: "asking_address_full" });
+            await this.sendWhatsAppMessage(whatsappToken, sender, "\u{1F4CD} \u0644\u0637\u0641\u0627\u064B \u0622\u062F\u0631\u0633 \u06A9\u0627\u0645\u0644 \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.", receiverUserId);
+            return true;
+          } else if (session.state === "asking_address_full") {
+            orderSessionService.updateSession(senderUser.id, {
+              addressData: { ...session.addressData, fullAddress: message }
+            });
+            orderSessionService.updateSession(senderUser.id, { state: "asking_address_postal_code" });
+            await this.sendWhatsAppMessage(whatsappToken, sender, "\u{1F4CD} \u0644\u0637\u0641\u0627\u064B \u06A9\u062F \u067E\u0633\u062A\u06CC \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.", receiverUserId);
+            return true;
+          } else if (session.state === "asking_address_postal_code") {
+            const addressData = session.addressData;
+            if (!addressData?.title || !addressData?.fullAddress) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", receiverUserId);
+              orderSessionService.clearSession(senderUser.id);
               return true;
             }
+            try {
+              await storage.createAddress({
+                userId: senderUser.id,
+                title: addressData.title,
+                fullAddress: addressData.fullAddress,
+                postalCode: message,
+                isDefault: true
+                // به عنوان پیش‌فرض تنظیم می‌شود
+              });
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u2705 \u0622\u062F\u0631\u0633 \u0634\u0645\u0627 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0634\u062F.", receiverUserId);
+              await this.askShippingMethod(senderUser, sender, whatsappToken, receiverUserId);
+              return true;
+            } catch (error) {
+              console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u0622\u062F\u0631\u0633:", error);
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u062E\u0637\u0627\u06CC\u06CC \u062F\u0631 \u062B\u0628\u062A \u0622\u062F\u0631\u0633 \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", receiverUserId);
+              orderSessionService.clearSession(senderUser.id);
+              return true;
+            }
+          } else if (session.state === "asking_shipping_method") {
+            const choiceNumber = await this.parseShippingMethodChoice(message);
+            if (!choiceNumber) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0627\u0646\u062A\u062E\u0627\u0628 \u0646\u0627\u0645\u0639\u062A\u0628\u0631. \u0644\u0637\u0641\u0627\u064B \u0634\u0645\u0627\u0631\u0647 \u0631\u0648\u0634 \u0627\u0631\u0633\u0627\u0644 \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.", receiverUserId);
+              return true;
+            }
+            const availableMethods = session.availableShippingMethods || [];
+            const selectedMethod = availableMethods.find((m) => m.num === parseInt(choiceNumber));
+            if (!selectedMethod) {
+              await this.sendWhatsAppMessage(whatsappToken, sender, "\u0634\u0645\u0627\u0631\u0647 \u0646\u0627\u0645\u0639\u062A\u0628\u0631. \u0644\u0637\u0641\u0627\u064B \u0627\u0632 \u0628\u06CC\u0646 \u06AF\u0632\u06CC\u0646\u0647\u200C\u0647\u0627\u06CC \u0645\u0648\u062C\u0648\u062F \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646\u06CC\u062F.", receiverUserId);
+              return true;
+            }
+            orderSessionService.updateSession(senderUser.id, {
+              selectedShippingMethod: selectedMethod.value
+            });
+            await this.finalizeOrder(senderUser, sender, whatsappToken, receiverUserId);
+            return true;
           }
           return false;
         } catch (error) {
@@ -4669,13 +6293,74 @@ ${productList}
         }
       }
       /**
+       * پرسیدن روش ارسال از کاربر
+       */
+      async askShippingMethod(user, whatsappNumber, whatsappToken, receiverUserId) {
+        try {
+          const sellerId = user.parentUserId;
+          if (!sellerId) {
+            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", receiverUserId);
+            orderSessionService.clearSession(user.id);
+            return;
+          }
+          const shippingSettings2 = await storage.getShippingSettings(sellerId);
+          const availableMethods = [];
+          let methodNum = 1;
+          if (shippingSettings2?.postPishtazEnabled) {
+            availableMethods.push({ num: methodNum++, name: "\u067E\u0633\u062A \u067E\u06CC\u0634\u062A\u0627\u0632", value: "post_pishtaz" });
+          }
+          if (shippingSettings2?.postNormalEnabled) {
+            availableMethods.push({ num: methodNum++, name: "\u067E\u0633\u062A \u0645\u0639\u0645\u0648\u0644\u06CC", value: "post_normal" });
+          }
+          if (shippingSettings2?.piykEnabled) {
+            availableMethods.push({ num: methodNum++, name: "\u0627\u0631\u0633\u0627\u0644 \u0628\u0627 \u067E\u06CC\u06A9", value: "piyk" });
+          }
+          const cartItems2 = await storage.getCartItemsWithProducts(user.id);
+          const totalAmount = cartItems2.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
+          if (shippingSettings2?.freeShippingEnabled && shippingSettings2.freeShippingMinAmount && totalAmount >= parseFloat(shippingSettings2.freeShippingMinAmount)) {
+            availableMethods.push({ num: methodNum++, name: "\u0627\u0631\u0633\u0627\u0644 \u0631\u0627\u06CC\u06AF\u0627\u0646 \u{1F381}", value: "free" });
+          }
+          if (availableMethods.length === 0) {
+            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u0647\u06CC\u0686 \u0631\u0648\u0634 \u0627\u0631\u0633\u0627\u0644\u06CC \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u0628\u0627 \u0641\u0631\u0648\u0634\u0646\u062F\u0647 \u062A\u0645\u0627\u0633 \u0628\u06AF\u06CC\u0631\u06CC\u062F.", receiverUserId);
+            orderSessionService.clearSession(user.id);
+            return;
+          }
+          let message = "\u{1F69A} \u0644\u0637\u0641\u0627\u064B \u0631\u0648\u0634 \u0627\u0631\u0633\u0627\u0644 \u0631\u0627 \u0627\u0646\u062A\u062E\u0627\u0628 \u06A9\u0646\u06CC\u062F:\n\n";
+          availableMethods.forEach((method) => {
+            message += `${method.num}. ${method.name}
+`;
+          });
+          message += "\n\u0634\u0645\u0627\u0631\u0647 \u0631\u0648\u0634 \u0645\u0648\u0631\u062F \u0646\u0638\u0631 \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F.";
+          orderSessionService.updateSession(user.id, {
+            state: "asking_shipping_method",
+            availableShippingMethods: availableMethods
+          });
+          await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, message, receiverUserId);
+        } catch (error) {
+          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u0633\u06CC\u062F\u0646 \u0631\u0648\u0634 \u0627\u0631\u0633\u0627\u0644:", error);
+          await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", receiverUserId);
+          orderSessionService.clearSession(user.id);
+        }
+      }
+      /**
+       * Parse کردن انتخاب روش ارسال کاربر
+       */
+      async parseShippingMethodChoice(message) {
+        const numberMatch = message.match(/\d+/);
+        if (!numberMatch) return null;
+        const number = parseInt(numberMatch[0]);
+        if (isNaN(number) || number < 1) return null;
+        return number.toString();
+      }
+      /**
        * ثبت نهایی سفارش از سبد خرید
        */
-      async finalizeOrder(user, whatsappNumber, whatsappToken) {
+      async finalizeOrder(user, whatsappNumber, whatsappToken, receiverUserId) {
         try {
           const cartItems2 = await storage.getCartItemsWithProducts(user.id);
+          const userId = receiverUserId || user.parentUserId || user.id;
           if (cartItems2.length === 0) {
-            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u0633\u0628\u062F \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u062E\u0627\u0644\u06CC \u0627\u0633\u062A.");
+            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u0633\u0628\u062F \u062E\u0631\u06CC\u062F \u0634\u0645\u0627 \u062E\u0627\u0644\u06CC \u0627\u0633\u062A.", userId);
             orderSessionService.clearSession(user.id);
             return;
           }
@@ -4692,13 +6377,15 @@ ${productList}
           const addresses2 = await storage.getAddressesByUser(user.id);
           const defaultAddress = addresses2.find((addr) => addr.isDefault) || addresses2[0];
           if (!defaultAddress) {
-            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u0627\u0632 \u067E\u0646\u0644 \u06A9\u0627\u0631\u0628\u0631\u06CC\u060C \u0622\u062F\u0631\u0633 \u062E\u0648\u062F \u0631\u0627 \u062B\u0628\u062A \u06A9\u0646\u06CC\u062F.");
+            console.error("\u274C \u062E\u0637\u0627\u06CC \u063A\u06CC\u0631\u0645\u0646\u062A\u0638\u0631\u0647: \u0622\u062F\u0631\u0633 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
+            await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", userId);
             orderSessionService.clearSession(user.id);
             return;
           }
           let totalOrders = 0;
           let grandTotal = 0;
-          let lastOrderId = "";
+          const createdOrders = [];
+          const session = orderSessionService.getSession(user.id, whatsappNumber);
           for (const [sellerId, items] of Array.from(itemsBySeller.entries())) {
             const totalAmount = items.reduce((sum, item) => sum + parseFloat(item.totalPrice), 0);
             grandTotal += totalAmount;
@@ -4707,7 +6394,8 @@ ${productList}
               sellerId,
               totalAmount: totalAmount.toString(),
               status: "pending",
-              addressId: defaultAddress.id
+              addressId: defaultAddress.id,
+              shippingMethod: session.selectedShippingMethod || null
             });
             for (const item of items) {
               await storage.createOrderItem({
@@ -4718,7 +6406,7 @@ ${productList}
                 totalPrice: item.totalPrice
               });
             }
-            lastOrderId = order.id;
+            createdOrders.push({ id: order.id, sellerId });
             totalOrders++;
           }
           await storage.clearCart(user.id);
@@ -4736,38 +6424,52 @@ ${fullAddress}
 
 \u{1F4B0} \u0645\u0628\u0644\u063A \u06A9\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631: ${this.formatAmount(grandTotal.toString())} \u0631\u06CC\u0627\u0644
 
-\u0628\u0631\u0627\u06CC \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u0633\u0641\u0627\u0631\u0634\u060C \u0628\u0647 \u067E\u0646\u0644 \u06A9\u0627\u0631\u0628\u0631\u06CC \u062E\u0648\u062F \u0645\u0631\u0627\u062C\u0639\u0647 \u06A9\u0646\u06CC\u062F.`
+\u0628\u0631\u0627\u06CC \u067E\u06CC\u06AF\u06CC\u0631\u06CC \u0633\u0641\u0627\u0631\u0634\u060C \u0628\u0647 \u067E\u0646\u0644 \u06A9\u0627\u0631\u0628\u0631\u06CC \u062E\u0648\u062F \u0645\u0631\u0627\u062C\u0639\u0647 \u06A9\u0646\u06CC\u062F.`,
+            userId
           );
-          if (lastOrderId) {
+          for (const order of createdOrders) {
             try {
-              console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${lastOrderId}...`);
-              const invoiceUrl = await generateAndSaveInvoice(lastOrderId);
-              await this.sendWhatsAppImage(
-                whatsappToken,
+              console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${order.id}...`);
+              const invoiceUrl = await generateAndSaveInvoice(order.id);
+              console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F: ${invoiceUrl}`);
+              const success = await whatsAppSender.sendImage(
                 whatsappNumber,
                 `\u{1F4C4} \u0641\u0627\u06A9\u062A\u0648\u0631 \u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627`,
-                invoiceUrl
+                invoiceUrl,
+                order.sellerId
               );
-              console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+              if (success) {
+                console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0647 ${whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+              } else {
+                console.log(`\u26A0\uFE0F \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0647 ${whatsappNumber} \u0646\u0627\u0645\u0648\u0641\u0642 \u0628\u0648\u062F`);
+              }
             } catch (error) {
-              console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u06CC\u0627 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631:", error);
+              console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u06CC\u0627 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${order.id}:`, error);
             }
           }
           orderSessionService.clearSession(user.id);
         } catch (error) {
           console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u0646\u0647\u0627\u06CC\u06CC \u0633\u0641\u0627\u0631\u0634:", error);
-          await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u062E\u0637\u0627\u06CC\u06CC \u062F\u0631 \u062B\u0628\u062A \u0633\u0641\u0627\u0631\u0634 \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.");
+          await this.sendWhatsAppMessage(whatsappToken, whatsappNumber, "\u062E\u0637\u0627\u06CC\u06CC \u062F\u0631 \u062B\u0628\u062A \u0633\u0641\u0627\u0631\u0634 \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.", receiverUserId || user.parentUserId || user.id);
           orderSessionService.clearSession(user.id);
         }
       }
       /**
        * ارسال پیام واتساپ
        */
-      async sendWhatsAppMessage(token, phoneNumber, message) {
+      async sendWhatsAppMessage(token, phoneNumber, message, userId) {
         try {
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${token}?phonenumber=${phoneNumber}&message=${encodeURIComponent(message)}`;
           const response = await fetch(sendUrl, { method: "GET" });
           if (response.ok) {
+            if (userId) {
+              await storage.createSentMessage({
+                userId,
+                recipient: phoneNumber,
+                message,
+                status: "sent"
+              });
+            }
             console.log(`\u2705 \u067E\u06CC\u0627\u0645 \u0628\u0647 ${phoneNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
           } else {
             console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0628\u0647 ${phoneNumber}`);
@@ -4811,7 +6513,7 @@ ${fullAddress}
       async handleAutoResponse(sender, incomingMessage, whatsiPlusId, userId) {
         try {
           console.log(`\u{1F916} \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u067E\u0627\u0633\u062E \u0628\u0631\u0627\u06CC \u067E\u06CC\u0627\u0645 \u0627\u0632 ${sender}...`);
-          const imageUrl = geminiService.extractImageUrl(incomingMessage);
+          const imageUrl = aiService.extractImageUrl(incomingMessage);
           if (imageUrl) {
             console.log(`\u{1F5BC}\uFE0F \u067E\u06CC\u0627\u0645 \u062D\u0627\u0648\u06CC \u0639\u06A9\u0633 \u0627\u0633\u062A\u060C \u062F\u0631 \u062D\u0627\u0644 \u067E\u0631\u062F\u0627\u0632\u0634 \u0639\u06A9\u0633 \u0631\u0633\u06CC\u062F...`);
             const depositProcessed = await this.handleDepositImageMessage(sender, imageUrl, userId);
@@ -4824,7 +6526,7 @@ ${fullAddress}
             }
             console.log(`\u2139\uFE0F \u0639\u06A9\u0633 \u0648\u0627\u0631\u06CC\u0632\u06CC \u0646\u0628\u0648\u062F\u060C \u0627\u062F\u0627\u0645\u0647 \u0645\u06CC\u200C\u062F\u0647\u06CC\u0645 \u0628\u0627 \u067E\u0627\u0633\u062E \u0639\u0627\u062F\u06CC AI...`);
           }
-          const isDeposit = await geminiService.isDepositMessage(incomingMessage);
+          const isDeposit = await aiService.isDepositMessage(incomingMessage);
           if (isDeposit) {
             console.log(`\u{1F4B0} \u067E\u06CC\u0627\u0645 \u062A\u0634\u062E\u06CC\u0635 \u062F\u0627\u062F\u0647 \u0634\u062F \u0628\u0647 \u0639\u0646\u0648\u0627\u0646 \u0631\u0633\u06CC\u062F \u0648\u0627\u0631\u06CC\u0632\u06CC \u0645\u062A\u0646\u06CC`);
             const depositProcessed = await this.handleDepositMessage(sender, incomingMessage, userId);
@@ -4861,19 +6563,13 @@ ${fullAddress}
             const parentFaqs = await storage.getFaqsByCreator(senderUser.parentUserId);
             if (parentFaqs.length > 0) {
               console.log(`\u{1F4CB} ${parentFaqs.length} \u0633\u0648\u0627\u0644 \u0645\u062A\u062F\u0627\u0648\u0644 \u0627\u0632 \u0648\u0627\u0644\u062F \u067E\u06CC\u062F\u0627 \u0634\u062F`);
-              const matchedFaq = await geminiService.findMatchingFaq(
+              const matchedFaq = await aiService.findMatchingFaq(
                 incomingMessage,
                 parentFaqs.map((faq) => ({ id: faq.id, question: faq.question, answer: faq.answer }))
               );
               if (matchedFaq) {
                 console.log(`\u2705 FAQ \u0645\u0646\u0637\u0628\u0642 \u067E\u06CC\u062F\u0627 \u0634\u062F: "${matchedFaq.question}"`);
-                await this.sendWhatsAppMessage(whatsappToken, sender, matchedFaq.answer);
-                await storage.createSentMessage({
-                  userId,
-                  recipient: sender,
-                  message: matchedFaq.answer,
-                  status: "sent"
-                });
+                await this.sendWhatsAppMessage(whatsappToken, sender, matchedFaq.answer, userId);
                 const userMessage = await storage.getReceivedMessageByWhatsiPlusIdAndUser(whatsiPlusId, userId);
                 if (userMessage) {
                   await storage.updateReceivedMessageStatus(userMessage.id, "\u062E\u0648\u0627\u0646\u062F\u0647 \u0634\u062F\u0647");
@@ -4893,13 +6589,8 @@ ${fullAddress}
             }
             return;
           }
-          const aiTokenSettings2 = await storage.getAiTokenSettings();
-          if (!aiTokenSettings2?.token || !aiTokenSettings2.isActive) {
-            console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u06CC\u0627 \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A");
-            return;
-          }
           console.log(`\u{1F916} \u0647\u06CC\u0686 FAQ \u06CC\u0627 \u0633\u0641\u0627\u0631\u0634\u06CC \u06CC\u0627\u0641\u062A \u0646\u0634\u062F\u060C \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u067E\u0627\u0633\u062E \u0647\u0648\u0634\u0645\u0646\u062F...`);
-          const aiResponse = await geminiService.generateResponse(incomingMessage, userId);
+          const aiResponse = await aiService.generateResponse(incomingMessage, userId);
           const maxLength = 200;
           const finalResponse = aiResponse.length > maxLength ? aiResponse.substring(0, maxLength) + "..." : aiResponse;
           const sendUrl = `https://api.whatsiplus.com/sendMsg/${whatsappToken}?phonenumber=${sender}&message=${encodeURIComponent(finalResponse)}`;
@@ -4930,7 +6621,7 @@ ${fullAddress}
         return {
           isRunning: this.isRunning,
           lastFetchTime: this.lastFetchTime,
-          geminiActive: geminiService.isActive()
+          geminiActive: aiService.isActive()
         };
       }
     };
@@ -4946,6 +6637,7 @@ init_storage();
 init_schema();
 init_invoice_service();
 init_whatsapp_sender();
+init_db_storage();
 import express from "express";
 import { createServer } from "http";
 import bcrypt3 from "bcryptjs";
@@ -4985,6 +6677,58 @@ var storage_config = multer.diskStorage({
 });
 var upload = multer({
   storage: storage_config,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("\u0646\u0648\u0639 \u0641\u0627\u06CC\u0644 \u0645\u062C\u0627\u0632 \u0646\u06CC\u0633\u062A"));
+    }
+  }
+});
+var whatsapp_storage_config = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path2.join(process.cwd(), "UploadsPicClienet");
+    if (!fs2.existsSync(uploadPath)) {
+      fs2.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + path2.extname(file.originalname));
+  }
+});
+var uploadWhatsApp = multer({
+  storage: whatsapp_storage_config,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("\u0646\u0648\u0639 \u0641\u0627\u06CC\u0644 \u0645\u062C\u0627\u0632 \u0646\u06CC\u0633\u062A"));
+    }
+  }
+});
+var stamp_storage_config = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path2.join(process.cwd(), "stamppic");
+    if (!fs2.existsSync(uploadPath)) {
+      fs2.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + path2.extname(file.originalname));
+  }
+});
+var uploadStamp = multer({
+  storage: stamp_storage_config,
   limits: { fileSize: 5 * 1024 * 1024 },
   // 5MB limit
   fileFilter: (req, file, cb) => {
@@ -5070,11 +6814,20 @@ var serializeConversationThread = (thread) => {
   return JSON.stringify(thread);
 };
 async function registerRoutes(app2) {
+  const passwordResetAttempts = /* @__PURE__ */ new Map();
   app2.post("/api/auth/register", async (req, res) => {
     try {
+      let username = req.body.username;
+      if (!username && req.body.phone) {
+        username = req.body.phone.startsWith("98") ? "0" + req.body.phone.substring(2) : req.body.phone;
+      } else if (!username) {
+        username = req.body.email.split("@")[0] + Math.random().toString(36).substr(2, 4);
+      }
       const userData = {
         ...req.body,
-        username: req.body.username || req.body.email.split("@")[0] + Math.random().toString(36).substr(2, 4)
+        username,
+        // اگر شماره واتس‌اپ نیومده، از شماره تلفن استفاده کن
+        whatsappNumber: req.body.whatsappNumber || req.body.phone
       };
       const validatedData = insertUserSchema.parse(userData);
       if (validatedData.email) {
@@ -5110,6 +6863,22 @@ async function registerRoutes(app2) {
         }
       } catch (trialError) {
         console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u0627\u0634\u062A\u0631\u0627\u06A9 \u0622\u0632\u0645\u0627\u06CC\u0634\u06CC:", trialError);
+      }
+      try {
+        const whatsappSettings2 = await storage.getWhatsappSettings();
+        if (whatsappSettings2?.notifications?.includes("new_user") && whatsappSettings2.isEnabled && whatsappSettings2.token) {
+          const adminUser = await storage.getUserByUsername("ehsan");
+          if (adminUser && adminUser.phone) {
+            const message = `\u{1F464} \u06A9\u0627\u0631\u0628\u0631 \u062C\u062F\u06CC\u062F \u062B\u0628\u062A\u200C\u0646\u0627\u0645 \u06A9\u0631\u062F
+
+\u0646\u0627\u0645: ${user.firstName} ${user.lastName}
+\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC: ${user.username}
+\u0634\u0645\u0627\u0631\u0647: ${user.phone}`;
+            await whatsAppSender.sendMessage(adminUser.phone, message, adminUser.id);
+          }
+        }
+      } catch (notificationError) {
+        console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0627\u0639\u0644\u0627\u0646 \u06A9\u0627\u0631\u0628\u0631 \u062C\u062F\u06CC\u062F:", notificationError);
       }
       const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: "7d" });
       res.json({
@@ -5150,6 +6919,81 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/auth/me", authenticateToken, async (req, res) => {
     res.json({ user: { ...req.user, password: void 0 } });
+  });
+  app2.post("/api/auth/request-password-reset", async (req, res) => {
+    try {
+      const { username } = req.body;
+      if (!username) {
+        return res.status(400).json({ message: "\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A" });
+      }
+      const now = Date.now();
+      const userAttempts = passwordResetAttempts.get(username);
+      if (userAttempts) {
+        if (now - userAttempts.resetTime < 15 * 60 * 1e3) {
+          if (userAttempts.count >= 3) {
+            return res.status(429).json({ message: "\u062A\u0639\u062F\u0627\u062F \u062F\u0631\u062E\u0648\u0627\u0633\u062A\u200C\u0647\u0627\u06CC \u0634\u0645\u0627 \u0628\u06CC\u0634 \u0627\u0632 \u062D\u062F \u0645\u062C\u0627\u0632 \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B 15 \u062F\u0642\u06CC\u0642\u0647 \u062F\u06CC\u06AF\u0631 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F" });
+          }
+          userAttempts.count++;
+        } else {
+          passwordResetAttempts.set(username, { count: 1, resetTime: now });
+        }
+      } else {
+        passwordResetAttempts.set(username, { count: 1, resetTime: now });
+      }
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.json({ message: "\u0627\u06AF\u0631 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0628\u0627 \u0627\u06CC\u0646 \u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC \u0648\u062C\u0648\u062F \u062F\u0627\u0634\u062A\u0647 \u0628\u0627\u0634\u062F\u060C \u06A9\u062F \u0628\u0627\u0632\u06CC\u0627\u0628\u06CC \u0628\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0627\u0631\u0633\u0627\u0644 \u0645\u06CC\u200C\u0634\u0648\u062F" });
+      }
+      if (!user.whatsappNumber) {
+        return res.status(400).json({ message: "\u0634\u0645\u0627\u0631\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u06CC\u0646 \u06A9\u0627\u0631\u0628\u0631 \u062B\u0628\u062A \u0646\u0634\u062F\u0647 \u0627\u0633\u062A" });
+      }
+      const crypto = await import("crypto");
+      const otp = crypto.randomInt(1e5, 1e6).toString();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1e3);
+      await storage.createPasswordResetOtp(user.id, otp, expiresAt);
+      const whatsAppSender2 = (await Promise.resolve().then(() => (init_whatsapp_sender(), whatsapp_sender_exports))).whatsAppSender;
+      const message = `\u06A9\u062F \u0628\u0627\u0632\u06CC\u0627\u0628\u06CC \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0634\u0645\u0627: ${otp}
+
+\u0627\u06CC\u0646 \u06A9\u062F \u062A\u0627 5 \u062F\u0642\u06CC\u0642\u0647 \u062F\u06CC\u06AF\u0631 \u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A.`;
+      const adminSettings = await storage.getWhatsappSettings();
+      if (!adminSettings || !adminSettings.token || !adminSettings.isEnabled) {
+        return res.status(400).json({ message: "\u0633\u0631\u0648\u06CC\u0633 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0641\u0639\u0627\u0644 \u0646\u06CC\u0633\u062A" });
+      }
+      const sent = await whatsAppSender2.sendMessage(user.whatsappNumber, message, user.id);
+      if (!sent) {
+        return res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u06A9\u062F \u0628\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E" });
+      }
+      res.json({ message: "\u06A9\u062F \u0628\u0627\u0632\u06CC\u0627\u0628\u06CC \u0628\u0647 \u0634\u0645\u0627\u0631\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0634\u0645\u0627 \u0627\u0631\u0633\u0627\u0644 \u0634\u062F" });
+    } catch (error) {
+      console.error("Error in password reset request:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0628\u0627\u0632\u06CC\u0627\u0628\u06CC \u0631\u0645\u0632 \u0639\u0628\u0648\u0631" });
+    }
+  });
+  app2.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { username, otp, newPassword } = req.body;
+      if (!username || !otp || !newPassword) {
+        return res.status(400).json({ message: "\u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0627\u0644\u0632\u0627\u0645\u06CC \u0647\u0633\u062A\u0646\u062F" });
+      }
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "\u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0628\u0627\u06CC\u062F \u062D\u062F\u0627\u0642\u0644 6 \u06A9\u0627\u0631\u0627\u06A9\u062A\u0631 \u0628\u0627\u0634\u062F" });
+      }
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const validOtp = await storage.getValidPasswordResetOtp(user.id, otp);
+      if (!validOtp) {
+        return res.status(400).json({ message: "\u06A9\u062F \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u06CC\u0627 \u0645\u0646\u0642\u0636\u06CC \u0634\u062F\u0647 \u0627\u0633\u062A" });
+      }
+      const hashedPassword = await bcrypt3.hash(newPassword, 10);
+      await storage.updateUserPassword(user.id, hashedPassword);
+      await storage.markOtpAsUsed(validOtp.id);
+      res.json({ message: "\u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062A\u063A\u06CC\u06CC\u0631 \u06A9\u0631\u062F" });
+    } catch (error) {
+      console.error("Error in password reset:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062A\u063A\u06CC\u06CC\u0631 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631" });
+    }
   });
   app2.get("/api/users", authenticateToken, async (req, res) => {
     try {
@@ -5267,6 +7111,10 @@ async function registerRoutes(app2) {
       const userProducts = await storage.getProductsByUser(id);
       for (const product of userProducts) {
         await storage.deleteProduct(product.id, id, user.role);
+      }
+      const userAddresses = await storage.getAddressesByUser(id);
+      for (const address of userAddresses) {
+        await storage.deleteAddress(address.id, id);
       }
       const success = await storage.deleteUser(id);
       if (!success) {
@@ -5538,6 +7386,23 @@ ${newPassword}
         attachments: req.files ? req.files.map((file) => `/uploads/${file.filename}`) : []
       });
       const ticket = await storage.createTicket(validatedData);
+      try {
+        const whatsappSettings2 = await storage.getWhatsappSettings();
+        if (whatsappSettings2?.notifications?.includes("new_ticket") && whatsappSettings2.isEnabled && whatsappSettings2.token) {
+          const adminUser = await storage.getUserByUsername("ehsan");
+          if (adminUser && adminUser.phone) {
+            const ticketUser = await storage.getUser(req.user.id);
+            const message = `\u{1F3AB} \u062A\u06CC\u06A9\u062A \u062C\u062F\u06CC\u062F \u062B\u0628\u062A \u0634\u062F
+
+\u06A9\u0627\u0631\u0628\u0631: ${ticketUser?.firstName} ${ticketUser?.lastName}
+\u0645\u0648\u0636\u0648\u0639: ${ticket.subject}
+\u0627\u0648\u0644\u0648\u06CC\u062A: ${ticket.priority === "high" ? "\u0628\u0627\u0644\u0627" : ticket.priority === "medium" ? "\u0645\u062A\u0648\u0633\u0637" : "\u067E\u0627\u06CC\u06CC\u0646"}`;
+            await whatsAppSender.sendMessage(adminUser.phone, message, adminUser.id);
+          }
+        }
+      } catch (notificationError) {
+        console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0627\u0639\u0644\u0627\u0646 \u062A\u06CC\u06A9\u062A \u062C\u062F\u06CC\u062F:", notificationError);
+      }
       res.json(ticket);
     } catch (error) {
       if (error instanceof z2.ZodError) {
@@ -5707,7 +7572,16 @@ ${newPassword}
   });
   app2.get("/api/ai-token", authenticateToken, requireAdmin, async (req, res) => {
     try {
-      const settings = await storage.getAiTokenSettings();
+      const settings = await storage.getAllAiTokenSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0648\u06A9\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC" });
+    }
+  });
+  app2.get("/api/ai-token/:provider", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      const settings = await storage.getAiTokenSettings(provider);
       res.json(settings || {});
     } catch (error) {
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0648\u06A9\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC" });
@@ -5717,8 +7591,8 @@ ${newPassword}
     try {
       const validatedData = insertAiTokenSettingsSchema.parse(req.body);
       const settings = await storage.updateAiTokenSettings(validatedData);
-      const { geminiService: geminiService2 } = await Promise.resolve().then(() => (init_gemini_service(), gemini_service_exports));
-      await geminiService2.reinitialize();
+      const { aiService: aiService2 } = await Promise.resolve().then(() => (init_ai_service(), ai_service_exports));
+      await aiService2.reinitialize();
       res.json(settings);
     } catch (error) {
       if (error instanceof z2.ZodError) {
@@ -5929,6 +7803,15 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u067E\u06CC\u0627\u0645 \u062F\u0631\u06CC\u0627\u0641\u062A\u06CC" });
     }
   });
+  app2.get("/api/messages/whatsapp-unread-count", authenticateToken, requireAdminOrLevel1, async (req, res) => {
+    try {
+      const result = await storage.getReceivedMessagesByUserPaginated(req.user.id, 1, 1e4);
+      const unreadCount = result.messages.filter((msg) => msg.status === "\u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647").length;
+      res.json({ unreadCount });
+    } catch (error) {
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0639\u062F\u0627\u062F \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647" });
+    }
+  });
   app2.put("/api/messages/received/:id/read", authenticateToken, requireAdminOrLevel1, async (req, res) => {
     try {
       const { id } = req.params;
@@ -6105,7 +7988,7 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u062F\u0633\u062A\u0647\u200C\u0628\u0646\u062F\u06CC" });
     }
   });
-  app2.get("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdmin, async (req, res) => {
+  app2.get("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdminOrUserLevel1, async (req, res) => {
     try {
       const category = await storage.getCategory(req.params.id, req.user.id, req.user.role);
       if (!category) {
@@ -6116,7 +7999,7 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062F\u0633\u062A\u0647\u200C\u0628\u0646\u062F\u06CC" });
     }
   });
-  app2.put("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdmin, async (req, res) => {
+  app2.put("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdminOrUserLevel1, async (req, res) => {
     try {
       const updates = req.body;
       delete updates.createdBy;
@@ -6129,7 +8012,7 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062F\u0633\u062A\u0647\u200C\u0628\u0646\u062F\u06CC" });
     }
   });
-  app2.put("/api/categories/reorder", authenticateToken, requireAdmin, async (req, res) => {
+  app2.put("/api/categories/reorder", authenticateToken, requireAdminOrUserLevel1, async (req, res) => {
     try {
       const updates = z2.array(updateCategoryOrderSchema).parse(req.body);
       const mappedUpdates = updates.map((update) => ({
@@ -6149,7 +8032,7 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062A\u063A\u06CC\u06CC\u0631 \u062A\u0631\u062A\u06CC\u0628 \u062F\u0633\u062A\u0647\u200C\u0628\u0646\u062F\u06CC\u200C\u0647\u0627" });
     }
   });
-  app2.delete("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdmin, async (req, res) => {
+  app2.delete("/api/categories/:id([0-9a-fA-F-]{36})", authenticateToken, requireAdminOrUserLevel1, async (req, res) => {
     try {
       const success = await storage.deleteCategory(req.params.id, req.user.id, req.user.role);
       if (!success) {
@@ -6389,6 +8272,118 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0639\u062F\u0627\u062F \u0633\u0641\u0627\u0631\u0634\u0627\u062A \u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u067E\u0631\u062F\u0627\u062E\u062A" });
     }
   });
+  app2.post("/api/orders/pay-from-balance", authenticateToken, requireLevel2, async (req, res) => {
+    try {
+      const cartItems2 = await storage.getCartItemsWithProducts(req.user.id);
+      if (cartItems2.length === 0) {
+        return res.status(400).json({ message: "\u0633\u0628\u062F \u062E\u0631\u06CC\u062F \u062E\u0627\u0644\u06CC \u0627\u0633\u062A" });
+      }
+      let totalCartAmount = 0;
+      const ordersBySeller = /* @__PURE__ */ new Map();
+      for (const item of cartItems2) {
+        const product = await storage.getProduct(item.productId, req.user.id, req.user.role);
+        if (!product) continue;
+        const sellerId = product.userId;
+        if (!ordersBySeller.has(sellerId)) {
+          ordersBySeller.set(sellerId, {
+            items: [],
+            totalAmount: 0
+          });
+        }
+        const sellerOrder = ordersBySeller.get(sellerId);
+        sellerOrder.items.push(item);
+        sellerOrder.totalAmount += parseFloat(item.totalPrice);
+      }
+      for (const [sellerId, orderData] of Array.from(ordersBySeller.entries())) {
+        const vatSettings2 = await storage.getVatSettings(sellerId);
+        const vatPercentage = vatSettings2?.isEnabled ? parseFloat(vatSettings2.vatPercentage) : 0;
+        const subtotal = orderData.totalAmount;
+        const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+        totalCartAmount += subtotal + vatAmount;
+      }
+      const userBalance = await storage.getUserBalance(req.user.id);
+      if (userBalance < totalCartAmount) {
+        return res.status(400).json({
+          message: "\u0645\u0648\u062C\u0648\u062F\u06CC \u062D\u0633\u0627\u0628 \u0634\u0645\u0627 \u06A9\u0627\u0641\u06CC \u0646\u06CC\u0633\u062A",
+          required: totalCartAmount,
+          available: userBalance
+        });
+      }
+      const createdOrders = [];
+      for (const [sellerId, orderData] of Array.from(ordersBySeller.entries())) {
+        const vatSettings2 = await storage.getVatSettings(sellerId);
+        const vatPercentage = vatSettings2?.isEnabled ? parseFloat(vatSettings2.vatPercentage) : 0;
+        const subtotal = orderData.totalAmount;
+        const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+        const totalWithVat = subtotal + vatAmount;
+        const order = await storage.createOrder({
+          userId: req.user.id,
+          sellerId,
+          totalAmount: totalWithVat.toString(),
+          status: "pending",
+          // در انتظار تایید
+          addressId: req.body.addressId || null,
+          shippingMethod: req.body.shippingMethod || null,
+          notes: req.body.notes || null
+        });
+        for (const item of orderData.items) {
+          await storage.createOrderItem({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice
+          });
+        }
+        const { nanoid: nanoid2 } = await import("nanoid");
+        await storage.createTransaction({
+          userId: req.user.id,
+          orderId: order.id,
+          type: "order_payment",
+          amount: `-${totalWithVat}`,
+          status: "completed",
+          transactionDate: (/* @__PURE__ */ new Date()).toLocaleDateString("fa-IR"),
+          transactionTime: (/* @__PURE__ */ new Date()).toLocaleTimeString("fa-IR"),
+          accountSource: "\u0645\u0648\u062C\u0648\u062F\u06CC \u06A9\u0644",
+          referenceId: `OP-${nanoid2(10)}`
+        });
+        createdOrders.push(order);
+      }
+      await storage.clearCart(req.user.id);
+      if (createdOrders.length > 0) {
+        const user = await storage.getUser(req.user.id);
+        for (const order of createdOrders) {
+          try {
+            console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${order.id}...`);
+            const invoiceUrl = await generateAndSaveInvoice(order.id);
+            console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F: ${invoiceUrl}`);
+            if (user && user.whatsappNumber) {
+              const success = await whatsAppSender.sendImage(
+                user.whatsappNumber,
+                `\u{1F4C4} \u0641\u0627\u06A9\u062A\u0648\u0631 \u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627 - \u067E\u0631\u062F\u0627\u062E\u062A \u0634\u062F\u0647 \u0627\u0632 \u0627\u0639\u062A\u0628\u0627\u0631`,
+                invoiceUrl,
+                order.sellerId
+              );
+              if (success) {
+                console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0647 ${user.whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+              } else {
+                console.log(`\u26A0\uFE0F \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0647 ${user.whatsappNumber} \u0646\u0627\u0645\u0648\u0641\u0642 \u0628\u0648\u062F`);
+              }
+            }
+          } catch (error) {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u06CC\u0627 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${order.id}:`, error);
+          }
+        }
+      }
+      res.status(201).json({
+        message: "\u0633\u0641\u0627\u0631\u0634 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0627\u0632 \u0627\u0639\u062A\u0628\u0627\u0631 \u067E\u0631\u062F\u0627\u062E\u062A \u0634\u062F",
+        orders: createdOrders
+      });
+    } catch (error) {
+      console.error("Pay from balance error:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u062E\u062A \u0627\u0632 \u0627\u0639\u062A\u0628\u0627\u0631" });
+    }
+  });
   app2.post("/api/orders", authenticateToken, requireLevel2, async (req, res) => {
     try {
       const cartItems2 = await storage.getCartItemsWithProducts(req.user.id);
@@ -6412,11 +8407,17 @@ ${newPassword}
       }
       const createdOrders = [];
       for (const [sellerId, orderData] of Array.from(ordersBySeller.entries())) {
+        const vatSettings2 = await storage.getVatSettings(sellerId);
+        const vatPercentage = vatSettings2?.isEnabled ? parseFloat(vatSettings2.vatPercentage) : 0;
+        const subtotal = orderData.totalAmount;
+        const vatAmount = Math.round(subtotal * (vatPercentage / 100));
+        const totalWithVat = subtotal + vatAmount;
         const order = await storage.createOrder({
           userId: req.user.id,
           sellerId,
-          totalAmount: orderData.totalAmount.toString(),
+          totalAmount: totalWithVat.toString(),
           addressId: req.body.addressId || null,
+          shippingMethod: req.body.shippingMethod || null,
           notes: req.body.notes || null
         });
         for (const item of orderData.items) {
@@ -6432,27 +8433,28 @@ ${newPassword}
       }
       await storage.clearCart(req.user.id);
       if (createdOrders.length > 0) {
-        const firstOrder = createdOrders[0];
-        try {
-          console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${firstOrder.id}...`);
-          const invoiceUrl = await generateAndSaveInvoice(firstOrder.id);
-          console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u062A\u0648\u0644\u06CC\u062F \u0634\u062F: ${invoiceUrl}`);
-          const user = await storage.getUser(req.user.id);
-          if (user && user.whatsappNumber) {
-            const seller = await storage.getUser(firstOrder.sellerId);
-            const whatsappToken = seller?.whatsappToken;
-            if (whatsappToken) {
-              await whatsAppSender.sendWhatsAppImage(
-                whatsappToken,
+        const user = await storage.getUser(req.user.id);
+        for (const order of createdOrders) {
+          try {
+            console.log(`\u{1F5BC}\uFE0F \u062F\u0631 \u062D\u0627\u0644 \u062A\u0648\u0644\u06CC\u062F \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${order.id}...`);
+            const invoiceUrl = await generateAndSaveInvoice(order.id);
+            console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F: ${invoiceUrl}`);
+            if (user && user.whatsappNumber) {
+              const success = await whatsAppSender.sendImage(
                 user.whatsappNumber,
                 `\u{1F4C4} \u0641\u0627\u06A9\u062A\u0648\u0631 \u0633\u0641\u0627\u0631\u0634 \u0634\u0645\u0627`,
-                invoiceUrl
+                invoiceUrl,
+                order.sellerId
               );
-              console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0647 ${user.whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+              if (success) {
+                console.log(`\u2705 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0647 ${user.whatsappNumber} \u0627\u0631\u0633\u0627\u0644 \u0634\u062F`);
+              } else {
+                console.log(`\u26A0\uFE0F \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0647 ${user.whatsappNumber} \u0646\u0627\u0645\u0648\u0641\u0642 \u0628\u0648\u062F`);
+              }
             }
+          } catch (error) {
+            console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u06CC\u0627 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${order.id}:`, error);
           }
-        } catch (error) {
-          console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0648\u0644\u06CC\u062F \u06CC\u0627 \u0627\u0631\u0633\u0627\u0644 \u0641\u0627\u06A9\u062A\u0648\u0631:", error);
         }
       }
       res.status(201).json({
@@ -6492,9 +8494,11 @@ ${newPassword}
         return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0633\u0641\u0627\u0631\u0634 \u0646\u062F\u0627\u0631\u06CC\u062F" });
       }
       const orderItems2 = await storage.getOrderItemsWithProducts(order.id);
+      const vatSettings2 = await storage.getVatSettings(order.sellerId);
       res.json({
         ...order,
-        items: orderItems2
+        items: orderItems2,
+        vatSettings: vatSettings2 || { vatPercentage: "0", isEnabled: false }
       });
     } catch (error) {
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062C\u0632\u0626\u06CC\u0627\u062A \u0633\u0641\u0627\u0631\u0634" });
@@ -6587,6 +8591,42 @@ ${newPassword}
       const updatedTransaction = await storage.updateTransactionStatus(id, status);
       if (!updatedTransaction) {
         return res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0631\u0627\u06A9\u0646\u0634" });
+      }
+      if (status === "completed" && transaction.type === "deposit") {
+        try {
+          const transactionUser = await storage.getUser(transaction.userId);
+          if (transactionUser) {
+            let currentBalance = await storage.getUserBalance(transaction.userId);
+            const awaitingOrders = await storage.getAwaitingPaymentOrdersByUser(transaction.userId);
+            for (const order of awaitingOrders) {
+              const orderAmount = parseFloat(order.totalAmount);
+              if (currentBalance >= orderAmount) {
+                await storage.updateOrderStatus(order.id, "confirmed", order.sellerId);
+                const { nanoid: nanoid2 } = await import("nanoid");
+                await storage.createTransaction({
+                  userId: transaction.userId,
+                  orderId: order.id,
+                  type: "order_payment",
+                  amount: `-${orderAmount}`,
+                  // مقدار منفی برای کسر
+                  status: "completed",
+                  transactionDate: (/* @__PURE__ */ new Date()).toLocaleDateString("fa-IR"),
+                  transactionTime: (/* @__PURE__ */ new Date()).toLocaleTimeString("fa-IR"),
+                  accountSource: "\u0645\u0648\u062C\u0648\u062F\u06CC \u06A9\u0644",
+                  referenceId: `OP-${nanoid2(10)}`
+                  // شماره پیگیری منحصر به فرد
+                });
+                currentBalance -= orderAmount;
+                console.log(`\u2705 \u0633\u0641\u0627\u0631\u0634 ${order.orderNumber} \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062A\u0627\u06CC\u06CC\u062F \u0634\u062F - \u0645\u0628\u0644\u063A: ${orderAmount} \u062A\u0648\u0645\u0627\u0646`);
+              } else {
+                console.log(`\u26A0\uFE0F \u0645\u0648\u062C\u0648\u062F\u06CC \u06A9\u0627\u0641\u06CC \u0628\u0631\u0627\u06CC \u067E\u0631\u062F\u0627\u0632\u0634 \u0633\u0641\u0627\u0631\u0634 ${order.orderNumber} \u0646\u06CC\u0633\u062A`);
+                break;
+              }
+            }
+          }
+        } catch (autoProcessError) {
+          console.error("\u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u062E\u0648\u062F\u06A9\u0627\u0631 \u0633\u0641\u0627\u0631\u0634\u0627\u062A:", autoProcessError);
+        }
       }
       if (status === "completed" || status === "failed") {
         const transactionUser = await storage.getUser(transaction.userId);
@@ -6984,8 +9024,467 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0639\u06A9\u0633 \u062A\u0633\u062A", error: error.message });
     }
   });
+  app2.post("/api/upload-temp", authenticateToken, uploadWhatsApp.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "\u0641\u0627\u06CC\u0644 \u0627\u0631\u0633\u0627\u0644 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A" });
+      }
+      const file = req.file;
+      const fileUrl = `/UploadsPicClienet/${file.filename}`;
+      const fullUrl = `${req.protocol}://${req.get("host")}${fileUrl}`;
+      res.json({
+        url: fileUrl,
+        fullUrl,
+        filename: file.filename
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u0622\u067E\u0644\u0648\u062F \u0641\u0627\u06CC\u0644:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0622\u067E\u0644\u0648\u062F \u0641\u0627\u06CC\u0644" });
+    }
+  });
+  app2.delete("/api/delete-temp/:filename", authenticateToken, async (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const uploadPaths = [
+        path2.join(process.cwd(), "uploads", filename),
+        path2.join(process.cwd(), "UploadsPicClienet", filename)
+      ];
+      let fileDeleted = false;
+      for (const filePath of uploadPaths) {
+        if (fs2.existsSync(filePath)) {
+          fs2.unlinkSync(filePath);
+          console.log(`\u{1F5D1}\uFE0F \u0641\u0627\u06CC\u0644 \u0645\u0648\u0642\u062A \u062D\u0630\u0641 \u0634\u062F: ${filename}`);
+          fileDeleted = true;
+          break;
+        }
+      }
+      if (fileDeleted) {
+        res.json({ message: "\u0641\u0627\u06CC\u0644 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062D\u0630\u0641 \u0634\u062F" });
+      } else {
+        res.status(404).json({ message: "\u0641\u0627\u06CC\u0644 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u0641\u0627\u06CC\u0644:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u0641\u0627\u06CC\u0644" });
+    }
+  });
+  app2.get("/api/shipping-settings", authenticateToken, requireAdminOrLevel1, async (req, res) => {
+    try {
+      const settings = await storage.getShippingSettings(req.user.id);
+      if (!settings) {
+        return res.json({
+          postPishtazEnabled: false,
+          postNormalEnabled: false,
+          piykEnabled: false,
+          freeShippingEnabled: false,
+          freeShippingMinAmount: null
+        });
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting shipping settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u062A\u0631\u0627\u0628\u0631\u06CC" });
+    }
+  });
+  app2.put("/api/shipping-settings", authenticateToken, requireAdminOrLevel1, async (req, res) => {
+    try {
+      const settings = await storage.updateShippingSettings(req.user.id, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating shipping settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u062A\u0631\u0627\u0628\u0631\u06CC" });
+    }
+  });
+  app2.get("/api/shipping-settings/:sellerId", authenticateToken, async (req, res) => {
+    try {
+      const { sellerId } = req.params;
+      const settings = await storage.getShippingSettings(sellerId);
+      if (!settings) {
+        return res.json({
+          postPishtazEnabled: false,
+          postNormalEnabled: false,
+          piykEnabled: false,
+          freeShippingEnabled: false,
+          freeShippingMinAmount: null
+        });
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting seller shipping settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u062A\u0631\u0627\u0628\u0631\u06CC \u0641\u0631\u0648\u0634\u0646\u062F\u0647" });
+    }
+  });
+  app2.get("/api/vat-settings", authenticateToken, requireAdminOrLevel1, async (req, res) => {
+    try {
+      const settings = await storage.getVatSettings(req.user.id);
+      if (!settings) {
+        return res.json({
+          vatPercentage: "9",
+          isEnabled: false
+        });
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting VAT settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0627\u0631\u0632\u0634 \u0627\u0641\u0632\u0648\u062F\u0647" });
+    }
+  });
+  app2.put("/api/vat-settings", authenticateToken, requireAdminOrLevel1, async (req, res) => {
+    try {
+      if (req.body.isEnabled) {
+        const requiredFields = ["companyName", "address", "phoneNumber", "nationalId", "economicCode"];
+        const missingFields = requiredFields.filter((field) => !req.body[field]);
+        if (missingFields.length > 0) {
+          return res.status(400).json({
+            message: "\u0647\u0646\u06AF\u0627\u0645 \u0641\u0639\u0627\u0644\u200C\u0633\u0627\u0632\u06CC \u0627\u0631\u0632\u0634 \u0627\u0641\u0632\u0648\u062F\u0647\u060C \u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0634\u0631\u06A9\u062A \u0628\u0627\u06CC\u062F \u067E\u0631 \u0634\u0648\u0646\u062F"
+          });
+        }
+      }
+      const settings = await storage.updateVatSettings(req.user.id, req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating VAT settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0627\u0631\u0632\u0634 \u0627\u0641\u0632\u0648\u062F\u0647" });
+    }
+  });
+  app2.post("/api/vat-settings/upload-stamp", authenticateToken, requireAdminOrLevel1, uploadStamp.single("stampImage"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "\u0641\u0627\u06CC\u0644\u06CC \u0622\u067E\u0644\u0648\u062F \u0646\u0634\u062F\u0647 \u0627\u0633\u062A" });
+      }
+      const stampImagePath = `/stamppic/${req.file.filename}`;
+      await storage.updateVatSettings(req.user.id, {
+        stampImage: stampImagePath
+      });
+      res.json({
+        message: "\u0639\u06A9\u0633 \u0645\u0647\u0631 \u0648 \u0627\u0645\u0636\u0627 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0622\u067E\u0644\u0648\u062F \u0634\u062F",
+        stampImagePath
+      });
+    } catch (error) {
+      console.error("Error uploading stamp image:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0622\u067E\u0644\u0648\u062F \u0639\u06A9\u0633 \u0645\u0647\u0631 \u0648 \u0627\u0645\u0636\u0627" });
+    }
+  });
+  app2.get("/api/vat-settings/:sellerId", authenticateToken, async (req, res) => {
+    try {
+      const { sellerId } = req.params;
+      const settings = await storage.getVatSettings(sellerId);
+      if (!settings) {
+        return res.json({
+          vatPercentage: "9",
+          isEnabled: false
+        });
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error getting VAT settings for seller:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0627\u0631\u0632\u0634 \u0627\u0641\u0632\u0648\u062F\u0647" });
+    }
+  });
   app2.use("/uploads", express.static(path2.join(process.cwd(), "uploads")));
+  app2.use("/UploadsPicClienet", express.static(path2.join(process.cwd(), "UploadsPicClienet")));
   app2.use("/invoice", express.static(path2.join(process.cwd(), "invoice")));
+  app2.get("/api/admin/backup/create", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
+      const execAsync = promisify(exec);
+      const backupsDir = path2.join(process.cwd(), "backups");
+      if (!fs2.existsSync(backupsDir)) {
+        fs2.mkdirSync(backupsDir, { recursive: true });
+      }
+      const timestamp2 = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, -5);
+      const backupFileName = `backup-${timestamp2}.sql`;
+      const backupFilePath = path2.join(backupsDir, backupFileName);
+      const databaseUrl = process.env.DATABASE_URL;
+      if (!databaseUrl) {
+        return res.status(500).json({ message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      try {
+        await execAsync(`pg_dump --clean --if-exists "${databaseUrl}" > "${backupFilePath}"`);
+        res.download(backupFilePath, backupFileName, (err) => {
+          if (err) {
+            console.error("Error downloading backup:", err);
+          }
+        });
+      } catch (error) {
+        console.error("Error creating backup:", error);
+        res.status(500).json({
+          message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u0628\u06A9\u200C\u0622\u067E",
+          error: error.message
+        });
+      }
+    } catch (error) {
+      console.error("Error in backup route:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u0628\u06A9\u200C\u0622\u067E \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633" });
+    }
+  });
+  const backup_storage_config = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadPath = path2.join(process.cwd(), "backups");
+      if (!fs2.existsSync(uploadPath)) {
+        fs2.mkdirSync(uploadPath, { recursive: true });
+      }
+      cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+      cb(null, file.originalname);
+    }
+  });
+  const uploadBackup = multer({
+    storage: backup_storage_config,
+    limits: { fileSize: 100 * 1024 * 1024 },
+    // 100MB limit
+    fileFilter: (req, file, cb) => {
+      if (file.originalname.endsWith(".sql")) {
+        cb(null, true);
+      } else {
+        cb(new Error("\u0641\u0642\u0637 \u0641\u0627\u06CC\u0644\u200C\u0647\u0627\u06CC SQL \u0645\u062C\u0627\u0632 \u0647\u0633\u062A\u0646\u062F"));
+      }
+    }
+  });
+  app2.post("/api/admin/backup/restore", authenticateToken, uploadBackup.single("backupFile"), async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "\u0641\u0627\u06CC\u0644 \u0628\u06A9\u200C\u0622\u067E \u0627\u0631\u0633\u0627\u0644 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A" });
+      }
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
+      const execAsync = promisify(exec);
+      const backupFilePath = req.file.path;
+      const databaseUrl = process.env.DATABASE_URL;
+      if (!databaseUrl) {
+        return res.status(500).json({ message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      try {
+        await execAsync(`psql "${databaseUrl}" < "${backupFilePath}"`);
+        res.json({
+          message: "\u0628\u06A9\u200C\u0622\u067E \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0627\u0632\u06CC\u0627\u0628\u06CC \u0634\u062F",
+          filename: req.file.originalname
+        });
+      } catch (error) {
+        console.error("Error restoring backup:", error);
+        res.status(500).json({
+          message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0627\u0632\u06CC\u0627\u0628\u06CC \u0628\u06A9\u200C\u0622\u067E",
+          error: error.message
+        });
+      }
+    } catch (error) {
+      console.error("Error in restore route:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0627\u0632\u06CC\u0627\u0628\u06CC \u0628\u06A9\u200C\u0622\u067E \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633" });
+    }
+  });
+  app2.get("/api/admin/backup/list", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const backupsDir = path2.join(process.cwd(), "backups");
+      if (!fs2.existsSync(backupsDir)) {
+        return res.json({ backups: [] });
+      }
+      const files = fs2.readdirSync(backupsDir);
+      const backups = files.filter((file) => file.endsWith(".sql")).map((file) => {
+        const filePath = path2.join(backupsDir, file);
+        const stats = fs2.statSync(filePath);
+        return {
+          filename: file,
+          size: stats.size,
+          createdAt: stats.birthtime,
+          modifiedAt: stats.mtime
+        };
+      }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      res.json({ backups });
+    } catch (error) {
+      console.error("Error listing backups:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0644\u06CC\u0633\u062A \u0628\u06A9\u200C\u0622\u067E\u200C\u0647\u0627" });
+    }
+  });
+  app2.get("/api/admin/backup/:filename/download", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { filename } = req.params;
+      if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+        return res.status(400).json({ message: "\u0646\u0627\u0645 \u0641\u0627\u06CC\u0644 \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A" });
+      }
+      if (!filename.endsWith(".sql")) {
+        return res.status(400).json({ message: "\u0641\u0642\u0637 \u0641\u0627\u06CC\u0644\u200C\u0647\u0627\u06CC SQL \u0645\u062C\u0627\u0632 \u0647\u0633\u062A\u0646\u062F" });
+      }
+      const backupsDir = path2.resolve(process.cwd(), "backups");
+      const requestedFilePath = path2.resolve(backupsDir, filename);
+      if (!requestedFilePath.startsWith(backupsDir + path2.sep)) {
+        return res.status(400).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0641\u0627\u06CC\u0644 \u063A\u06CC\u0631\u0645\u062C\u0627\u0632 \u0627\u0633\u062A" });
+      }
+      if (!fs2.existsSync(requestedFilePath)) {
+        return res.status(404).json({ message: "\u0641\u0627\u06CC\u0644 \u0628\u06A9\u200C\u0622\u067E \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.download(requestedFilePath, filename, (err) => {
+        if (err) {
+          console.error("Error downloading backup file:", err);
+          if (!res.headersSent) {
+            res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0627\u0646\u0644\u0648\u062F \u0641\u0627\u06CC\u0644 \u0628\u06A9\u200C\u0622\u067E" });
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error downloading backup file:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0627\u0646\u0644\u0648\u062F \u0641\u0627\u06CC\u0644 \u0628\u06A9\u200C\u0622\u067E" });
+    }
+  });
+  app2.delete("/api/admin/backup/:filename", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { filename } = req.params;
+      if (filename.includes("/") || filename.includes("\\") || filename.includes("..")) {
+        return res.status(400).json({ message: "\u0646\u0627\u0645 \u0641\u0627\u06CC\u0644 \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A" });
+      }
+      if (!filename.endsWith(".sql")) {
+        return res.status(400).json({ message: "\u0641\u0642\u0637 \u0641\u0627\u06CC\u0644\u200C\u0647\u0627\u06CC SQL \u0645\u062C\u0627\u0632 \u0647\u0633\u062A\u0646\u062F" });
+      }
+      const backupsDir = path2.resolve(process.cwd(), "backups");
+      const requestedFilePath = path2.resolve(backupsDir, filename);
+      if (!requestedFilePath.startsWith(backupsDir + path2.sep)) {
+        return res.status(400).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0641\u0627\u06CC\u0644 \u063A\u06CC\u0631\u0645\u062C\u0627\u0632 \u0627\u0633\u062A" });
+      }
+      if (!fs2.existsSync(requestedFilePath)) {
+        return res.status(404).json({ message: "\u0641\u0627\u06CC\u0644 \u0628\u06A9\u200C\u0622\u067E \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      fs2.unlinkSync(requestedFilePath);
+      res.json({ message: "\u0628\u06A9\u200C\u0622\u067E \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062D\u0630\u0641 \u0634\u062F" });
+    } catch (error) {
+      console.error("Error deleting backup:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u0628\u06A9\u200C\u0622\u067E" });
+    }
+  });
+  app2.get("/api/maintenance/status", async (req, res) => {
+    try {
+      const [status] = await db.select().from(maintenanceMode).limit(1);
+      if (!status) {
+        const [newStatus] = await db.insert(maintenanceMode).values({
+          isEnabled: false
+        }).returning();
+        return res.json({ isEnabled: false });
+      }
+      res.json({ isEnabled: status.isEnabled });
+    } catch (error) {
+      console.error("Error getting maintenance status:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0648\u0636\u0639\u06CC\u062A" });
+    }
+  });
+  app2.post("/api/admin/maintenance/toggle", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { isEnabled } = req.body;
+      const [status] = await db.select().from(maintenanceMode).limit(1);
+      if (!status) {
+        const [newStatus] = await db.insert(maintenanceMode).values({
+          isEnabled
+        }).returning();
+        return res.json(newStatus);
+      }
+      const [updated] = await db.update(maintenanceMode).set({
+        isEnabled,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(maintenanceMode.id, status.id)).returning();
+      res.json(updated);
+    } catch (error) {
+      console.error("Error toggling maintenance mode:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062A\u063A\u06CC\u06CC\u0631 \u0648\u0636\u0639\u06CC\u062A" });
+    }
+  });
+  app2.get("/api/content-sections", async (req, res) => {
+    try {
+      const { contentSections: contentSections2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const sections = await db.select().from(contentSections2).orderBy(contentSections2.createdAt);
+      res.json(sections);
+    } catch (error) {
+      console.error("Error fetching content sections:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0645\u062D\u062A\u0648\u0627" });
+    }
+  });
+  app2.get("/api/content-sections/:key", async (req, res) => {
+    try {
+      const { contentSections: contentSections2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const [section] = await db.select().from(contentSections2).where(eq(contentSections2.sectionKey, req.params.key)).limit(1);
+      if (!section) {
+        return res.status(404).json({ message: "\u0628\u062E\u0634 \u0645\u0648\u0631\u062F \u0646\u0638\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json(section);
+    } catch (error) {
+      console.error("Error fetching content section:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0645\u062D\u062A\u0648\u0627" });
+    }
+  });
+  app2.post("/api/admin/content-sections", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { contentSections: contentSections2, insertContentSectionSchema: insertContentSectionSchema2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const validated = insertContentSectionSchema2.parse(req.body);
+      const [existing] = await db.select().from(contentSections2).where(eq(contentSections2.sectionKey, validated.sectionKey)).limit(1);
+      if (existing) {
+        const [updated] = await db.update(contentSections2).set({
+          ...validated,
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq(contentSections2.id, existing.id)).returning();
+        return res.json(updated);
+      }
+      const [created] = await db.insert(contentSections2).values(validated).returning();
+      res.json(created);
+    } catch (error) {
+      console.error("Error saving content section:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0645\u062D\u062A\u0648\u0627" });
+    }
+  });
+  app2.put("/api/admin/content-sections/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { contentSections: contentSections2, updateContentSectionSchema: updateContentSectionSchema2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const validated = updateContentSectionSchema2.parse({ ...req.body, id: req.params.id });
+      const [updated] = await db.update(contentSections2).set({
+        ...validated,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(contentSections2.id, req.params.id)).returning();
+      if (!updated) {
+        return res.status(404).json({ message: "\u0628\u062E\u0634 \u0645\u0648\u0631\u062F \u0646\u0638\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating content section:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0645\u062D\u062A\u0648\u0627" });
+    }
+  });
+  app2.delete("/api/admin/content-sections/:id", authenticateToken, async (req, res) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { contentSections: contentSections2 } = await Promise.resolve().then(() => (init_schema(), schema_exports));
+      const [deleted] = await db.delete(contentSections2).where(eq(contentSections2.id, req.params.id)).returning();
+      if (!deleted) {
+        return res.status(404).json({ message: "\u0628\u062E\u0634 \u0645\u0648\u0631\u062F \u0646\u0638\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json({ message: "\u0628\u062E\u0634 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062D\u0630\u0641 \u0634\u062F" });
+    } catch (error) {
+      console.error("Error deleting content section:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u0645\u062D\u062A\u0648\u0627" });
+    }
+  });
   const httpServer = createServer(app2);
   return httpServer;
 }
@@ -7103,21 +9602,85 @@ function serveStatic(app2) {
 
 // server/index.ts
 init_whatsapp_service();
-init_gemini_service();
+init_ai_service();
+
+// server/cleanup-service.ts
+import fs4 from "fs";
 import path5 from "path";
+var CleanupService = class {
+  intervalId = null;
+  CLEANUP_INTERVAL = 60 * 60 * 1e3;
+  // هر 1 ساعت
+  FILE_MAX_AGE = 60 * 60 * 1e3;
+  // 1 ساعت
+  start() {
+    console.log("\u{1F9F9} \u0633\u0631\u0648\u06CC\u0633 \u067E\u0627\u06A9\u0633\u0627\u0632\u06CC \u0641\u0627\u06CC\u0644\u200C\u0647\u0627\u06CC \u0645\u0648\u0642\u062A \u0634\u0631\u0648\u0639 \u0634\u062F");
+    this.cleanup();
+    this.intervalId = setInterval(() => {
+      this.cleanup();
+    }, this.CLEANUP_INTERVAL);
+  }
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+      console.log("\u{1F6D1} \u0633\u0631\u0648\u06CC\u0633 \u067E\u0627\u06A9\u0633\u0627\u0632\u06CC \u0645\u062A\u0648\u0642\u0641 \u0634\u062F");
+    }
+  }
+  cleanup() {
+    const uploadDirs = [
+      path5.join(process.cwd(), "uploads"),
+      path5.join(process.cwd(), "UploadsPicClienet")
+    ];
+    uploadDirs.forEach((uploadsDir) => {
+      if (!fs4.existsSync(uploadsDir)) {
+        return;
+      }
+      try {
+        const files = fs4.readdirSync(uploadsDir);
+        const now = Date.now();
+        let deletedCount = 0;
+        files.forEach((file) => {
+          const filePath = path5.join(uploadsDir, file);
+          try {
+            const stats = fs4.statSync(filePath);
+            const fileAge = now - stats.mtimeMs;
+            if (fileAge > this.FILE_MAX_AGE) {
+              fs4.unlinkSync(filePath);
+              deletedCount++;
+              console.log(`\u{1F5D1}\uFE0F  \u0641\u0627\u06CC\u0644 \u0642\u062F\u06CC\u0645\u06CC \u062D\u0630\u0641 \u0634\u062F: ${file} \u0627\u0632 ${path5.basename(uploadsDir)}`);
+            }
+          } catch (error) {
+            console.error(`\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0631\u0633\u06CC \u0641\u0627\u06CC\u0644 ${file}:`, error);
+          }
+        });
+        if (deletedCount > 0) {
+          console.log(`\u2705 ${deletedCount} \u0641\u0627\u06CC\u0644 \u0642\u062F\u06CC\u0645\u06CC \u0627\u0632 ${path5.basename(uploadsDir)} \u062D\u0630\u0641 \u0634\u062F`);
+        }
+      } catch (error) {
+        console.error(`\u062E\u0637\u0627 \u062F\u0631 \u067E\u0627\u06A9\u0633\u0627\u0632\u06CC \u0641\u0627\u06CC\u0644\u200C\u0647\u0627 \u0627\u0632 ${path5.basename(uploadsDir)}:`, error);
+      }
+    });
+  }
+};
+var cleanupService = new CleanupService();
+
+// server/index.ts
+import path6 from "path";
 var app = express3();
 app.use((req, res, next) => {
   if (req.headers["content-type"]?.startsWith("multipart/form-data")) {
     return next();
   }
-  express3.json()(req, res, next);
+  express3.json({ limit: "50mb" })(req, res, next);
 });
-app.use(express3.urlencoded({ extended: false }));
-app.use("/uploads", express3.static(path5.join(process.cwd(), "uploads")));
-app.use("/invoices", express3.static(path5.join(process.cwd(), "public", "invoices")));
+app.use(express3.urlencoded({ extended: false, limit: "50mb" }));
+app.use("/uploads", express3.static(path6.join(process.cwd(), "uploads")));
+app.use("/stamppic", express3.static(path6.join(process.cwd(), "stamppic")));
+app.use("/invoices", express3.static(path6.join(process.cwd(), "public", "invoices")));
 app.use((req, res, next) => {
   const start = Date.now();
-  const path6 = req.path;
+  const path7 = req.path;
   let capturedJsonResponse = void 0;
   const originalResJson = res.json;
   res.json = function(bodyJson, ...args) {
@@ -7126,8 +9689,8 @@ app.use((req, res, next) => {
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path6.startsWith("/api")) {
-      let logLine = `${req.method} ${path6} ${res.statusCode} in ${duration}ms`;
+    if (path7.startsWith("/api")) {
+      let logLine = `${req.method} ${path7} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
@@ -7159,7 +9722,10 @@ app.use((req, res, next) => {
     reusePort: true
   }, async () => {
     log(`serving on port ${port}`);
-    await geminiService.reinitialize();
+    log("[AI] \u0634\u0631\u0648\u0639 initialize \u0633\u0631\u0648\u06CC\u0633 AI...");
+    await aiService.initialize();
+    log(`[AI] AI Service initialized \u0628\u0627 provider: ${aiService.getCurrentProvider() || "\u0647\u06CC\u0686\u06A9\u062F\u0627\u0645"}`);
     whatsAppMessageService.start();
+    cleanupService.start();
   });
 })();
