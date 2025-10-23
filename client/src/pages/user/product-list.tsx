@@ -375,7 +375,7 @@ export default function ProductList() {
 
         {/* Search and Filters */}
         <div className="bg-card rounded-lg border border-border p-4">
-          <div className="flex items-center space-x-4 space-x-reverse">
+          <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 md:space-x-4 md:space-x-reverse">
             <div className="flex-1">
               <Input
                 type="text"
@@ -385,24 +385,26 @@ export default function ProductList() {
                 data-testid="input-search-products"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48" data-testid="select-status-filter">
-                <SelectValue placeholder="همه محصولات" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">همه محصولات</SelectItem>
-                <SelectItem value="active">فعال</SelectItem>
-                <SelectItem value="inactive">غیرفعال</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="secondary" data-testid="button-search">
-              <Search className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="flex-1 md:w-48" data-testid="select-status-filter">
+                  <SelectValue placeholder="همه محصولات" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">همه محصولات</SelectItem>
+                  <SelectItem value="active">فعال</SelectItem>
+                  <SelectItem value="inactive">غیرفعال</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="secondary" data-testid="button-search">
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Products Table */}
-        <div className="bg-card rounded-lg border border-border overflow-hidden">
+        {/* Products Table - Desktop */}
+        <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center">در حال بارگذاری...</div>
           ) : (
@@ -531,6 +533,125 @@ export default function ProductList() {
                 </TableBody>
               </Table>
             </div>
+          )}
+        </div>
+
+        {/* Products Cards - Mobile */}
+        <div className="md:hidden space-y-4">
+          {isLoading ? (
+            <div className="p-8 text-center bg-card rounded-lg border border-border">در حال بارگذاری...</div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="p-8 text-center bg-card rounded-lg border border-border text-muted-foreground">
+              {search || statusFilter !== "all" ? "محصولی یافت نشد" : "هیچ محصولی اضافه نکرده‌اید"}
+            </div>
+          ) : (
+            filteredProducts.map((product) => (
+              <div 
+                key={product.id} 
+                className="bg-card rounded-lg border border-border p-4 space-y-3"
+                data-testid={`card-product-${product.id}`}
+              >
+                {/* Product Image and Name */}
+                <div className="flex items-start gap-3 pb-3 border-b border-border">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                      data-testid={`img-product-${product.id}`}
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Package className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-base truncate" data-testid={`text-product-name-${product.id}`}>
+                      {product.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground" data-testid={`text-product-category-${product.id}`}>
+                      {getCategoryName(product.categoryId)}
+                    </p>
+                    {!isLevel2User && (
+                      <div className="flex items-center gap-2 mt-1" dir="ltr">
+                        <Switch
+                          checked={product.isActive}
+                          onCheckedChange={() => handleToggleActive(product)}
+                          data-testid={`switch-product-active-${product.id}`}
+                          className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0 scale-90"
+                        />
+                        <span className={`text-xs ${product.isActive ? 'text-foreground' : 'text-muted-foreground'}`} dir="rtl">
+                          {product.isActive ? 'فعال' : 'غیرفعال'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Product Details */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">موجودی:</span>
+                    <span className="text-sm font-medium" data-testid={`text-product-quantity-${product.id}`}>
+                      {product.quantity}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">قیمت اصلی:</span>
+                    <span className="text-sm text-muted-foreground line-through" data-testid={`text-product-price-before-${product.id}`}>
+                      {formatPrice(product.priceBeforeDiscount)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">قیمت تخفیف‌دار:</span>
+                    <span className="text-sm font-bold text-primary" data-testid={`text-product-price-after-${product.id}`}>
+                      {formatPrice(product.priceAfterDiscount)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-2 border-t border-border">
+                  {isLevel2User ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => addToCartMutation.mutate({ productId: product.id, quantity: 1 })}
+                      disabled={addToCartMutation.isPending || !product.isActive || product.quantity <= 0}
+                      className="w-full text-white"
+                      data-testid={`button-add-to-cart-${product.id}`}
+                    >
+                      <ShoppingCart className="h-4 w-4 ml-2" />
+                      {addToCartMutation.isPending ? "در حال اضافه..." : "افزودن به سبد"}
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditProduct(product)}
+                        className="flex-1"
+                        data-testid={`button-edit-product-${product.id}`}
+                      >
+                        <Edit className="h-4 w-4 ml-1" />
+                        ویرایش
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(product.id)}
+                        className="text-destructive hover:text-destructive/80 hover:bg-destructive/10"
+                        data-testid={`button-delete-product-${product.id}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
           )}
         </div>
 

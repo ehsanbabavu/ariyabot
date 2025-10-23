@@ -475,8 +475,9 @@ export default function FinancialPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="overflow-x-auto -mx-3 sm:mx-0">
-                  <Table className="min-w-[700px]">
+                {/* Desktop Table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="text-right text-xs sm:text-sm">نوع</TableHead>
@@ -549,6 +550,86 @@ export default function FinancialPage() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {paginatedTransactions.map((transaction) => (
+                    <div 
+                      key={transaction.id}
+                      className="bg-card rounded-lg border border-border p-4 space-y-3"
+                      data-testid={`transaction-${transaction.id}`}
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between pb-3 border-b border-border">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-2 rounded-full ${transactionColors[transaction.type as keyof typeof transactionColors]}`}>
+                            {transaction.type === 'deposit' && <TrendingUp className="w-4 h-4" />}
+                            {transaction.type === 'withdraw' && <TrendingDown className="w-4 h-4" />}
+                            {transaction.type === 'order_payment' && <Minus className="w-4 h-4" />}
+                            {transaction.type === 'commission' && <Plus className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">
+                              {transactionLabels[transaction.type as keyof typeof transactionLabels]}
+                            </p>
+                            <Badge className={`${statusColors[transaction.status as keyof typeof statusColors]} text-xs mt-1`}>
+                              {statusLabels[transaction.status as keyof typeof statusLabels]}
+                            </Badge>
+                          </div>
+                        </div>
+                        <span 
+                          className={`font-bold text-base ${
+                            transaction.type === 'deposit' || transaction.type === 'commission' 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}
+                          data-testid={`amount-${transaction.id}`}
+                        >
+                          {transaction.type === 'deposit' || transaction.type === 'commission' ? '+' : '-'}
+                          {formatPrice(Number(transaction.amount))}
+                        </span>
+                      </div>
+
+                      {/* Details */}
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">تاریخ انجام:</span>
+                          <div className="text-left">
+                            {transaction.transactionDate && (
+                              <div>{transaction.transactionDate}</div>
+                            )}
+                            {transaction.transactionTime && (
+                              <div className="text-xs text-muted-foreground">{transaction.transactionTime}</div>
+                            )}
+                          </div>
+                        </div>
+
+                        {transaction.accountSource && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">از حساب:</span>
+                            <span>{transaction.accountSource}</span>
+                          </div>
+                        )}
+
+                        {transaction.createdAt && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">تاریخ ثبت:</span>
+                            <span className="text-muted-foreground text-xs">
+                              {moment(transaction.createdAt).format('jYYYY/jMM/jDD')}
+                            </span>
+                          </div>
+                        )}
+
+                        {transaction.referenceId && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">شماره پیگیری:</span>
+                            <span className="font-mono text-xs">{transaction.referenceId}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Pagination */}

@@ -372,8 +372,8 @@ export default function ReceivedOrdersPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100" data-testid="heading-received-orders">
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100" data-testid="heading-received-orders">
             سفارشات دریافتی
           </h1>
           <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -398,60 +398,62 @@ export default function ReceivedOrdersPage() {
           ) : (
             orders.map((order) => (
               <Card key={order.id} className={`overflow-hidden hover:shadow-md transition-shadow border-2 ${getPaymentStatusColor(order.status)}`} data-testid={`card-order-${order.id}`}>
-                <CardContent className="p-4">
-                  {/* Order Header - Horizontal Layout */}
-                  <div className="flex items-start justify-between mb-3">
+                <CardContent className="p-3 md:p-4">
+                  {/* Order Header - Responsive Layout */}
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                      <div>
-                        <h3 className="font-semibold text-base">
+                      <Package className="w-4 h-4 text-gray-600 dark:text-gray-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm md:text-base truncate">
                           سفارش #{order.orderNumber}
                         </h3>
-                        <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3 text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {order.createdAt && new Date(order.createdAt).toLocaleDateString('fa-IR')}
                           </span>
-                          <span className="font-medium text-green-600 dark:text-green-400 text-sm">
+                          <span className="font-medium text-green-600 dark:text-green-400">
                             {formatPrice(order.totalAmount)}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
                       <Badge 
-                        className={`text-sm ${statusColors[order.status as keyof typeof statusColors]}`}
+                        className={`text-xs md:text-sm w-fit ${statusColors[order.status as keyof typeof statusColors]}`}
                         data-testid={`status-${order.id}`}
                       >
                         {statusLabels[order.status as keyof typeof statusLabels]}
                       </Badge>
-                      {/* دکمه پرینت برای همه وضعیت‌ها به جز در انتظار پرداخت */}
-                      {order.status !== 'awaiting_payment' && (
+                      <div className="flex items-center gap-2 w-full md:w-auto">
+                        {/* دکمه پرینت برای همه وضعیت‌ها به جز در انتظار پرداخت */}
+                        {order.status !== 'awaiting_payment' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePrintOrder(order.id)}
+                            data-testid={`button-print-${order.id}`}
+                            className="text-xs md:text-sm h-8 md:h-9 flex-1 md:flex-initial"
+                          >
+                            <Printer className="w-4 h-4 md:mr-1" />
+                            <span className="hidden md:inline">پرینت سفارش</span>
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handlePrintOrder(order.id)}
-                          data-testid={`button-print-${order.id}`}
-                          className="text-sm h-9"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setNewStatus(order.status);
+                            setDialogOpen(true);
+                          }}
+                          data-testid={`button-edit-status-${order.id}`}
+                          className="text-xs md:text-sm h-8 md:h-9 flex-1 md:flex-initial"
                         >
-                          <Printer className="w-4 h-4 mr-1" />
-                          پرینت سفارش
+                          <Edit className="w-4 h-4 md:mr-1" />
+                          <span className="hidden md:inline">تغییر وضعیت</span>
                         </Button>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setNewStatus(order.status);
-                          setDialogOpen(true);
-                        }}
-                        data-testid={`button-edit-status-${order.id}`}
-                        className="text-sm h-9"
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        تغییر وضعیت
-                      </Button>
+                      </div>
                     </div>
                   </div>
 

@@ -314,8 +314,74 @@ export default function SubUserManagement() {
           />
         </div>
 
-        {/* Users Table */}
-        <div className="border rounded-lg overflow-hidden">
+        {/* Add Sub-User Button - Mobile */}
+        <div className="md:hidden">
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button data-testid="button-create-sub-user-mobile" className="w-full flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                افزودن زیرمجموعه
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>افزودن زیرمجموعه جدید</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
+                  💡 نام کاربری به صورت خودکار از شماره تلفن تولید می‌شود
+                </div>
+                <div>
+                  <Label htmlFor="firstName-mobile">نام</Label>
+                  <Input
+                    id="firstName-mobile"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    placeholder="نام"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="lastName-mobile">نام خانوادگی</Label>
+                  <Input
+                    id="lastName-mobile"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    placeholder="نام خانوادگی"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="phone-mobile">شماره تلفن</Label>
+                  <Input
+                    id="phone-mobile"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="09123456789"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password-mobile">رمز عبور</Label>
+                  <Input
+                    id="password-mobile"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="حداقل ۶ کاراکتر"
+                  />
+                </div>
+                <Button 
+                  onClick={handleCreate} 
+                  className="w-full"
+                  disabled={createSubUserMutation.isPending}
+                >
+                  {createSubUserMutation.isPending ? "در حال ایجاد..." : "ایجاد زیرمجموعه"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
@@ -484,6 +550,113 @@ export default function SubUserManagement() {
               )}
             </TableBody>
           </Table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-3">
+          {isLoading ? (
+            <div className="p-8 text-center bg-card rounded-lg border">در حال بارگذاری...</div>
+          ) : filteredSubUsers.length === 0 ? (
+            <div className="p-8 text-center bg-card rounded-lg border text-muted-foreground">
+              {search ? "هیچ زیرمجموعه‌ای یافت نشد" : "هنوز زیرمجموعه‌ای ایجاد نشده است"}
+            </div>
+          ) : (
+            filteredSubUsers.map((user) => (
+              <div 
+                key={user.id}
+                className="bg-card rounded-lg border p-4 space-y-3"
+                data-testid={`card-user-${user.id}`}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between pb-3 border-b">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Users className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium" data-testid={`text-fullname-${user.id}`}>
+                        {user.firstName} {user.lastName}
+                      </h3>
+                      {user.isWhatsappRegistered && (
+                        <Badge variant="secondary" className="text-xs mt-1">
+                          واتس‌اپ
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">نام کاربری:</span>
+                    <span className="font-mono" data-testid={`text-username-${user.id}`}>{user.username}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">تلفن:</span>
+                    <span data-testid={`text-phone-${user.id}`}>{formatPhone(user.phone)}</span>
+                  </div>
+
+                  {user.subscription && (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">اشتراک:</span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span>{user.subscription.name}</span>
+                          {user.subscription.isTrialPeriod && (
+                            <Badge variant="secondary" className="text-xs">آزمایشی</Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">روزهای باقیمانده:</span>
+                        <span className={`font-medium ${
+                          user.subscription.remainingDays <= 3 ? 'text-red-600' :
+                          user.subscription.remainingDays <= 7 ? 'text-orange-600' :
+                          'text-green-600'
+                        }`}>
+                          {user.subscription.remainingDays} روز
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(user)}
+                    className="flex-1"
+                    data-testid={`button-edit-${user.id}`}
+                  >
+                    <Edit className="w-4 h-4 ml-1" />
+                    ویرایش
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleResetPassword(user)}
+                    data-testid={`button-reset-password-${user.id}`}
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDelete(user.id)}
+                    className="text-destructive hover:text-destructive"
+                    data-testid={`button-delete-${user.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Edit Dialog */}

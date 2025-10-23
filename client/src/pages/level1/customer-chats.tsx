@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Send, MessageCircle, User, Clock } from "lucide-react";
+import { Send, MessageCircle, User, Clock, ArrowRight } from "lucide-react";
 import { type InternalChat } from "@shared/schema";
 
 interface ChatWithUser extends InternalChat {
@@ -165,8 +165,8 @@ export default function CustomerChats() {
 
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-4" data-testid="customer-chats-content">
-      {/* Customer List */}
-      <div className="w-80 flex-shrink-0">
+      {/* Customer List - Desktop: always visible, Mobile: hidden when chat is selected */}
+      <div className={`w-full md:w-80 md:flex-shrink-0 ${selectedCustomerId ? 'hidden md:block' : 'block'}`}>
         <Card className="h-full">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -230,12 +230,20 @@ export default function CustomerChats() {
         </Card>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1">
+      {/* Chat Area - Desktop: always visible, Mobile: shown when customer selected */}
+      <div className={`w-full md:flex-1 ${selectedCustomerId ? 'block' : 'hidden md:block'}`}>
         {selectedCustomerId ? (
           <Card className="h-full flex flex-col">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="md:hidden -mr-2"
+                  onClick={() => setSelectedCustomerId(null)}
+                >
+                  <ArrowRight className="h-5 w-5" />
+                </Button>
                 <Avatar className="h-8 w-8">
                   <AvatarFallback>
                     <User className="h-4 w-4" />

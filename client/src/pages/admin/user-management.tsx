@@ -184,14 +184,15 @@ export default function UserManagement() {
   return (
     <DashboardLayout title="مدیریت کاربران">
       <div className="space-y-6" data-testid="page-user-management">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-foreground">مدیریت کاربران</h2>
-            <p className="text-muted-foreground">مشاهده و مدیریت تمام کاربران سیستم</p>
+            <p className="text-sm md:text-base text-muted-foreground">مشاهده و مدیریت تمام کاربران سیستم</p>
           </div>
           <Button 
             onClick={() => setIsCreateDialogOpen(true)}
             data-testid="button-create-user"
+            className="w-full md:w-auto"
           >
             <Plus className="h-4 w-4 ml-2" />
             اضافه کردن کاربر جدید
@@ -200,7 +201,7 @@ export default function UserManagement() {
 
         {/* Search and Filters */}
         <div className="bg-card rounded-lg border border-border p-4">
-          <div className="flex items-center space-x-4 space-x-reverse">
+          <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 md:space-x-4 md:space-x-reverse">
             <div className="flex-1">
               <Input
                 type="text"
@@ -210,25 +211,27 @@ export default function UserManagement() {
                 data-testid="input-search-users"
               />
             </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-48" data-testid="select-role-filter">
-                <SelectValue placeholder="همه نقش‌ها" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">همه نقش‌ها</SelectItem>
-                <SelectItem value="admin">مدیر</SelectItem>
-                <SelectItem value="user_level_1">کاربر سطح ۱</SelectItem>
-                <SelectItem value="user_level_2">کاربر سطح ۲</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="secondary" data-testid="button-search">
-              <Search className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2 md:gap-0">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="flex-1 md:w-48" data-testid="select-role-filter">
+                  <SelectValue placeholder="همه نقش‌ها" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">همه نقش‌ها</SelectItem>
+                  <SelectItem value="admin">مدیر</SelectItem>
+                  <SelectItem value="user_level_1">کاربر سطح ۱</SelectItem>
+                  <SelectItem value="user_level_2">کاربر سطح ۲</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="secondary" data-testid="button-search" className="md:mr-0">
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Users Table */}
-        <div className="bg-card rounded-lg border border-border overflow-hidden">
+        {/* Users Table - Desktop View */}
+        <div className="hidden md:block bg-card rounded-lg border border-border overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center">در حال بارگذاری...</div>
           ) : (
@@ -310,6 +313,107 @@ export default function UserManagement() {
                 </TableBody>
               </Table>
             </div>
+          )}
+        </div>
+
+        {/* Users Cards - Mobile View */}
+        <div className="md:hidden space-y-4">
+          {isLoading ? (
+            <div className="p-8 text-center bg-card rounded-lg border border-border">در حال بارگذاری...</div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="p-8 text-center bg-card rounded-lg border border-border text-muted-foreground">
+              کاربری یافت نشد
+            </div>
+          ) : (
+            filteredUsers.map((user) => (
+              <div 
+                key={user.id} 
+                className="bg-card rounded-lg border border-border p-4 space-y-3"
+                data-testid={`card-user-${user.id}`}
+              >
+                {/* Header with name and actions */}
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <div>
+                    <h3 className="font-bold text-lg" data-testid={`text-user-name-${user.id}`}>
+                      {user.firstName} {user.lastName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground" data-testid={`text-user-username-${user.id}`}>
+                      {user.username || '-'}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-1 space-x-reverse">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditUser(user)}
+                      data-testid={`button-edit-user-${user.id}`}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="text-destructive hover:text-destructive/80"
+                      data-testid={`button-delete-user-${user.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* User details */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">شماره تلفن:</span>
+                    <span className="text-sm font-medium" data-testid={`text-user-phone-${user.id}`}>
+                      {user.phone}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">نوع اشتراک:</span>
+                    <div data-testid={`text-user-subscription-${user.id}`}>
+                      {user.subscription ? (
+                        <div className="flex items-center space-x-2 space-x-reverse">
+                          <span className="text-sm font-medium">{user.subscription.name}</span>
+                          {user.subscription.isTrialPeriod && (
+                            <Badge variant="secondary" className="text-xs">آزمایشی</Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">بدون اشتراک</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {user.subscription && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">روزهای باقیمانده:</span>
+                      <div className="flex items-center space-x-1 space-x-reverse" data-testid={`text-user-remaining-days-${user.id}`}>
+                        <span className={`text-sm font-medium ${
+                          user.subscription.remainingDays <= 3 
+                            ? "text-destructive" 
+                            : user.subscription.remainingDays <= 7 
+                            ? "text-orange-500" 
+                            : ""
+                        }`}>
+                          {user.subscription.remainingDays}
+                        </span>
+                        <span className="text-xs text-muted-foreground">روز</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">تاریخ عضویت:</span>
+                    <span className="text-sm font-medium" data-testid={`text-user-created-${user.id}`}>
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString('fa-IR') : '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
 
