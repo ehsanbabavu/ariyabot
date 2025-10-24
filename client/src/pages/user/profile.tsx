@@ -143,15 +143,15 @@ export default function Profile() {
           {/* Profile Picture */}
           <div className="lg:col-span-1">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-center">تصویر پروفایل</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-center text-sm md:text-base">تصویر پروفایل</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col items-center space-y-4">
+              <CardContent className="flex flex-col items-center space-y-3 md:space-y-4">
                 <div className="relative">
-                  <Avatar className="w-32 h-32" data-testid="img-profile-avatar">
+                  <Avatar className="w-24 h-24 md:w-32 md:h-32" data-testid="img-profile-avatar">
                     <AvatarImage src={user?.profilePicture || undefined} />
-                    <AvatarFallback className="text-3xl">
-                      <User className="h-16 w-16" />
+                    <AvatarFallback className="text-2xl md:text-3xl">
+                      <User className="h-12 w-12 md:h-16 md:w-16" />
                     </AvatarFallback>
                   </Avatar>
                   <Button
@@ -174,9 +174,9 @@ export default function Profile() {
                   />
                 </div>
                 {uploadPictureMutation.isPending && (
-                  <p className="text-sm text-muted-foreground">در حال آپلود...</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">در حال آپلود...</p>
                 )}
-                <p className="text-xs text-muted-foreground text-center">
+                <p className="text-[10px] md:text-xs text-muted-foreground text-center">
                   حجم فایل حداکثر ۵ مگابایت
                 </p>
               </CardContent>
@@ -186,12 +186,12 @@ export default function Profile() {
           {/* Profile Information */}
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader>
-                <CardTitle>اطلاعات شخصی</CardTitle>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm md:text-base">اطلاعات شخصی</CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="firstName">نام</Label>
                       <Input
@@ -214,39 +214,43 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="email">ایمیل</Label>
-                    <Input
-                      id="email"
-                      value={user?.email || ""}
-                      disabled
-                      className="bg-muted text-muted-foreground"
-                      data-testid="input-email-disabled"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">ایمیل قابل تغییر نیست</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">ایمیل</Label>
+                      <Input
+                        id="email"
+                        value={user?.email || ""}
+                        disabled
+                        className="bg-muted text-muted-foreground"
+                        data-testid="input-email-disabled"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">ایمیل قابل تغییر نیست</p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="phone">شماره تلفن</Label>
+                      <Input
+                        id="phone"
+                        value={user?.phone || ""}
+                        disabled
+                        className="bg-muted text-muted-foreground"
+                        data-testid="input-phone-disabled"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">شماره تلفن قابل تغییر نیست</p>
+                    </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="phone">شماره تلفن</Label>
-                    <Input
-                      id="phone"
-                      value={user?.phone || ""}
-                      disabled
-                      className="bg-muted text-muted-foreground"
-                      data-testid="input-phone-disabled"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">شماره تلفن قابل تغییر نیست</p>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="role">نقش کاربری</Label>
-                    <Input
-                      id="role"
-                      value={getRoleName(user?.role || "")}
-                      disabled
-                      className="bg-muted text-muted-foreground"
-                      data-testid="input-role-disabled"
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="role">نقش کاربری</Label>
+                      <Input
+                        id="role"
+                        value={getRoleName(user?.role || "")}
+                        disabled
+                        className="bg-muted text-muted-foreground"
+                        data-testid="input-role-disabled"
+                      />
+                    </div>
                   </div>
 
                   <Button

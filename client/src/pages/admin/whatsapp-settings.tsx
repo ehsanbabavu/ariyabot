@@ -7,23 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { 
   Save, 
-  TestTube, 
   MessageCircle, 
   Shield, 
   Bell, 
-  Activity,
-  CheckCircle2,
-  XCircle,
   Eye,
   EyeOff,
   Settings,
   User,
-  Globe,
-  Crown,
-  Info
+  Crown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
@@ -109,20 +102,6 @@ export default function WhatsappSettings() {
     updateMutation.mutate(formData);
   };
 
-  const handleTestConnection = async () => {
-    toast({
-      title: "🧪 تست اتصال",
-      description: "در حال تست اتصال...",
-    });
-    
-    setTimeout(() => {
-      toast({
-        title: "✅ تست موفق",
-        description: "اتصال برقرار است",
-      });
-    }, 1500);
-  };
-
   const handleNotificationChange = (notification: string, checked: boolean) => {
     if (checked) {
       setFormData({
@@ -159,30 +138,6 @@ export default function WhatsappSettings() {
     <DashboardLayout title="تنظیمات واتس‌اپ">
       <div className="space-y-4" data-testid="page-whatsapp-settings">
         
-        {/* Info Alert */}
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertTitle>
-            {isPersonal ? (
-              <div className="flex items-center space-x-2 space-x-reverse">
-                <User className="w-4 h-4" />
-                <span>تنظیمات شخصی</span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2 space-x-reverse">
-                <Globe className="w-4 h-4" />
-                <span>تنظیمات عمومی</span>
-              </div>
-            )}
-          </AlertTitle>
-          <AlertDescription>
-            {isPersonal 
-              ? "این توکن فقط برای حساب شخصی شما استفاده خواهد شد."
-              : "این تنظیمات برای کل سیستم اعمال می‌شود."
-            }
-          </AlertDescription>
-        </Alert>
-
         {/* Main Form */}
         <Card>
           <CardHeader className="pb-3">
@@ -233,9 +188,6 @@ export default function WhatsappSettings() {
                     {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  توکن از پنل فیس‌بوک دریافت کنید
-                </p>
               </div>
 
               {/* AI Name */}
@@ -316,20 +268,6 @@ export default function WhatsappSettings() {
                 </div>
               )}
 
-              {/* Personal Token Info for Level 1 users */}
-              {isPersonal && (
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <div className="flex items-center space-x-2 space-x-reverse mb-2">
-                    <User className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">اطلاعات توکن شخصی</span>
-                  </div>
-                  <p className="text-xs text-blue-700">
-                    با وارد کردن توکن شخصی، می‌توانید از طریق حساب واتس‌اپ خودتان پیام‌ها را مدیریت کنید.
-                    این توکن فقط برای شما قابل دسترسی است.
-                  </p>
-                </div>
-              )}
-
               {/* Buttons */}
               <div className="flex items-center space-x-3 space-x-reverse pt-2">
                 <Button
@@ -340,17 +278,6 @@ export default function WhatsappSettings() {
                 >
                   <Save className="w-3 h-3 ml-1" />
                   {updateMutation.isPending ? "در حال ذخیره..." : "ذخیره"}
-                </Button>
-                
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleTestConnection}
-                  data-testid="button-test-whatsapp-connection"
-                >
-                  <TestTube className="w-3 h-3 ml-1" />
-                  تست
                 </Button>
               </div>
             </form>
