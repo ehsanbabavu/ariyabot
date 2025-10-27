@@ -643,6 +643,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin-only route to update WhatsApp token for users
+  app.put("/api/admin/users/:userId/whatsapp-token", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { whatsappToken } = req.body;
+
+      // Check if user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      // Update only the whatsappToken field
+      const updatedUser = await storage.updateUser(userId, { whatsappToken });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "خطا در بروزرسانی توکن" });
+      }
+
+      console.log(`✅ توکن واتس‌اپ کاربر ${user.username} توسط مدیر بروزرسانی شد`);
+      res.json({ 
+        message: "توکن واتس‌اپ با موفقیت بروزرسانی شد",
+        user: { ...updatedUser, password: undefined }
+      });
+    } catch (error) {
+      console.error("خطا در بروزرسانی توکن واتس‌اپ:", error);
+      res.status(500).json({ message: "خطا در بروزرسانی توکن واتس‌اپ" });
+    }
+  });
+
   app.delete("/api/users/:id", authenticateToken, requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
