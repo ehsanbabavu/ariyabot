@@ -176,9 +176,11 @@ export default function WhatsappSettings() {
                     type={showToken ? "text" : "password"}
                     value={formData.token}
                     onChange={(e) => setFormData({ ...formData, token: e.target.value })}
-                    placeholder="توکن API واتس‌اپ"
+                    placeholder={isPersonal ? "توکن توسط مدیر تنظیم می‌شود" : "توکن API واتس‌اپ"}
                     className="pr-8"
                     data-testid="input-whatsapp-token"
+                    disabled={isPersonal}
+                    readOnly={isPersonal}
                   />
                   <button
                     type="button"
@@ -188,6 +190,11 @@ export default function WhatsappSettings() {
                     {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {isPersonal && (
+                  <p className="text-xs text-muted-foreground">
+                    توکن شما توسط مدیر تنظیم شده و قابل ویرایش نیست. فقط قابل مشاهده است.
+                  </p>
+                )}
               </div>
 
               {/* AI Name */}

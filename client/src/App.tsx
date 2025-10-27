@@ -18,6 +18,7 @@ import AITokenSettings from "@/pages/admin/ai-token";
 import DatabaseBackup from "@/pages/admin/database-backup";
 import LoginLogs from "@/pages/admin/login-logs";
 import Categories from "@/pages/admin/categories";
+import UserWhatsappTokens from "@/pages/admin/user-whatsapp-tokens";
 import Profile from "@/pages/user/profile";
 import SendTicket from "@/pages/user/send-ticket";
 import MyTickets from "@/pages/user/my-tickets";
@@ -214,6 +215,7 @@ function Router() {
       <Route path="/database-backup" component={() => <AdminRoute component={DatabaseBackup} />} />
       <Route path="/content-management" component={() => <AdminRoute component={ContentManagement} />} />
       <Route path="/admin/welcome-message" component={() => <AdminOrLevel1Route component={WelcomeMessage} />} />
+      <Route path="/user-whatsapp-tokens" component={() => <AdminRoute component={UserWhatsappTokens} />} />
       <Route path="/whatsapp-settings" component={() => <AdminOrLevel1Route component={WhatsappSettings} />} />
       <Route path="/send-message" component={() => <AdminOrLevel1Route component={SendMessage} />} />
       <Route path="/reports" component={() => <AdminOrLevel1Route component={Reports} />} />
