@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -55,12 +55,20 @@ export default function WhatsappSettings() {
     isConnected: null,
     message: "در حال بررسی اتصال...",
   });
+  const lastConnectedNumberRef = useRef<string | null>(null);
   const [alertEnabled, setAlertEnabled] = useState(() => {
     const saved = localStorage.getItem('whatsapp-alert-enabled');
     return saved !== null ? JSON.parse(saved) : true;
   });
-  const [lastAlertSent, setLastAlertSent] = useState<Date | null>(null);
+  const alertEnabledRef = useRef(alertEnabled);
+  const lastAlertSentRef = useRef<Date | null>(null);
+  const userRef = useRef<{role: string; id: string} | undefined>(undefined);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
+
+  // Sync refs with state
+  useEffect(() => {
+    alertEnabledRef.current = alertEnabled;
+  }, [alertEnabled]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -73,6 +81,15 @@ export default function WhatsappSettings() {
       return response.json();
     },
   });
+
+  // Sync user to ref and check connection when user loads
+  useEffect(() => {
+    userRef.current = user;
+    // وقتی user لود شد و admin است، یکبار اتصال را چک کن
+    if (user?.role === 'admin' && (formData.token || settings?.token)) {
+      checkWhatsAppConnection();
+    }
+  }, [user]);
 
   const { data: settings, isLoading } = useQuery<{
     token: string;
@@ -141,7 +158,7 @@ export default function WhatsappSettings() {
       });
       
       if (response.ok) {
-        setLastAlertSent(new Date());
+        lastAlertSentRef.current = new Date();
         toast({
           title: "✅ هشدار ارسال شد",
           description: "پیام هشدار به واتس‌اپ مدیر ارسال شد",
@@ -175,27 +192,44 @@ export default function WhatsappSettings() {
 
       const data: WhatsAppConnectionStatus = await response.json();
       
-      const isConnected = data.status === 'true' && 
-                         data.connectionStatus?.toLowerCase().includes('connected');
+      // منطق ساده: اگر شماره موبایل نمایش داده شد = متصل، وگرنه = قطع شده
+      const isConnected = !!data.whatsAppNumber;
+      
+      // اگر متصل شد، شماره را ذخیره کن
+      if (isConnected && data.whatsAppNumber) {
+        lastConnectedNumberRef.current = data.whatsAppNumber;
+      }
       
       const newStatus = {
         isConnected,
         message: isConnected 
           ? `متصل به واتس‌اپ` 
-          : data.connectionStatus || "قطع شده",
+          : "قطع اتصال",
         whatsAppNumber: data.whatsAppNumber,
         lastChecked: new Date(),
       };
       
       setConnectionStatus(newStatus);
 
-      if (!isConnected && alertEnabled && user?.role === 'admin') {
-        const now = new Date();
-        const shouldSendAlert = !lastAlertSent || 
-                               (now.getTime() - lastAlertSent.getTime()) > 30 * 60 * 1000;
+      if (!isConnected && alertEnabledRef.current && userRef.current?.role === 'admin') {
+        console.log('🔔 اتصال قطع شده - بررسی شرایط ارسال هشدار...');
+        console.log('alertEnabled:', alertEnabledRef.current);
+        console.log('user.role:', userRef.current?.role);
+        console.log('lastConnectedNumber:', lastConnectedNumberRef.current);
         
-        if (shouldSendAlert && data.whatsAppNumber) {
-          await sendDisconnectAlert(data.whatsAppNumber, token);
+        const now = new Date();
+        const shouldSendAlert = !lastAlertSentRef.current || 
+                               (now.getTime() - lastAlertSentRef.current.getTime()) > 30 * 60 * 1000;
+        
+        console.log('shouldSendAlert:', shouldSendAlert);
+        console.log('lastAlertSent:', lastAlertSentRef.current);
+        
+        // از آخرین شماره متصل استفاده کن
+        if (shouldSendAlert && lastConnectedNumberRef.current) {
+          console.log('📤 در حال ارسال هشدار به شماره:', lastConnectedNumberRef.current);
+          await sendDisconnectAlert(lastConnectedNumberRef.current, token);
+        } else if (shouldSendAlert && !lastConnectedNumberRef.current) {
+          console.log('⚠️ شماره واتس‌اپ برای ارسال هشدار موجود نیست');
         }
       }
 
@@ -406,9 +440,9 @@ export default function WhatsappSettings() {
                         </>
                       )}
                     </span>
-                    {lastAlertSent && (
+                    {lastAlertSentRef.current && (
                       <span className="flex items-center gap-1">
-                        آخرین هشدار: {new Date(lastAlertSent).toLocaleTimeString('fa-IR')}
+                        آخرین هشدار: {new Date(lastAlertSentRef.current).toLocaleTimeString('fa-IR')}
                       </span>
                     )}
                   </div>
@@ -498,22 +532,49 @@ export default function WhatsappSettings() {
 
               {/* Enable Toggle - Show for non-personal (admin) settings */}
               {!isPersonal && (
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <Label htmlFor="isEnabled" className="text-sm font-medium cursor-pointer">
-                    فعال‌سازی سرویس واتس‌اپ
-                  </Label>
-                  <div className="flex items-center gap-2" dir="ltr">
-                    <Switch
-                      id="isEnabled"
-                      checked={formData.isEnabled}
-                      onCheckedChange={(checked) => setFormData({ ...formData, isEnabled: checked as boolean })}
-                      data-testid="switch-whatsapp-enabled"
-                      className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
-                    />
-                    <span className="text-sm text-muted-foreground" dir="rtl">
-                      {formData.isEnabled ? "فعال" : "غیرفعال"}
-                    </span>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <Label htmlFor="isEnabled" className="text-sm font-medium cursor-pointer">
+                      فعال‌سازی سرویس واتس‌اپ
+                    </Label>
+                    <div className="flex items-center gap-2" dir="ltr">
+                      <Switch
+                        id="isEnabled"
+                        checked={formData.isEnabled}
+                        onCheckedChange={(checked) => setFormData({ ...formData, isEnabled: checked as boolean })}
+                        data-testid="switch-whatsapp-enabled"
+                        className="data-[state=checked]:bg-primary [&>span]:data-[state=checked]:translate-x-5 [&>span]:data-[state=unchecked]:translate-x-0"
+                      />
+                      <span className="text-sm text-muted-foreground" dir="rtl">
+                        {formData.isEnabled ? "فعال" : "غیرفعال"}
+                      </span>
+                    </div>
                   </div>
+                  {/* Connection Status Hint */}
+                  {(formData.token || settings?.token) && (
+                    <div className={`flex items-center gap-2 p-2 rounded-md text-xs ${
+                      connectionStatus.isConnected === null 
+                        ? 'bg-blue-50 text-blue-700'
+                        : connectionStatus.isConnected 
+                          ? 'bg-green-50 text-green-700'
+                          : 'bg-red-50 text-red-700'
+                    }`}>
+                      {connectionStatus.isConnected === null ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : connectionStatus.isConnected ? (
+                        <CheckCircle2 className="w-3 h-3" />
+                      ) : (
+                        <AlertTriangle className="w-3 h-3" />
+                      )}
+                      <span>
+                        وضعیت اتصال: {connectionStatus.isConnected === null 
+                          ? 'در حال بررسی...' 
+                          : connectionStatus.isConnected 
+                            ? 'متصل' 
+                            : 'قطع اتصال'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 
