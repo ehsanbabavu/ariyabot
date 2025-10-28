@@ -1032,6 +1032,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Profile routes
+  app.get("/api/profile", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = await storage.getUser(req.user!.id);
+      res.json({ ...user!, password: undefined });
+    } catch (error) {
+      res.status(500).json({ message: "خطا در دریافت پروفایل" });
+    }
+  });
+
   app.put("/api/profile", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { firstName, lastName } = req.body;
