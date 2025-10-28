@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   Save, 
   MessageCircle, 
@@ -16,11 +17,25 @@ import {
   EyeOff,
   Settings,
   User,
-  Crown
+  Crown,
+  Wifi,
+  WifiOff,
+  Loader2,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle2,
+  BellRing
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
 import type { WhatsappSettings } from "@shared/schema";
+
+interface WhatsAppConnectionStatus {
+  status: string;
+  connectionStatus: string;
+  whatsAppNumber: string;
+  level: string;
+}
 
 export default function WhatsappSettings() {
   const [formData, setFormData] = useState({
@@ -31,6 +46,21 @@ export default function WhatsappSettings() {
   });
   const [showToken, setShowToken] = useState(false);
   const [isPersonal, setIsPersonal] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<{
+    isConnected: boolean | null;
+    message: string;
+    whatsAppNumber?: string;
+    lastChecked?: Date;
+  }>({
+    isConnected: null,
+    message: "در حال بررسی اتصال...",
+  });
+  const [alertEnabled, setAlertEnabled] = useState(() => {
+    const saved = localStorage.getItem('whatsapp-alert-enabled');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+  const [lastAlertSent, setLastAlertSent] = useState<Date | null>(null);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -97,6 +127,130 @@ export default function WhatsappSettings() {
     }
   }, [settings]);
 
+  const sendDisconnectAlert = async (adminPhone: string, token: string) => {
+    try {
+      const response = await fetch(`https://api.whatsiplus.com/sendMessage/${token}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          phoneNumber: adminPhone,
+          message: `⚠️ هشدار قطع اتصال واتس‌اپ\n\nاتصال واتس‌اپ سیستم قطع شده است!\n\nزمان: ${new Date().toLocaleString('fa-IR')}\n\nلطفاً در اسرع وقت وضعیت اتصال را بررسی کنید.`,
+        }),
+      });
+      
+      if (response.ok) {
+        setLastAlertSent(new Date());
+        toast({
+          title: "✅ هشدار ارسال شد",
+          description: "پیام هشدار به واتس‌اپ مدیر ارسال شد",
+        });
+      }
+    } catch (error) {
+      console.error('Error sending disconnect alert:', error);
+    }
+  };
+
+  const checkWhatsAppConnection = async (manualCheck = false) => {
+    const token = formData.token || settings?.token;
+    if (!token) {
+      setConnectionStatus({
+        isConnected: false,
+        message: "توکن واتس‌اپ تنظیم نشده است",
+      });
+      return;
+    }
+
+    if (manualCheck) {
+      setIsCheckingConnection(true);
+    }
+
+    try {
+      const response = await fetch(`https://api.whatsiplus.com/serviceSettings/${token}`);
+      
+      if (!response.ok) {
+        throw new Error("خطا در دریافت وضعیت");
+      }
+
+      const data: WhatsAppConnectionStatus = await response.json();
+      
+      const isConnected = data.status === 'true' && 
+                         data.connectionStatus?.toLowerCase().includes('connected');
+      
+      const newStatus = {
+        isConnected,
+        message: isConnected 
+          ? `متصل به واتس‌اپ` 
+          : data.connectionStatus || "قطع شده",
+        whatsAppNumber: data.whatsAppNumber,
+        lastChecked: new Date(),
+      };
+      
+      setConnectionStatus(newStatus);
+
+      if (!isConnected && alertEnabled && user?.role === 'admin') {
+        const now = new Date();
+        const shouldSendAlert = !lastAlertSent || 
+                               (now.getTime() - lastAlertSent.getTime()) > 30 * 60 * 1000;
+        
+        if (shouldSendAlert && data.whatsAppNumber) {
+          await sendDisconnectAlert(data.whatsAppNumber, token);
+        }
+      }
+
+      if (manualCheck) {
+        toast({
+          title: isConnected ? "✅ متصل" : "⚠️ قطع شده",
+          description: newStatus.message,
+        });
+      }
+    } catch (error) {
+      const errorStatus = {
+        isConnected: false,
+        message: "خطا در بررسی وضعیت اتصال",
+        lastChecked: new Date(),
+      };
+      setConnectionStatus(errorStatus);
+      
+      if (manualCheck) {
+        toast({
+          title: "❌ خطا",
+          description: "خطا در بررسی وضعیت اتصال",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      if (manualCheck) {
+        setIsCheckingConnection(false);
+      }
+    }
+  };
+
+  const toggleAlert = () => {
+    const newValue = !alertEnabled;
+    setAlertEnabled(newValue);
+    localStorage.setItem('whatsapp-alert-enabled', JSON.stringify(newValue));
+    toast({
+      title: newValue ? "🔔 هشدار فعال شد" : "🔕 هشدار غیرفعال شد",
+      description: newValue 
+        ? "در صورت قطع اتصال، به واتس‌اپ شما پیام ارسال می‌شود" 
+        : "هشدارهای قطع اتصال غیرفعال شدند",
+    });
+  };
+
+  useEffect(() => {
+    if (formData.token || settings?.token) {
+      checkWhatsAppConnection();
+      
+      const interval = setInterval(() => {
+        checkWhatsAppConnection();
+      }, 10 * 60 * 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [formData.token, settings?.token]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateMutation.mutate(formData);
@@ -138,6 +292,132 @@ export default function WhatsappSettings() {
     <DashboardLayout title="تنظیمات واتس‌اپ">
       <div className="space-y-4" data-testid="page-whatsapp-settings">
         
+        {/* Modern Connection Status Bar */}
+        {(formData.token || settings?.token) && (
+          <Card className={`relative overflow-hidden border-none shadow-lg transition-all duration-300 ${
+            connectionStatus.isConnected === null 
+              ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
+              : connectionStatus.isConnected 
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                : 'bg-gradient-to-r from-red-500 to-rose-600'
+          }`}>
+            <div className="absolute inset-0 bg-black/5"></div>
+            <CardContent className="relative p-4">
+              <div className="flex items-center justify-between gap-4">
+                {/* Status Info */}
+                <div className="flex items-center gap-4 flex-1">
+                  {/* Icon */}
+                  <div className={`p-3 rounded-xl bg-white/20 backdrop-blur-sm ${
+                    connectionStatus.isConnected === null ? 'animate-pulse' : ''
+                  }`}>
+                    {connectionStatus.isConnected === null ? (
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    ) : connectionStatus.isConnected ? (
+                      <CheckCircle2 className="w-6 h-6 text-white" />
+                    ) : (
+                      <AlertTriangle className="w-6 h-6 text-white animate-pulse" />
+                    )}
+                  </div>
+
+                  {/* Status Details */}
+                  <div className="flex flex-col gap-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold text-lg">
+                        {connectionStatus.isConnected === null 
+                          ? 'در حال بررسی...' 
+                          : connectionStatus.isConnected 
+                            ? 'متصل به واتس‌اپ' 
+                            : 'اتصال قطع شده'}
+                      </span>
+                      {connectionStatus.isConnected === false && (
+                        <Badge variant="destructive" className="bg-white/30 text-white border-white/50">
+                          نیاز به توجه
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-3 text-white/90 text-sm">
+                      {connectionStatus.whatsAppNumber && (
+                        <span className="flex items-center gap-1">
+                          <MessageCircle className="w-3 h-3" />
+                          {connectionStatus.whatsAppNumber}
+                        </span>
+                      )}
+                      {connectionStatus.lastChecked && (
+                        <span className="flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3" />
+                          {new Date(connectionStatus.lastChecked).toLocaleTimeString('fa-IR')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  {/* Alert Toggle */}
+                  {!isPersonal && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={toggleAlert}
+                      className={`text-white hover:bg-white/20 border border-white/30 transition-all ${
+                        alertEnabled ? 'bg-white/20' : 'bg-white/10'
+                      }`}
+                      title={alertEnabled ? 'غیرفعال کردن هشدار' : 'فعال کردن هشدار'}
+                    >
+                      {alertEnabled ? (
+                        <BellRing className="w-4 h-4 ml-1 animate-pulse" />
+                      ) : (
+                        <Bell className="w-4 h-4 ml-1" />
+                      )}
+                      {alertEnabled ? 'هشدار فعال' : 'هشدار غیرفعال'}
+                    </Button>
+                  )}
+
+                  {/* Refresh Button */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => checkWhatsAppConnection(true)}
+                    disabled={isCheckingConnection}
+                    className="text-white hover:bg-white/20 border border-white/30"
+                  >
+                    <RefreshCw className={`w-4 h-4 ml-1 ${isCheckingConnection ? 'animate-spin' : ''}`} />
+                    بررسی مجدد
+                  </Button>
+                </div>
+              </div>
+
+              {/* Alert Status Info */}
+              {!isPersonal && (
+                <div className="mt-3 pt-3 border-t border-white/20">
+                  <div className="flex items-center justify-between text-white/80 text-xs">
+                    <span className="flex items-center gap-1">
+                      {alertEnabled ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3" />
+                          در صورت قطع اتصال، پیام هشدار ارسال می‌شود
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-3 h-3" />
+                          هشدارهای خودکار غیرفعال است
+                        </>
+                      )}
+                    </span>
+                    {lastAlertSent && (
+                      <span className="flex items-center gap-1">
+                        آخرین هشدار: {new Date(lastAlertSent).toLocaleTimeString('fa-IR')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Main Form */}
         <Card>
           <CardHeader className="pb-3">

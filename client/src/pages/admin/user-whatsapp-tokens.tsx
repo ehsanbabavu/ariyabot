@@ -99,13 +99,7 @@ export default function UserWhatsappTokens() {
       <div className="space-y-4">
         
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 space-x-reverse text-lg">
-              <MessageCircle className="w-5 h-5" />
-              <span>مدیریت توکن‌های واتس‌اپ کاربران سطح 1</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {users.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <User className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -238,22 +232,6 @@ export default function UserWhatsappTokens() {
                 </Table>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <MessageCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="space-y-1 text-sm">
-                <p className="font-medium text-blue-900">راهنما:</p>
-                <ul className="list-disc list-inside space-y-1 text-blue-800 mr-2">
-                  <li>توکن واتس‌اپ هر کاربر سطح 1 را می‌توانید از این صفحه تنظیم کنید</li>
-                  <li>پس از ذخیره، توکن به طور خودکار برای کاربر فعال می‌شود</li>
-                  <li>کاربران سطح 1 می‌توانند توکن خود را مشاهده کنند اما قادر به ویرایش آن نیستند</li>
-                </ul>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
