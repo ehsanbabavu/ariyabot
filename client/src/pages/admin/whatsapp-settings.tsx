@@ -23,8 +23,7 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
-  CheckCircle2,
-  BellRing
+  CheckCircle2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
@@ -55,25 +54,14 @@ export default function WhatsappSettings() {
     isConnected: null,
     message: "در حال بررسی اتصال...",
   });
-  const lastConnectedNumberRef = useRef<string | null>(null);
-  const [alertEnabled, setAlertEnabled] = useState(() => {
-    const saved = localStorage.getItem('whatsapp-alert-enabled');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
-  const alertEnabledRef = useRef(alertEnabled);
-  const lastAlertSentRef = useRef<Date | null>(null);
-  const userRef = useRef<{role: string; id: string} | undefined>(undefined);
+  const userRef = useRef<{role: string; id: string; whatsappNumber?: string} | undefined>(undefined);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
 
-  // Sync refs with state
-  useEffect(() => {
-    alertEnabledRef.current = alertEnabled;
-  }, [alertEnabled]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Get current user info
-  const { data: user } = useQuery<{role: string; id: string}>({
+  const { data: user } = useQuery<{role: string; id: string; whatsappNumber?: string}>({
     queryKey: ["/api/profile"],
     queryFn: async () => {
       const response = await createAuthenticatedRequest("/api/profile");
@@ -144,31 +132,6 @@ export default function WhatsappSettings() {
     }
   }, [settings]);
 
-  const sendDisconnectAlert = async (adminPhone: string, token: string) => {
-    try {
-      const response = await fetch(`https://api.whatsiplus.com/sendMessage/${token}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phoneNumber: adminPhone,
-          message: `⚠️ هشدار قطع اتصال واتس‌اپ\n\nاتصال واتس‌اپ سیستم قطع شده است!\n\nزمان: ${new Date().toLocaleString('fa-IR')}\n\nلطفاً در اسرع وقت وضعیت اتصال را بررسی کنید.`,
-        }),
-      });
-      
-      if (response.ok) {
-        lastAlertSentRef.current = new Date();
-        toast({
-          title: "✅ هشدار ارسال شد",
-          description: "پیام هشدار به واتس‌اپ مدیر ارسال شد",
-        });
-      }
-    } catch (error) {
-      console.error('Error sending disconnect alert:', error);
-    }
-  };
-
   const checkWhatsAppConnection = async (manualCheck = false) => {
     const token = formData.token || settings?.token;
     if (!token) {
@@ -195,11 +158,6 @@ export default function WhatsappSettings() {
       // منطق ساده: اگر شماره موبایل نمایش داده شد = متصل، وگرنه = قطع شده
       const isConnected = !!data.whatsAppNumber;
       
-      // اگر متصل شد، شماره را ذخیره کن
-      if (isConnected && data.whatsAppNumber) {
-        lastConnectedNumberRef.current = data.whatsAppNumber;
-      }
-      
       const newStatus = {
         isConnected,
         message: isConnected 
@@ -210,28 +168,6 @@ export default function WhatsappSettings() {
       };
       
       setConnectionStatus(newStatus);
-
-      if (!isConnected && alertEnabledRef.current && userRef.current?.role === 'admin') {
-        console.log('🔔 اتصال قطع شده - بررسی شرایط ارسال هشدار...');
-        console.log('alertEnabled:', alertEnabledRef.current);
-        console.log('user.role:', userRef.current?.role);
-        console.log('lastConnectedNumber:', lastConnectedNumberRef.current);
-        
-        const now = new Date();
-        const shouldSendAlert = !lastAlertSentRef.current || 
-                               (now.getTime() - lastAlertSentRef.current.getTime()) > 30 * 60 * 1000;
-        
-        console.log('shouldSendAlert:', shouldSendAlert);
-        console.log('lastAlertSent:', lastAlertSentRef.current);
-        
-        // از آخرین شماره متصل استفاده کن
-        if (shouldSendAlert && lastConnectedNumberRef.current) {
-          console.log('📤 در حال ارسال هشدار به شماره:', lastConnectedNumberRef.current);
-          await sendDisconnectAlert(lastConnectedNumberRef.current, token);
-        } else if (shouldSendAlert && !lastConnectedNumberRef.current) {
-          console.log('⚠️ شماره واتس‌اپ برای ارسال هشدار موجود نیست');
-        }
-      }
 
       if (manualCheck) {
         toast({
@@ -259,18 +195,6 @@ export default function WhatsappSettings() {
         setIsCheckingConnection(false);
       }
     }
-  };
-
-  const toggleAlert = () => {
-    const newValue = !alertEnabled;
-    setAlertEnabled(newValue);
-    localStorage.setItem('whatsapp-alert-enabled', JSON.stringify(newValue));
-    toast({
-      title: newValue ? "🔔 هشدار فعال شد" : "🔕 هشدار غیرفعال شد",
-      description: newValue 
-        ? "در صورت قطع اتصال، به واتس‌اپ شما پیام ارسال می‌شود" 
-        : "هشدارهای قطع اتصال غیرفعال شدند",
-    });
   };
 
   useEffect(() => {
@@ -389,26 +313,6 @@ export default function WhatsappSettings() {
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2">
-                  {/* Alert Toggle */}
-                  {!isPersonal && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={toggleAlert}
-                      className={`text-white hover:bg-white/20 border border-white/30 transition-all ${
-                        alertEnabled ? 'bg-white/20' : 'bg-white/10'
-                      }`}
-                      title={alertEnabled ? 'غیرفعال کردن هشدار' : 'فعال کردن هشدار'}
-                    >
-                      {alertEnabled ? (
-                        <BellRing className="w-4 h-4 ml-1 animate-pulse" />
-                      ) : (
-                        <Bell className="w-4 h-4 ml-1" />
-                      )}
-                      {alertEnabled ? 'هشدار فعال' : 'هشدار غیرفعال'}
-                    </Button>
-                  )}
-
                   {/* Refresh Button */}
                   <Button
                     variant="ghost"
@@ -422,32 +326,6 @@ export default function WhatsappSettings() {
                   </Button>
                 </div>
               </div>
-
-              {/* Alert Status Info */}
-              {!isPersonal && (
-                <div className="mt-3 pt-3 border-t border-white/20">
-                  <div className="flex items-center justify-between text-white/80 text-xs">
-                    <span className="flex items-center gap-1">
-                      {alertEnabled ? (
-                        <>
-                          <CheckCircle2 className="w-3 h-3" />
-                          در صورت قطع اتصال، پیام هشدار ارسال می‌شود
-                        </>
-                      ) : (
-                        <>
-                          <AlertTriangle className="w-3 h-3" />
-                          هشدارهای خودکار غیرفعال است
-                        </>
-                      )}
-                    </span>
-                    {lastAlertSentRef.current && (
-                      <span className="flex items-center gap-1">
-                        آخرین هشدار: {new Date(lastAlertSentRef.current).toLocaleTimeString('fa-IR')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
@@ -550,31 +428,6 @@ export default function WhatsappSettings() {
                       </span>
                     </div>
                   </div>
-                  {/* Connection Status Hint */}
-                  {(formData.token || settings?.token) && (
-                    <div className={`flex items-center gap-2 p-2 rounded-md text-xs ${
-                      connectionStatus.isConnected === null 
-                        ? 'bg-blue-50 text-blue-700'
-                        : connectionStatus.isConnected 
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-red-50 text-red-700'
-                    }`}>
-                      {connectionStatus.isConnected === null ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : connectionStatus.isConnected ? (
-                        <CheckCircle2 className="w-3 h-3" />
-                      ) : (
-                        <AlertTriangle className="w-3 h-3" />
-                      )}
-                      <span>
-                        وضعیت اتصال: {connectionStatus.isConnected === null 
-                          ? 'در حال بررسی...' 
-                          : connectionStatus.isConnected 
-                            ? 'متصل' 
-                            : 'قطع اتصال'}
-                      </span>
-                    </div>
-                  )}
                 </div>
               )}
 
