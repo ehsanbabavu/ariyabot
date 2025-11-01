@@ -13,6 +13,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Sheet,
   SheetContent,
   SheetTrigger,
@@ -235,15 +241,24 @@ export function DashboardLayout({ children, title }: DashboardLayoutProps) {
             )}
             
             {/* Logout Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={logout}
-              className="text-muted-foreground hover:text-foreground"
-              data-testid="button-logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={logout}
+                    className="text-muted-foreground hover:text-foreground"
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>خروج</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </header>
         
