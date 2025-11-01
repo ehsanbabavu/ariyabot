@@ -1043,8 +1043,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/profile", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      const { firstName, lastName } = req.body;
-      const user = await storage.updateUser(req.user!.id, { firstName, lastName });
+      const { firstName, lastName, phone } = req.body;
+      
+      // Only admins can update their phone number
+      const updateData: any = { firstName, lastName };
+      if (req.user!.role === "admin" && phone) {
+        updateData.phone = phone;
+      }
+      
+      const user = await storage.updateUser(req.user!.id, updateData);
       
       res.json({ ...user!, password: undefined });
     } catch (error) {
