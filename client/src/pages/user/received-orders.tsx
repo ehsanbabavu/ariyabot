@@ -355,7 +355,7 @@ export default function ReceivedOrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-white p-6">
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
           <div className="grid gap-6">
@@ -369,13 +369,10 @@ export default function ReceivedOrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-white p-6">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100" data-testid="heading-received-orders">
-            سفارشات دریافتی
-          </h1>
+        <div className="flex flex-col md:flex-row md:justify-end md:items-center gap-2">
           <div className="text-sm text-gray-600 dark:text-gray-300">
             مجموع: {orders.length} سفارش
           </div>
@@ -595,6 +592,7 @@ export default function ReceivedOrdersPage() {
                   onClick={handleStatusUpdate}
                   disabled={!newStatus || newStatus === selectedOrder?.status || updateStatusMutation.isPending}
                   data-testid="button-update-status"
+                  size="lg"
                 >
                   {updateStatusMutation.isPending ? "در حال تغییر..." : "تغییر وضعیت"}
                 </Button>
@@ -606,6 +604,7 @@ export default function ReceivedOrdersPage() {
                     setNewStatus("");
                   }}
                   data-testid="button-cancel-status"
+                  size="lg"
                 >
                   لغو
                 </Button>

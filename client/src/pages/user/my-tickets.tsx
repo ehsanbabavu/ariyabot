@@ -316,6 +316,7 @@ export default function MyTickets() {
                                 type="submit" 
                                 disabled={!replyMessage.trim() || sendReplyMutation.isPending}
                                 data-testid="button-send-reply"
+                                size="lg"
                               >
                                 <Send className="w-4 h-4 ml-1" />
                                 {sendReplyMutation.isPending ? "در حال ارسال..." : "ارسال پاسخ"}

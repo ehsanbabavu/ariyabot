@@ -159,8 +159,8 @@ export default function SuccessfulTransactionsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+      <div className="min-h-screen bg-white p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
           <div className="grid gap-6">
             {[1, 2, 3, 4].map(i => (
@@ -173,8 +173,8 @@ export default function SuccessfulTransactionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-white p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
 
         {/* Compact Stats - First Row: Total Amount and Deposits */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -474,6 +474,7 @@ export default function SuccessfulTransactionsPage() {
                     onClick={handleStatusUpdate}
                     disabled={updateStatusMutation.isPending || !newStatus || newStatus === selectedTransaction.status}
                     data-testid="button-confirm-status"
+                    size="lg"
                   >
                     {updateStatusMutation.isPending ? "در حال به‌روزرسانی..." : "تایید"}
                   </Button>
@@ -481,6 +482,7 @@ export default function SuccessfulTransactionsPage() {
                     variant="outline" 
                     onClick={() => setDialogOpen(false)}
                     data-testid="button-cancel-status"
+                    size="lg"
                   >
                     لغو
                   </Button>

@@ -452,6 +452,7 @@ export default function SubUserManagement() {
                           className="w-full"
                           disabled={createSubUserMutation.isPending}
                           data-testid="button-submit-create"
+                          size="lg"
                         >
                           {createSubUserMutation.isPending ? "در حال ایجاد..." : "ایجاد زیرمجموعه"}
                         </Button>
@@ -699,6 +700,7 @@ export default function SubUserManagement() {
                   className="w-full"
                   disabled={updateSubUserMutation.isPending}
                   data-testid="button-submit-edit"
+                  size="lg"
                 >
                   {updateSubUserMutation.isPending ? "در حال بروزرسانی..." : "بروزرسانی"}
                 </Button>

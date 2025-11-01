@@ -257,6 +257,7 @@ export default function Profile() {
                     type="submit"
                     disabled={updateProfileMutation.isPending}
                     data-testid="button-save-profile"
+                    size="lg"
                   >
                     <Save className="w-4 h-4 ml-2" />
                     {updateProfileMutation.isPending ? "در حال ذخیره..." : "ذخیره تغییرات"}

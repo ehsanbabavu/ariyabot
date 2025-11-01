@@ -180,7 +180,7 @@ export default function FinancialPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-white p-6">
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
           <div className="grid gap-6">
@@ -194,7 +194,7 @@ export default function FinancialPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-3 sm:p-6">
+    <div className="min-h-screen bg-white p-3 sm:p-6">
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex justify-end items-center">
@@ -352,6 +352,7 @@ export default function FinancialPage() {
                       type="submit" 
                       disabled={createTransactionMutation.isPending}
                       data-testid="button-submit-transaction"
+                      size="lg"
                       className="bg-blue-500 hover:bg-blue-600 text-white"
                     >
                       {createTransactionMutation.isPending ? "در حال ثبت..." : "ثبت درخواست"}
@@ -363,6 +364,7 @@ export default function FinancialPage() {
                       variant="outline" 
                       onClick={() => setDialogOpen(false)}
                       data-testid="button-cancel-transaction"
+                      size="lg"
                     >
                       لغو
                     </Button>

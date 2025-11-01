@@ -349,8 +349,9 @@ export default function AddProduct() {
                 <Button
                   type="submit"
                   disabled={createProductMutation.isPending}
-                  className="flex-1 h-9"
+                  className="flex-1"
                   data-testid="button-add-product"
+                  size="lg"
                 >
                   <Plus className="w-4 h-4 ml-2" />
                   {createProductMutation.isPending ? "در حال افزودن..." : "افزودن محصول"}
@@ -359,8 +360,8 @@ export default function AddProduct() {
                   type="button"
                   variant="outline"
                   onClick={handleReset}
-                  className="h-9"
                   data-testid="button-reset-product-form"
+                  size="lg"
                 >
                   <RotateCcw className="w-4 h-4 ml-2" />
                   پاک کردن

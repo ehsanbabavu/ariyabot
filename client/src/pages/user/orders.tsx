@@ -261,8 +261,8 @@ export default function OrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="space-y-6">
+      <div className="min-h-screen bg-white p-3 sm:p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
           <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
           <div className="grid gap-6">
             {[1, 2, 3].map(i => (
@@ -275,8 +275,8 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
-      <div className="space-y-4 sm:space-y-8">
+    <div className="min-h-screen bg-white p-3 sm:p-6">
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-8">
 
         {/* Orders List */}
         <div className="space-y-3 sm:space-y-6">

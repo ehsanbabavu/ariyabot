@@ -882,8 +882,9 @@ export default function ProductList() {
                       <Button
                         type="submit"
                         disabled={editProductMutation.isPending}
-                        className="flex-1 h-9"
+                        className="flex-1"
                         data-testid="button-save-edit-product"
+                        size="lg"
                       >
                         <Package className="w-4 h-4 ml-2" />
                         {editProductMutation.isPending ? "در حال ذخیره..." : "ذخیره تغییرات"}
@@ -893,8 +894,8 @@ export default function ProductList() {
                         variant="outline"
                         onClick={handleEditModalClose}
                         disabled={editProductMutation.isPending}
-                        className="h-9"
                         data-testid="button-cancel-edit-product"
+                        size="lg"
                       >
                         لغو
                       </Button>

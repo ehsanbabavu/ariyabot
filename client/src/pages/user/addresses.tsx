@@ -341,7 +341,8 @@ export default function Addresses() {
                       variant="outline"
                       onClick={() => setIsDialogOpen(false)}
                       data-testid="button-cancel"
-                      className="w-full sm:w-auto h-11"
+                      className="w-full sm:w-auto"
+                      size="lg"
                     >
                       لغو
                     </Button>
@@ -349,7 +350,8 @@ export default function Addresses() {
                       type="submit"
                       disabled={addAddressMutation.isPending || updateAddressMutation.isPending}
                       data-testid="button-submit-address"
-                      className="w-full sm:w-auto h-11"
+                      className="w-full sm:w-auto"
+                      size="lg"
                     >
                       {editingAddress ? "بروزرسانی" : "افزودن"} آدرس
                     </Button>

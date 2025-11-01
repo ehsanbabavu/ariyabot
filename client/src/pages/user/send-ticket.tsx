@@ -317,6 +317,7 @@ export default function SendTicket() {
                   type="submit"
                   disabled={createTicketMutation.isPending}
                   data-testid="button-submit-ticket"
+                  size="lg"
                   className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-2 font-medium shadow-md hover:shadow-lg transition-all duration-300"
                 >
                   {createTicketMutation.isPending ? (
@@ -337,6 +338,7 @@ export default function SendTicket() {
                   variant="outline"
                   onClick={handleReset}
                   data-testid="button-reset-form"
+                  size="lg"
                   className="border px-4 py-2 hover:bg-muted transition-all duration-200"
                 >
                   <RotateCcw className="w-4 h-4 ml-1" />

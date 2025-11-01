@@ -212,6 +212,7 @@ export default function AddFaqPage() {
                     type="submit"
                     disabled={createFaqMutation.isPending}
                     data-testid="button-create-faq"
+                    size="lg"
                   >
                     {createFaqMutation.isPending ? "در حال ایجاد..." : "ایجاد سوال متداول"}
                   </Button>
@@ -220,6 +221,7 @@ export default function AddFaqPage() {
                     variant="outline"
                     onClick={() => setLocation("/manage-faqs")}
                     data-testid="button-cancel-create-faq"
+                    size="lg"
                   >
                     انصراف
                   </Button>

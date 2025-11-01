@@ -397,6 +397,7 @@ export default function ManageFaqsPage() {
                     editForm.reset();
                   }}
                   data-testid="button-cancel-edit"
+                  size="lg"
                 >
                   انصراف
                 </Button>
@@ -404,6 +405,7 @@ export default function ManageFaqsPage() {
                   type="submit"
                   disabled={updateFaqMutation.isPending}
                   data-testid="button-submit-edit"
+                  size="lg"
                 >
                   {updateFaqMutation.isPending ? "در حال به‌روزرسانی..." : "به‌روزرسانی"}
                 </Button>
