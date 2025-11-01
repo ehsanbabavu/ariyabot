@@ -16,6 +16,7 @@ export default function Profile() {
   const [formData, setFormData] = useState({
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
+    phone: user?.phone || "",
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -142,11 +143,11 @@ export default function Profile() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Profile Picture */}
           <div className="lg:col-span-1">
-            <Card>
+            <Card className="h-full">
               <CardHeader className="pb-3">
                 <CardTitle className="text-center text-sm md:text-base">تصویر پروفایل</CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col items-center space-y-3 md:space-y-4">
+              <CardContent className="flex flex-col items-center justify-center space-y-3 md:space-y-4 h-[calc(100%-4rem)]">
                 <div className="relative">
                   <Avatar className="w-24 h-24 md:w-32 md:h-32" data-testid="img-profile-avatar">
                     <AvatarImage src={user?.profilePicture || undefined} />
@@ -214,33 +215,53 @@ export default function Profile() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="email">ایمیل</Label>
-                      <Input
-                        id="email"
-                        value={user?.email || ""}
-                        disabled
-                        className="bg-muted text-muted-foreground"
-                        data-testid="input-email-disabled"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">ایمیل قابل تغییر نیست</p>
+                  {/* Email field - Only for user_level_2 */}
+                  {user?.role === "user_level_2" && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="col-span-2">
+                        <Label htmlFor="email">ایمیل</Label>
+                        <Input
+                          id="email"
+                          value={user?.email || ""}
+                          disabled
+                          className="bg-muted text-muted-foreground"
+                          data-testid="input-email-disabled"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">ایمیل قابل تغییر نیست</p>
+                      </div>
                     </div>
+                  )}
 
+                  {/* Phone & Role Section - Side by side for admin and user_level_1 */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Phone field - Editable for admin only */}
                     <div>
                       <Label htmlFor="phone">شماره تلفن</Label>
-                      <Input
-                        id="phone"
-                        value={user?.phone || ""}
-                        disabled
-                        className="bg-muted text-muted-foreground"
-                        data-testid="input-phone-disabled"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">شماره تلفن قابل تغییر نیست</p>
+                      {user?.role === "admin" ? (
+                        <>
+                          <Input
+                            id="phone"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            data-testid="input-phone"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">شماره تماس قابل تغییر است</p>
+                        </>
+                      ) : (
+                        <>
+                          <Input
+                            id="phone"
+                            value={user?.phone || ""}
+                            disabled
+                            className="bg-muted text-muted-foreground"
+                            data-testid="input-phone-disabled"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">شماره تلفن قابل تغییر نیست</p>
+                        </>
+                      )}
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                    {/* Role field */}
                     <div>
                       <Label htmlFor="role">نقش کاربری</Label>
                       <Input
