@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+
 interface TronTransaction {
   txID: string;
   block_timestamp: number;
@@ -56,8 +58,8 @@ export class TronService {
       
       const hexBytes = Buffer.from(hexAddress, 'hex');
       
-      const hash1 = require('crypto').createHash('sha256').update(hexBytes).digest();
-      const hash2 = require('crypto').createHash('sha256').update(hash1).digest();
+      const hash1 = createHash('sha256').update(hexBytes).digest();
+      const hash2 = createHash('sha256').update(hash1).digest();
       const checksum = hash2.slice(0, 4);
       const combined = Buffer.concat([hexBytes, checksum]);
       
@@ -174,12 +176,15 @@ export class TronService {
         .map(tx => {
           const contract = tx.raw_data.contract[0];
           const value = contract.parameter.value;
-          const fromAddress = value.owner_address || '';
-          const toAddress = value.to_address || '';
+          const fromAddressHex = value.owner_address || '';
+          const toAddressHex = value.to_address || '';
           const amount = value.amount || 0;
           
-          const isIncoming = toAddress.toLowerCase() === walletAddress.toLowerCase() ||
-                           this.hexToBase58(toAddress).toLowerCase() === walletAddress.toLowerCase();
+          const fromAddress = this.hexToBase58(fromAddressHex);
+          const toAddress = this.hexToBase58(toAddressHex);
+          
+          const walletAddressLower = walletAddress.toLowerCase();
+          const isIncoming = toAddress.toLowerCase() === walletAddressLower;
           
           const isSuccess = tx.ret?.[0]?.contractRet === 'SUCCESS' || !tx.ret;
 

@@ -13,6 +13,7 @@ import { generateAndSaveInvoice } from "./invoice-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { db, eq } from "./db-storage";
 import { tronService } from "./tron-service";
+import { tgjuService } from "./tgju-service";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -3960,16 +3961,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit
       );
 
+      // Get TRX price in Toman
+      const trxPriceInToman = await tgjuService.getTronPriceInToman();
+
       res.json({ 
         success: true,
         walletAddress: user.tronWalletAddress,
         transactions,
-        count: transactions.length
+        count: transactions.length,
+        trxPriceInToman
       });
     } catch (error: any) {
       console.error("خطا در دریافت تراکنش‌ها:", error);
       res.status(500).json({ 
         message: error.message || "خطا در دریافت تراکنش‌ها",
+        success: false
+      });
+    }
+  });
+
+  // Get current TRX price in Toman
+  app.get("/api/tron/price", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const priceInToman = await tgjuService.getTronPriceInToman();
+
+      res.json({ 
+        success: true,
+        priceInToman,
+        lastUpdate: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("خطا در دریافت قیمت ترون:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت قیمت ترون",
         success: false
       });
     }
