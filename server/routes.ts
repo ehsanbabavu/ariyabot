@@ -12,6 +12,7 @@ import fs from "fs";
 import { generateAndSaveInvoice } from "./invoice-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { db, eq } from "./db-storage";
+import { tronService } from "./tron-service";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -3879,6 +3880,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting content section:", error);
       res.status(500).json({ message: "خطا در حذف محتوا" });
+    }
+  });
+
+  // TRON Wallet Routes
+  app.get("/api/tron/wallet", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      res.json({ 
+        walletAddress: user.tronWalletAddress || null 
+      });
+    } catch (error) {
+      console.error("خطا در دریافت آدرس ولت:", error);
+      res.status(500).json({ message: "خطا در دریافت آدرس ولت" });
+    }
+  });
+
+  app.put("/api/tron/wallet", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const { walletAddress } = req.body;
+
+      if (!walletAddress || walletAddress.trim() === '') {
+        return res.status(400).json({ message: "آدرس ولت نمی‌تواند خالی باشد" });
+      }
+
+      if (!tronService.validateTronAddress(walletAddress)) {
+        return res.status(400).json({ message: "آدرس ولت TRON معتبر نیست" });
+      }
+
+      const updatedUser = await storage.updateUser(req.user!.id, {
+        tronWalletAddress: walletAddress.trim()
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      res.json({ 
+        message: "آدرس ولت با موفقیت ذخیره شد",
+        walletAddress: updatedUser.tronWalletAddress 
+      });
+    } catch (error) {
+      console.error("خطا در ذخیره آدرس ولت:", error);
+      res.status(500).json({ message: "خطا در ذخیره آدرس ولت" });
+    }
+  });
+
+  app.get("/api/tron/transactions", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.tronWalletAddress) {
+        return res.status(400).json({ 
+          message: "لطفاً ابتدا آدرس ولت خود را ثبت کنید" 
+        });
+      }
+
+      const type = (req.query.type as string) || 'all';
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      const transactions = await tronService.getTransactions(
+        user.tronWalletAddress,
+        type as 'all' | 'incoming' | 'outgoing',
+        limit
+      );
+
+      res.json({ 
+        success: true,
+        walletAddress: user.tronWalletAddress,
+        transactions,
+        count: transactions.length
+      });
+    } catch (error: any) {
+      console.error("خطا در دریافت تراکنش‌ها:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت تراکنش‌ها",
+        success: false
+      });
+    }
+  });
+
+  app.get("/api/tron/transactions/trc20", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.tronWalletAddress) {
+        return res.status(400).json({ 
+          message: "لطفاً ابتدا آدرس ولت خود را ثبت کنید" 
+        });
+      }
+
+      const contractAddress = (req.query.contract as string) || 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      const transactions = await tronService.getTRC20Transactions(
+        user.tronWalletAddress,
+        contractAddress,
+        limit
+      );
+
+      res.json({ 
+        success: true,
+        walletAddress: user.tronWalletAddress,
+        transactions,
+        count: transactions.length
+      });
+    } catch (error: any) {
+      console.error("خطا در دریافت تراکنش‌های TRC20:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت تراکنش‌های TRC20",
+        success: false
+      });
     }
   });
 
