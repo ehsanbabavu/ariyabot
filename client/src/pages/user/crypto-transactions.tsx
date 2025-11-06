@@ -71,6 +71,12 @@ export default function CryptoTransactions() {
     refetchInterval: 60000,
   });
 
+  const formatTomanPrice = (trxAmount: string, trxPrice: number) => {
+    const amount = parseFloat(trxAmount.replace(/,/g, ''));
+    const tomanValue = amount * trxPrice;
+    return new Intl.NumberFormat('fa-IR').format(Math.round(tomanValue));
+  };
+
   const saveWalletMutation = useMutation({
     mutationFn: async (address: string) => {
       const response = await createAuthenticatedRequest("/api/tron/wallet", {
@@ -148,6 +154,7 @@ export default function CryptoTransactions() {
 
   const transactions: TronTransaction[] = transactionsData?.transactions || [];
   const hasWallet = walletData?.walletAddress;
+  const trxPriceInToman = transactionsData?.trxPriceInToman || 0;
 
   return (
     <DashboardLayout title="تراکنش ارز دیجیتال">
@@ -269,6 +276,7 @@ export default function CryptoTransactions() {
                       <TableRow>
                         <TableHead>نوع</TableHead>
                         <TableHead>مبلغ (TRX)</TableHead>
+                        <TableHead>مبلغ (تومان)</TableHead>
                         <TableHead>تاریخ</TableHead>
                         <TableHead>وضعیت</TableHead>
                         <TableHead>جزئیات</TableHead>
@@ -292,6 +300,9 @@ export default function CryptoTransactions() {
                           </TableCell>
                           <TableCell className="font-mono font-semibold">
                             {tx.amountTRX}
+                          </TableCell>
+                          <TableCell className="font-semibold text-blue-600">
+                            {trxPriceInToman > 0 ? formatTomanPrice(tx.amountTRX, trxPriceInToman) : '---'} تومان
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground" dir="ltr">
                             {tx.date}
