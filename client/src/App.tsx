@@ -33,6 +33,7 @@ import Cart from "@/pages/cart";
 import Addresses from "@/pages/user/addresses";
 import Orders from "@/pages/user/orders";
 import ReceivedOrders from "@/pages/user/received-orders";
+import CryptoTransactions from "@/pages/user/crypto-transactions";
 import Financial from "@/pages/user/financial";
 import SuccessfulTransactions from "@/pages/user/successful-transactions";
 import ChatWithSeller from "@/pages/user/chat-with-seller";
@@ -232,6 +233,7 @@ function Router() {
       <Route path="/received-orders" component={() => <AdminOrLevel1Route component={WithLayout(ReceivedOrders, "سفارشات دریافتی")} />} />
       <Route path="/financial" component={() => <Level2Route component={WithLayout(Financial, "امور مالی")} />} />
       <Route path="/transactions" component={() => <AdminOrLevel1Route component={WithLayout(SuccessfulTransactions, "مدیریت تراکنش‌ها")} />} />
+      <Route path="/crypto-transactions" component={() => <Level1Route component={CryptoTransactions} />} />
       <Route path="/customer-chats" component={() => <Level1Route component={WithLayout(CustomerChats, "مدیریت چت با مشتریان")} />} />
       <Route path="/shipping-settings" component={() => <AdminOrLevel1Route component={ShippingSettings} />} />
       <Route path="/vat-settings" component={() => <AdminOrLevel1Route component={VatSettings} />} />
