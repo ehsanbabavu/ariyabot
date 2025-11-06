@@ -122,6 +122,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const level1MenuItems = [
     { path: "/received-orders", label: "سفارشات دریافتی", icon: Package },
     { path: "/transactions", label: "مدیریت تراکنش‌ها", icon: DollarSign },
+    { path: "/crypto-transactions", label: "تراکنش ارز دیجیتال", icon: Wallet },
     { path: "/customer-chats", label: "چت با مشتریان", icon: MessageSquare },
     { path: "/manage-faqs", label: "مدیریت سوالات متداول", icon: HelpCircle },
     { path: "/shipping-settings", label: "ترابری", icon: Truck },
