@@ -43,26 +43,29 @@ export class TGJUService {
           const cells = row.match(/<td[^>]*>(.*?)<\/td>/gs);
           if (cells && cells.length >= 5) {
             // Column index 4 (5th column) contains price in Rial
-            // Format: <td>309,100</td>
+            // Format: <td>3,091,000</td> (in Rial)
             for (let i = 3; i < Math.min(6, cells.length); i++) {
               const cellContent = cells[i].replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
               const priceMatch = cellContent.match(/^([0-9,]+)$/);
               
               if (priceMatch) {
                 const priceStr = priceMatch[1].replace(/,/g, '');
-                const price = parseInt(priceStr, 10);
+                const priceInRial = parseInt(priceStr, 10);
                 
-                // TRON price should be between 100,000 and 1,000,000 Toman
-                if (price >= 100000 && price <= 1000000) {
-                  console.log(`✅ قیمت ترون دریافت شد: ${price.toLocaleString('fa-IR')} تومان`);
+                // TRON price should be between 100,000 and 2,000,000 Rial (10,000 to 200,000 Toman)
+                if (priceInRial >= 100000 && priceInRial <= 2000000) {
+                  // Convert from Rial to Toman (divide by 10)
+                  const priceInToman = Math.round(priceInRial / 10);
                   
-                  // Cache the price
+                  console.log(`✅ قیمت ترون دریافت شد: ${priceInRial.toLocaleString('fa-IR')} ریال (${priceInToman.toLocaleString('fa-IR')} تومان)`);
+                  
+                  // Cache the price in Toman
                   this.trxPriceCache = {
-                    price,
+                    price: priceInToman,
                     lastUpdate: Date.now(),
                   };
                   
-                  return price;
+                  return priceInToman;
                 }
               }
             }
