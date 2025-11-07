@@ -55,7 +55,7 @@ export class CardanoService {
 
       if (!this.BLOCKFROST_API_KEY) {
         console.warn('⚠️ BLOCKFROST_API_KEY تنظیم نشده است');
-        return [];
+        throw new Error('سرویس Cardano غیرفعال است. لطفاً با مدیر تماس بگیرید تا BLOCKFROST_API_KEY را تنظیم کند.');
       }
 
       const count = Math.min(limit, 100);
