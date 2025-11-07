@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Wallet, 
   ArrowDownLeft, 
@@ -29,22 +30,33 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface TronTransaction {
+interface CryptoTransaction {
   txId: string;
   type: 'incoming' | 'outgoing';
   amount: number;
-  amountTRX: string;
+  amountTRX?: string;
+  amountXRP?: string;
+  amountADA?: string;
   from: string;
   to: string;
   timestamp: number;
   date: string;
   status: 'SUCCESS' | 'FAILED';
   explorerUrl: string;
+  tokenName?: string;
+  tokenSymbol?: string;
 }
 
 export default function CryptoTransactions() {
   const [walletAddress, setWalletAddress] = useState("");
+  const [usdtWalletAddress, setUsdtWalletAddress] = useState("");
+  const [rippleWalletAddress, setRippleWalletAddress] = useState("");
+  const [cardanoWalletAddress, setCardanoWalletAddress] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [tronPage, setTronPage] = useState(1);
+  const [usdtPage, setUsdtPage] = useState(1);
+  const [ripplePage, setRipplePage] = useState(1);
+  const [cardanoPage, setCardanoPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -57,10 +69,11 @@ export default function CryptoTransactions() {
     },
   });
 
-  const { data: transactionsData, isLoading: transactionsLoading, refetch } = useQuery({
-    queryKey: ["/api/tron/transactions"],
+  const { data: tronData, isLoading: tronLoading, refetch: refetchTron } = useQuery({
+    queryKey: ["/api/tron/transactions", tronPage],
     queryFn: async () => {
-      const response = await createAuthenticatedRequest("/api/tron/transactions?limit=50");
+      const offset = (tronPage - 1) * 20;
+      const response = await createAuthenticatedRequest(`/api/tron/transactions?limit=20&offset=${offset}`);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message);
@@ -71,18 +84,61 @@ export default function CryptoTransactions() {
     refetchInterval: 60000,
   });
 
-  const formatTomanPrice = (trxAmount: string, trxPrice: number) => {
-    const amount = parseFloat(trxAmount.replace(/,/g, ''));
-    const tomanValue = amount * trxPrice;
-    return new Intl.NumberFormat('fa-IR').format(Math.round(tomanValue));
-  };
+  const { data: usdtData, isLoading: usdtLoading, refetch: refetchUsdt } = useQuery({
+    queryKey: ["/api/tron/transactions/trc20", usdtPage],
+    queryFn: async () => {
+      const offset = (usdtPage - 1) * 20;
+      const response = await createAuthenticatedRequest(`/api/tron/transactions/trc20?limit=20&offset=${offset}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      return response.json();
+    },
+    enabled: !!walletData?.usdtWalletAddress,
+    refetchInterval: 60000,
+  });
+
+  const { data: rippleData, isLoading: rippleLoading, refetch: refetchRipple } = useQuery({
+    queryKey: ["/api/ripple/transactions", ripplePage],
+    queryFn: async () => {
+      const offset = (ripplePage - 1) * 20;
+      const response = await createAuthenticatedRequest(`/api/ripple/transactions?limit=20&offset=${offset}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      return response.json();
+    },
+    enabled: !!walletData?.rippleWalletAddress,
+    refetchInterval: 60000,
+  });
+
+  const { data: cardanoData, isLoading: cardanoLoading, refetch: refetchCardano } = useQuery({
+    queryKey: ["/api/cardano/transactions", cardanoPage],
+    queryFn: async () => {
+      const response = await createAuthenticatedRequest(`/api/cardano/transactions?limit=20&page=${cardanoPage}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message);
+      }
+      return response.json();
+    },
+    enabled: !!walletData?.cardanoWalletAddress,
+    refetchInterval: 60000,
+  });
 
   const saveWalletMutation = useMutation({
-    mutationFn: async (address: string) => {
+    mutationFn: async (addresses: { 
+      walletAddress: string, 
+      usdtWalletAddress: string, 
+      rippleWalletAddress: string, 
+      cardanoWalletAddress: string 
+    }) => {
       const response = await createAuthenticatedRequest("/api/tron/wallet", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ walletAddress: address }),
+        body: JSON.stringify(addresses),
       });
       if (!response.ok) {
         const error = await response.json();
@@ -93,9 +149,12 @@ export default function CryptoTransactions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tron/wallet"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tron/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tron/transactions/trc20"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ripple/transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/cardano/transactions"] });
       toast({
         title: "✅ موفق",
-        description: "آدرس ولت با موفقیت ذخیره شد",
+        description: "آدرس‌های ولت با موفقیت ذخیره شدند",
       });
       setIsEditing(false);
     },
@@ -109,15 +168,20 @@ export default function CryptoTransactions() {
   });
 
   const handleSaveWallet = () => {
-    if (!walletAddress.trim()) {
+    if (!walletAddress.trim() && !usdtWalletAddress.trim() && !rippleWalletAddress.trim() && !cardanoWalletAddress.trim()) {
       toast({
         title: "⚠️ خطا",
-        description: "لطفاً آدرس ولت را وارد کنید",
+        description: "لطفاً حداقل یک آدرس ولت را وارد کنید",
         variant: "destructive",
       });
       return;
     }
-    saveWalletMutation.mutate(walletAddress);
+    saveWalletMutation.mutate({
+      walletAddress,
+      usdtWalletAddress,
+      rippleWalletAddress,
+      cardanoWalletAddress
+    });
   };
 
   const copyToClipboard = (text: string) => {
@@ -128,19 +192,14 @@ export default function CryptoTransactions() {
     });
   };
 
-  const handleRefresh = () => {
-    refetch();
-    toast({
-      title: "در حال بروزرسانی",
-      description: "تراکنش‌ها در حال بروزرسانی هستند...",
-    });
-  };
-
-  useState(() => {
-    if (walletData?.walletAddress) {
-      setWalletAddress(walletData.walletAddress);
+  useEffect(() => {
+    if (walletData) {
+      setWalletAddress(walletData.walletAddress || "");
+      setUsdtWalletAddress(walletData.usdtWalletAddress || "");
+      setRippleWalletAddress(walletData.rippleWalletAddress || "");
+      setCardanoWalletAddress(walletData.cardanoWalletAddress || "");
     }
-  });
+  }, [walletData]);
 
   if (walletLoading) {
     return (
@@ -152,9 +211,151 @@ export default function CryptoTransactions() {
     );
   }
 
-  const transactions: TronTransaction[] = transactionsData?.transactions || [];
-  const hasWallet = walletData?.walletAddress;
-  const trxPriceInToman = transactionsData?.trxPriceInToman || 0;
+  const hasWallet = walletData?.walletAddress || walletData?.usdtWalletAddress || 
+                    walletData?.rippleWalletAddress || walletData?.cardanoWalletAddress;
+
+  const TransactionTable = ({ 
+    transactions, 
+    isLoading, 
+    onRefresh, 
+    currencySymbol,
+    amountKey,
+    page,
+    onPageChange 
+  }: { 
+    transactions: CryptoTransaction[], 
+    isLoading: boolean, 
+    onRefresh: () => void,
+    currencySymbol: string,
+    amountKey: 'amountTRX' | 'amountXRP' | 'amountADA' | 'tokenSymbol',
+    page: number,
+    onPageChange: (newPage: number) => void
+  }) => (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>تراکنش‌های اخیر</CardTitle>
+            <CardDescription>
+              لیست تراکنش‌های ورودی و خروجی ولت {currencySymbol}
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`w-4 h-4 ml-2 ${isLoading ? 'animate-spin' : ''}`} />
+            بروزرسانی
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          </div>
+        ) : transactions.length === 0 ? (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              هیچ تراکنشی برای این ولت یافت نشد.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-center">نوع</TableHead>
+                  <TableHead className="text-center">مبلغ ({currencySymbol})</TableHead>
+                  <TableHead className="text-center">تاریخ</TableHead>
+                  <TableHead className="text-center">وضعیت</TableHead>
+                  <TableHead className="text-center">جزئیات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {transactions.map((tx) => (
+                  <TableRow key={tx.txId}>
+                    <TableCell className="text-center">
+                      {tx.type === 'incoming' ? (
+                        <Badge className="bg-green-500">
+                          <ArrowDownLeft className="w-3 h-3 ml-1" />
+                          دریافتی
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-red-500">
+                          <ArrowUpRight className="w-3 h-3 ml-1" />
+                          ارسالی
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono font-semibold text-center">
+                      {amountKey === 'tokenSymbol' 
+                        ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
+                        : tx[amountKey]}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground text-center" dir="ltr">
+                      {tx.date}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {tx.status === 'SUCCESS' ? (
+                        <Badge variant="outline" className="text-green-600 border-green-600">
+                          <CheckCircle2 className="w-3 h-3 ml-1" />
+                          موفق
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-red-600 border-red-600">
+                          <AlertCircle className="w-3 h-3 ml-1" />
+                          ناموفق
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(tx.explorerUrl, '_blank')}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+        
+        {transactions.length > 0 && (
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              صفحه {page} - {transactions.length} تراکنش
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(page - 1)}
+                disabled={page === 1 || isLoading}
+              >
+                قبلی
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(page + 1)}
+                disabled={transactions.length < 20 || isLoading}
+              >
+                بعدی
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <DashboardLayout title="تراکنش ارز دیجیتال">
@@ -163,180 +364,246 @@ export default function CryptoTransactions() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="w-5 h-5" />
-              آدرس ولت TRON
+              آدرس‌های ولت ارز دیجیتال
             </CardTitle>
             <CardDescription>
-              آدرس ولت ترون خود را برای مشاهده تراکنش‌ها وارد کنید
+              آدرس ولت‌های خود را برای مشاهده تراکنش‌ها و دریافت ارز وارد کنید
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {!hasWallet || isEditing ? (
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="wallet">آدرس ولت ترون</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="wallet"
-                      value={walletAddress}
-                      onChange={(e) => setWalletAddress(e.target.value)}
-                      placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
-                      className="font-mono"
-                    />
-                    <Button
-                      onClick={handleSaveWallet}
-                      disabled={saveWalletMutation.isPending}
-                    >
-                      {saveWalletMutation.isPending ? "در حال ذخیره..." : "ذخیره"}
-                    </Button>
-                    {hasWallet && (
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setWalletAddress(walletData.walletAddress);
-                          setIsEditing(false);
-                        }}
-                      >
-                        انصراف
-                      </Button>
-                    )}
-                  </div>
+                  <Label htmlFor="wallet">آدرس ولت ترون (TRX)</Label>
+                  <Input
+                    id="wallet"
+                    value={walletAddress}
+                    onChange={(e) => setWalletAddress(e.target.value)}
+                    placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
+                    className="font-mono"
+                  />
                 </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="usdt-wallet">آدرس ولت تتر بر بستر TRC20</Label>
+                  <Input
+                    id="usdt-wallet"
+                    value={usdtWalletAddress}
+                    onChange={(e) => setUsdtWalletAddress(e.target.value)}
+                    placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
+                    className="font-mono"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ripple-wallet">آدرس ولت ریپل (XRP)</Label>
+                  <Input
+                    id="ripple-wallet"
+                    value={rippleWalletAddress}
+                    onChange={(e) => setRippleWalletAddress(e.target.value)}
+                    placeholder="مثال: rN7n7otQDd6FczFgLdlqtyMVrn3Q7YrfH"
+                    className="font-mono"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cardano-wallet">آدرس ولت کاردانو (ADA)</Label>
+                  <Input
+                    id="cardano-wallet"
+                    value={cardanoWalletAddress}
+                    onChange={(e) => setCardanoWalletAddress(e.target.value)}
+                    placeholder="مثال: addr1qxy..."
+                    className="font-mono"
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveWallet}
+                    disabled={saveWalletMutation.isPending}
+                    className="flex-1"
+                  >
+                    {saveWalletMutation.isPending ? "در حال ذخیره..." : "ذخیره"}
+                  </Button>
+                  {hasWallet && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setWalletAddress(walletData.walletAddress || "");
+                        setUsdtWalletAddress(walletData.usdtWalletAddress || "");
+                        setRippleWalletAddress(walletData.rippleWalletAddress || "");
+                        setCardanoWalletAddress(walletData.cardanoWalletAddress || "");
+                        setIsEditing(false);
+                      }}
+                    >
+                      انصراف
+                    </Button>
+                  )}
+                </div>
+                
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    آدرس ولت باید با حرف T شروع شده و ۳۴ کاراکتر داشته باشد.
+                    حداقل یک آدرس ولت را وارد کنید. آدرس‌های ولت را با دقت وارد نمایید.
                   </AlertDescription>
                 </Alert>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                  <div className="flex-1 font-mono text-sm break-all">
-                    {walletData.walletAddress}
+              <div className="space-y-3">
+                {walletData.walletAddress && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">آدرس ولت ترون (TRX)</Label>
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex-1 font-mono text-sm break-all">
+                        {walletData.walletAddress}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(walletData.walletAddress)}
+                        className="mr-2"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2 mr-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(walletData.walletAddress)}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditing(true)}
-                    >
-                      ویرایش
-                    </Button>
+                )}
+
+                {walletData.usdtWalletAddress && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">آدرس ولت تتر بر بستر TRC20</Label>
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex-1 font-mono text-sm break-all">
+                        {walletData.usdtWalletAddress}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(walletData.usdtWalletAddress)}
+                        className="mr-2"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {walletData.rippleWalletAddress && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">آدرس ولت ریپل (XRP)</Label>
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex-1 font-mono text-sm break-all">
+                        {walletData.rippleWalletAddress}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(walletData.rippleWalletAddress)}
+                        className="mr-2"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {walletData.cardanoWalletAddress && (
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">آدرس ولت کاردانو (ADA)</Label>
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex-1 font-mono text-sm break-all">
+                        {walletData.cardanoWalletAddress}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(walletData.cardanoWalletAddress)}
+                        className="mr-2"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                  className="w-full"
+                >
+                  ویرایش آدرس‌ها
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
         {hasWallet && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>تراکنش‌های اخیر</CardTitle>
-                  <CardDescription>
-                    لیست تراکنش‌های ورودی و خروجی ولت شما
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={transactionsLoading}
-                >
-                  <RefreshCw className={`w-4 h-4 ml-2 ${transactionsLoading ? 'animate-spin' : ''}`} />
-                  بروزرسانی
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {transactionsLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                </div>
-              ) : transactions.length === 0 ? (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    هیچ تراکنشی برای این ولت یافت نشد.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-center">نوع</TableHead>
-                        <TableHead className="text-center">مبلغ (TRX)</TableHead>
-                        <TableHead className="text-center">مبلغ (تومان)</TableHead>
-                        <TableHead className="text-center">تاریخ</TableHead>
-                        <TableHead className="text-center">وضعیت</TableHead>
-                        <TableHead className="text-center">جزئیات</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transactions.map((tx) => (
-                        <TableRow key={tx.txId}>
-                          <TableCell className="text-center">
-                            {tx.type === 'incoming' ? (
-                              <Badge className="bg-green-500">
-                                <ArrowDownLeft className="w-3 h-3 ml-1" />
-                                دریافتی
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-red-500">
-                                <ArrowUpRight className="w-3 h-3 ml-1" />
-                                ارسالی
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-mono font-semibold text-center">
-                            {tx.amountTRX}
-                          </TableCell>
-                          <TableCell className="font-semibold text-blue-600 text-center">
-                            {trxPriceInToman > 0 ? formatTomanPrice(tx.amountTRX, trxPriceInToman) : '---'} تومان
-                          </TableCell>
-                          <TableCell className="text-sm text-muted-foreground text-center" dir="ltr">
-                            {tx.date}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {tx.status === 'SUCCESS' ? (
-                              <Badge variant="outline" className="text-green-600 border-green-600">
-                                <CheckCircle2 className="w-3 h-3 ml-1" />
-                                موفق
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-red-600 border-red-600">
-                                <AlertCircle className="w-3 h-3 ml-1" />
-                                ناموفق
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => window.open(tx.explorerUrl, '_blank')}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <Tabs defaultValue="tron" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="tron" disabled={!walletData?.walletAddress}>
+                ترون (TRX)
+              </TabsTrigger>
+              <TabsTrigger value="usdt" disabled={!walletData?.usdtWalletAddress}>
+                تتر (USDT)
+              </TabsTrigger>
+              <TabsTrigger value="ripple" disabled={!walletData?.rippleWalletAddress}>
+                ریپل (XRP)
+              </TabsTrigger>
+              <TabsTrigger value="cardano" disabled={!walletData?.cardanoWalletAddress}>
+                کاردانو (ADA)
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="tron" className="mt-6">
+              <TransactionTable
+                transactions={tronData?.transactions || []}
+                isLoading={tronLoading}
+                onRefresh={refetchTron}
+                currencySymbol="TRX"
+                amountKey="amountTRX"
+                page={tronPage}
+                onPageChange={setTronPage}
+              />
+            </TabsContent>
+
+            <TabsContent value="usdt" className="mt-6">
+              <TransactionTable
+                transactions={usdtData?.transactions || []}
+                isLoading={usdtLoading}
+                onRefresh={refetchUsdt}
+                currencySymbol="USDT"
+                amountKey="tokenSymbol"
+                page={usdtPage}
+                onPageChange={setUsdtPage}
+              />
+            </TabsContent>
+
+            <TabsContent value="ripple" className="mt-6">
+              <TransactionTable
+                transactions={rippleData?.transactions || []}
+                isLoading={rippleLoading}
+                onRefresh={refetchRipple}
+                currencySymbol="XRP"
+                amountKey="amountXRP"
+                page={ripplePage}
+                onPageChange={setRipplePage}
+              />
+            </TabsContent>
+
+            <TabsContent value="cardano" className="mt-6">
+              <TransactionTable
+                transactions={cardanoData?.transactions || []}
+                isLoading={cardanoLoading}
+                onRefresh={refetchCardano}
+                currencySymbol="ADA"
+                amountKey="amountADA"
+                page={cardanoPage}
+                onPageChange={setCardanoPage}
+              />
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </DashboardLayout>
