@@ -37,6 +37,8 @@ interface CryptoTransaction {
   amountTRX?: string;
   amountXRP?: string;
   amountADA?: string;
+  amountUSD?: string;
+  amountIRR?: string;
   from: string;
   to: string;
   timestamp: number;
@@ -221,6 +223,7 @@ export default function CryptoTransactions() {
     onRefresh, 
     currencySymbol,
     amountKey,
+    showPriceColumns = false,
     page,
     onPageChange 
   }: { 
@@ -230,6 +233,7 @@ export default function CryptoTransactions() {
     onRefresh: () => void,
     currencySymbol: string,
     amountKey: 'amountTRX' | 'amountXRP' | 'amountADA' | 'tokenSymbol',
+    showPriceColumns?: boolean,
     page: number,
     onPageChange: (newPage: number) => void
   }) => (
@@ -279,6 +283,12 @@ export default function CryptoTransactions() {
                 <TableRow>
                   <TableHead className="text-center">نوع</TableHead>
                   <TableHead className="text-center">مبلغ ({currencySymbol})</TableHead>
+                  {showPriceColumns && (
+                    <>
+                      <TableHead className="text-center">قیمت (دلار)</TableHead>
+                      <TableHead className="text-center">قیمت (تومان)</TableHead>
+                    </>
+                  )}
                   <TableHead className="text-center">تاریخ</TableHead>
                   <TableHead className="text-center">وضعیت</TableHead>
                   <TableHead className="text-center">جزئیات</TableHead>
@@ -305,6 +315,16 @@ export default function CryptoTransactions() {
                         ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
                         : tx[amountKey]}
                     </TableCell>
+                    {showPriceColumns && (
+                      <>
+                        <TableCell className="font-mono text-center text-blue-600">
+                          ${tx.amountUSD || '0.00'}
+                        </TableCell>
+                        <TableCell className="font-mono text-center text-green-600" dir="rtl">
+                          {tx.amountIRR || '0'} ﷼
+                        </TableCell>
+                      </>
+                    )}
                     <TableCell className="text-sm text-muted-foreground text-center" dir="ltr">
                       {tx.date}
                     </TableCell>
@@ -612,6 +632,7 @@ export default function CryptoTransactions() {
                 onRefresh={refetchCardano}
                 currencySymbol="ADA"
                 amountKey="amountADA"
+                showPriceColumns={true}
                 page={cardanoPage}
                 onPageChange={setCardanoPage}
               />
