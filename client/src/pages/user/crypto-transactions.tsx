@@ -281,54 +281,29 @@ export default function CryptoTransactions() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-center">نوع</TableHead>
-                  <TableHead className="text-center">مبلغ ({currencySymbol})</TableHead>
+                  <TableHead className="text-right">جزئیات</TableHead>
+                  <TableHead className="text-right">وضعیت</TableHead>
+                  <TableHead className="text-right">تاریخ</TableHead>
                   {showPriceColumns && (
-                    <>
-                      <TableHead className="text-center">قیمت (دلار)</TableHead>
-                      <TableHead className="text-center">قیمت (تومان)</TableHead>
-                    </>
+                    <TableHead className="text-right">قیمت (تومان)</TableHead>
                   )}
-                  <TableHead className="text-center">تاریخ</TableHead>
-                  <TableHead className="text-center">وضعیت</TableHead>
-                  <TableHead className="text-center">جزئیات</TableHead>
+                  <TableHead className="text-right">مبلغ ({currencySymbol})</TableHead>
+                  <TableHead className="text-right">نوع</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.map((tx) => (
                   <TableRow key={tx.txId}>
-                    <TableCell className="text-center">
-                      {tx.type === 'incoming' ? (
-                        <Badge className="bg-green-500">
-                          <ArrowDownLeft className="w-3 h-3 ml-1" />
-                          دریافتی
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-red-500">
-                          <ArrowUpRight className="w-3 h-3 ml-1" />
-                          ارسالی
-                        </Badge>
-                      )}
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(tx.explorerUrl, '_blank')}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
                     </TableCell>
-                    <TableCell className="font-mono font-semibold text-center">
-                      {amountKey === 'tokenSymbol' 
-                        ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
-                        : tx[amountKey]}
-                    </TableCell>
-                    {showPriceColumns && (
-                      <>
-                        <TableCell className="font-mono text-center text-blue-600">
-                          ${tx.amountUSD || '0.00'}
-                        </TableCell>
-                        <TableCell className="font-mono text-center text-green-600" dir="rtl">
-                          {tx.amountIRR || '0'} ﷼
-                        </TableCell>
-                      </>
-                    )}
-                    <TableCell className="text-sm text-muted-foreground text-center" dir="ltr">
-                      {tx.date}
-                    </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-right">
                       {tx.status === 'SUCCESS' ? (
                         <Badge variant="outline" className="text-green-600 border-green-600">
                           <CheckCircle2 className="w-3 h-3 ml-1" />
@@ -341,14 +316,31 @@ export default function CryptoTransactions() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => window.open(tx.explorerUrl, '_blank')}
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
+                    <TableCell className="text-sm text-muted-foreground text-right" dir="ltr">
+                      {tx.date}
+                    </TableCell>
+                    {showPriceColumns && (
+                      <TableCell className="font-mono text-right text-green-600" dir="rtl">
+                        {tx.amountIRR || '0'} ﷼
+                      </TableCell>
+                    )}
+                    <TableCell className="font-mono font-semibold text-right">
+                      {amountKey === 'tokenSymbol' 
+                        ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
+                        : tx[amountKey]}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {tx.type === 'incoming' ? (
+                        <Badge className="bg-green-500">
+                          <ArrowDownLeft className="w-3 h-3 ml-1" />
+                          دریافتی
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-red-500">
+                          <ArrowUpRight className="w-3 h-3 ml-1" />
+                          ارسالی
+                        </Badge>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
