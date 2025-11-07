@@ -57,7 +57,7 @@ export default function CryptoTransactions() {
   const [isEditing, setIsEditing] = useState(false);
   const [tronPage, setTronPage] = useState(1);
   const [usdtPage, setUsdtPage] = useState(1);
-  const [ripplePage, setRipplePage] = useState(1);
+  const [rippleMarker, setRippleMarker] = useState<string | undefined>(undefined);
   const [cardanoPage, setCardanoPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -102,10 +102,13 @@ export default function CryptoTransactions() {
   });
 
   const { data: rippleData, isLoading: rippleLoading, error: rippleError, refetch: refetchRipple } = useQuery({
-    queryKey: ["/api/ripple/transactions", ripplePage],
+    queryKey: ["/api/ripple/transactions", rippleMarker],
     queryFn: async () => {
-      const offset = (ripplePage - 1) * 20;
-      const response = await createAuthenticatedRequest(`/api/ripple/transactions?limit=20&offset=${offset}`);
+      let url = `/api/ripple/transactions?limit=50`;
+      if (rippleMarker) {
+        url += `&marker=${encodeURIComponent(rippleMarker)}`;
+      }
+      const response = await createAuthenticatedRequest(url);
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message);
@@ -606,16 +609,35 @@ export default function CryptoTransactions() {
             </TabsContent>
 
             <TabsContent value="ripple" className="mt-6">
-              <TransactionTable
-                transactions={rippleData?.transactions || []}
-                isLoading={rippleLoading}
-                error={rippleError}
-                onRefresh={refetchRipple}
-                currencySymbol="XRP"
-                amountKey="amountXRP"
-                page={ripplePage}
-                onPageChange={setRipplePage}
-              />
+              <div className="space-y-4">
+                <TransactionTable
+                  transactions={rippleData?.transactions || []}
+                  isLoading={rippleLoading}
+                  error={rippleError}
+                  onRefresh={refetchRipple}
+                  currencySymbol="XRP"
+                  amountKey="amountXRP"
+                  page={1}
+                  onPageChange={() => {}}
+                />
+                {rippleData?.marker && (
+                  <div className="flex justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setRippleMarker(undefined)}
+                      disabled={!rippleMarker}
+                    >
+                      صفحه اول
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setRippleMarker(rippleData.marker)}
+                    >
+                      صفحه بعد
+                    </Button>
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="cardano" className="mt-6">
