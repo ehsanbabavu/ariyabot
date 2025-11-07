@@ -44,12 +44,35 @@ interface CoinGeckoPrice {
 
 export class CardanoService {
   private readonly CARDANOSCAN_API_URL = 'https://api.cardanoscan.io/api/v1';
-  private readonly CARDANOSCAN_API_KEY = process.env.CARDANOSCAN_API_KEY || '';
+  private CARDANOSCAN_API_KEY: string = process.env.CARDANOSCAN_API_KEY || '';
   private readonly USD_TO_IRR_RATE = 70000;
   
   private adaPriceUSD: number = 0;
   private lastPriceFetch: number = 0;
   private readonly PRICE_CACHE_DURATION = 60000;
+
+  constructor() {
+    this.loadApiKeyFromDatabase();
+  }
+
+  private async loadApiKeyFromDatabase(): Promise<void> {
+    try {
+      const { storage } = await import("./storage");
+      const settings = await storage.getBlockchainSettings('cardano');
+      if (settings && settings.apiKey) {
+        this.CARDANOSCAN_API_KEY = settings.apiKey;
+        console.log('✅ توکن کاردانو از دیتابیس بارگذاری شد');
+      } else if (!this.CARDANOSCAN_API_KEY) {
+        console.warn('⚠️ CARDANOSCAN_API_KEY تنظیم نشده است');
+      }
+    } catch (error) {
+      console.error('خطا در بارگذاری توکن کاردانو از دیتابیس:', error);
+    }
+  }
+
+  async reloadApiKey(): Promise<void> {
+    await this.loadApiKeyFromDatabase();
+  }
   
   private formatAmount(lovelace: string): string {
     const adaAmount = parseInt(lovelace) / 1_000_000;

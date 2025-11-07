@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -59,6 +59,11 @@ export interface IStorage {
   getAiTokenSettings(provider?: string): Promise<AiTokenSettings | undefined>;
   getAllAiTokenSettings(): Promise<AiTokenSettings[]>;
   updateAiTokenSettings(settings: InsertAiTokenSettings): Promise<AiTokenSettings>;
+
+  // Blockchain Settings
+  getBlockchainSettings(provider?: string): Promise<BlockchainSettings | undefined>;
+  getAllBlockchainSettings(): Promise<BlockchainSettings[]>;
+  updateBlockchainSettings(settings: InsertBlockchainSettings): Promise<BlockchainSettings>;
   
   // User Subscriptions
   getUserSubscription(userId: string): Promise<UserSubscription & { subscriptionName?: string | null; subscriptionDescription?: string | null } | undefined>;
@@ -182,6 +187,7 @@ export class MemStorage implements IStorage {
   private sentMessages: Map<string, SentMessage>;
   private receivedMessages: Map<string, ReceivedMessage>;
   private aiTokenSettings: Map<string, AiTokenSettings>;
+  private blockchainSettings: Map<string, BlockchainSettings>;
   private userSubscriptions: Map<string, UserSubscription>;
   private categories: Map<string, Category>;
   private carts: Map<string, Cart>;
@@ -206,6 +212,7 @@ export class MemStorage implements IStorage {
     this.sentMessages = new Map();
     this.receivedMessages = new Map();
     this.aiTokenSettings = new Map();
+    this.blockchainSettings = new Map();
     this.userSubscriptions = new Map();
     this.categories = new Map();
     this.carts = new Map();
@@ -250,6 +257,10 @@ export class MemStorage implements IStorage {
       phone: "09123456789",
       whatsappNumber: null,
       whatsappToken: null,
+      tronWalletAddress: null,
+      usdtTrc20WalletAddress: null,
+      rippleWalletAddress: null,
+      cardanoWalletAddress: null,
       password: hashedPassword,
       googleId: null,
       role: "admin",
@@ -305,6 +316,10 @@ export class MemStorage implements IStorage {
       phone: "09111234567",
       whatsappNumber: "09111234567",
       whatsappToken: null,
+      tronWalletAddress: null,
+      usdtTrc20WalletAddress: null,
+      rippleWalletAddress: null,
+      cardanoWalletAddress: null,
       password: testUserPassword,
       googleId: null,
       role: "user_level_1",
@@ -469,6 +484,10 @@ export class MemStorage implements IStorage {
       profilePicture: insertUser.profilePicture || null,
       whatsappNumber: insertUser.whatsappNumber || null,
       whatsappToken: insertUser.whatsappToken || null,
+      tronWalletAddress: insertUser.tronWalletAddress || null,
+      usdtTrc20WalletAddress: insertUser.usdtTrc20WalletAddress || null,
+      rippleWalletAddress: insertUser.rippleWalletAddress || null,
+      cardanoWalletAddress: insertUser.cardanoWalletAddress || null,
       parentUserId: insertUser.parentUserId || null,
       isWhatsappRegistered: insertUser.isWhatsappRegistered || false,
       welcomeMessage: insertUser.welcomeMessage || null,
@@ -826,11 +845,40 @@ export class MemStorage implements IStorage {
       id: existing?.id || randomUUID(),
       provider: settings.provider,
       isActive: settings.isActive !== undefined ? settings.isActive : false,
+      workspaceId: settings.workspaceId || null,
       createdAt: existing?.createdAt || new Date(),
       updatedAt: new Date(),
     };
     this.aiTokenSettings.set(aiTokenSettings.id, aiTokenSettings);
     return aiTokenSettings;
+  }
+
+  // Blockchain Settings
+  async getBlockchainSettings(provider?: string): Promise<BlockchainSettings | undefined> {
+    if (provider) {
+      return Array.from(this.blockchainSettings.values()).find(s => s.provider === provider);
+    }
+    return Array.from(this.blockchainSettings.values())[0];
+  }
+
+  async getAllBlockchainSettings(): Promise<BlockchainSettings[]> {
+    return Array.from(this.blockchainSettings.values());
+  }
+
+  async updateBlockchainSettings(settings: InsertBlockchainSettings): Promise<BlockchainSettings> {
+    const existing = Array.from(this.blockchainSettings.values()).find(s => s.provider === settings.provider);
+    
+    const blockchainSettings: BlockchainSettings = {
+      ...settings,
+      id: existing?.id || randomUUID(),
+      provider: settings.provider,
+      isActive: settings.isActive !== undefined ? settings.isActive : false,
+      metadata: settings.metadata || null,
+      createdAt: existing?.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
+    this.blockchainSettings.set(blockchainSettings.id, blockchainSettings);
+    return blockchainSettings;
   }
 
   // User Subscriptions

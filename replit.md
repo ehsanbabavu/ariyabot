@@ -40,12 +40,19 @@ Preferred communication style: Simple, everyday language.
   - Path traversal protection with filename validation and directory containment checks
   - Admin-only access with JWT authentication
   - Persian UI accessible at /database-backup in admin settings menu
+- **Blockchain Settings Management**: Centralized blockchain API token management system:
+  - Database-backed storage for blockchain provider API keys (blockchain_settings table)
+  - Admin UI for configuring Cardano, Tron, Ripple API tokens
+  - Runtime token reload without server restart
+  - Fallback to environment variables for backward compatibility
+  - Secure admin-only access with JWT authentication
 - **Cardano Integration**: Cardanoscan API integration for blockchain transaction retrieval:
   - Fetch transaction history for any Cardano wallet address
   - Support for pagination (up to 50 transactions per request)
   - Free tier API usage with proper authentication
   - Automatic formatting of ADA amounts with Persian date display
   - Direct links to Cardanoscan explorer for transaction details
+  - Centered table alignment for better UX
 
 ## System Design Choices
 - **AI Architecture**: Dual AI provider system supporting Gemini AI (Google) and Liara AI (OpenAI-compatible) with an AI Service Orchestrator for centralized management and automatic failover. Only one provider is active at a time, configurable via admin settings.
@@ -111,8 +118,10 @@ The following environment variables can be set for enhanced functionality:
 - `ADMIN_PASSWORD`: Custom admin password (defaults to admin123)
 - `GEMINI_API_KEY`: For AI-powered features (OCR, smart ordering)
 - `LIARA_AI_API_KEY`: Alternative AI provider
-- `CARDANOSCAN_API_KEY`: For Cardano blockchain transaction retrieval (✅ **Configured**)
+- `CARDANOSCAN_API_KEY`: For Cardano blockchain transaction retrieval (can also be configured via admin panel)
 - WhatsApp integration tokens (configured per user in admin panel)
+
+**Note**: Blockchain API tokens (Cardano, Tron, Ripple) are now managed through the admin panel at `/admin/cardano-settings` and stored in the database. Environment variables serve as fallback only.
 
 ## Development Workflow
 - **Start Dev Server**: `npm run dev` (automatically configured)

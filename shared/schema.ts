@@ -115,6 +115,18 @@ export const aiTokenSettings = pgTable("ai_token_settings", {
   providerUnique: unique("ai_token_settings_provider_unique").on(table.provider),
 }));
 
+export const blockchainSettings = pgTable("blockchain_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull(), // cardano, tron, ripple, etc.
+  apiKey: text("api_key").notNull(),
+  isActive: boolean("is_active").notNull().default(false),
+  metadata: text("metadata"), // JSON string for additional provider-specific settings
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  providerUnique: unique("blockchain_settings_provider_unique").on(table.provider),
+}));
+
 export const internalChats = pgTable("internal_chats", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   senderId: varchar("sender_id").notNull().references(() => users.id),
@@ -342,6 +354,12 @@ export const insertAiTokenSettingsSchema = createInsertSchema(aiTokenSettings).o
   updatedAt: true,
 });
 
+export const insertBlockchainSettingsSchema = createInsertSchema(blockchainSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertInternalChatSchema = createInsertSchema(internalChats).omit({
   id: true,
   createdAt: true,
@@ -533,6 +551,9 @@ export type InsertReceivedMessage = z.infer<typeof insertReceivedMessageSchema>;
 
 export type AiTokenSettings = typeof aiTokenSettings.$inferSelect;
 export type InsertAiTokenSettings = z.infer<typeof insertAiTokenSettingsSchema>;
+
+export type BlockchainSettings = typeof blockchainSettings.$inferSelect;
+export type InsertBlockchainSettings = z.infer<typeof insertBlockchainSettingsSchema>;
 
 export type InternalChat = typeof internalChats.$inferSelect;
 export type InsertInternalChat = z.infer<typeof insertInternalChatSchema>;

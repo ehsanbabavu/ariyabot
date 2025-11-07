@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
-import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, maintenanceMode, type User } from "@shared/schema";
+import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, maintenanceMode, type User } from "@shared/schema";
 import { z } from "zod";
 import fs from "fs";
 import { generateAndSaveInvoice } from "./invoice-service";
@@ -1387,6 +1387,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "داده های ورودی نامعتبر است", errors: error.errors });
       }
       res.status(500).json({ message: "خطا در ذخیره توکن هوش مصنوعی" });
+    }
+  });
+
+  // Blockchain Settings routes
+  app.get("/api/blockchain-settings", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllBlockchainSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "خطا در دریافت تنظیمات بلاکچین" });
+    }
+  });
+
+  app.get("/api/blockchain-settings/:provider", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      const settings = await storage.getBlockchainSettings(provider);
+      res.json(settings || {});
+    } catch (error) {
+      res.status(500).json({ message: "خطا در دریافت تنظیمات بلاکچین" });
+    }
+  });
+
+  app.post("/api/blockchain-settings", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertBlockchainSettingsSchema.parse(req.body);
+      const settings = await storage.updateBlockchainSettings(validatedData);
+      
+      // بازخوانی سرویس کاردانو با توکن جدید
+      if (validatedData.provider === 'cardano') {
+        const { cardanoService } = await import("./cardano-service");
+        await cardanoService.reloadApiKey();
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "داده های ورودی نامعتبر است", errors: error.errors });
+      }
+      res.status(500).json({ message: "خطا در ذخیره تنظیمات بلاکچین" });
     }
   });
 
