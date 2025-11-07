@@ -224,6 +224,7 @@ export default function CryptoTransactions() {
     currencySymbol,
     amountKey,
     showPriceColumns = false,
+    centerAlign = false,
     page,
     onPageChange 
   }: { 
@@ -234,6 +235,7 @@ export default function CryptoTransactions() {
     currencySymbol: string,
     amountKey: 'amountTRX' | 'amountXRP' | 'amountADA' | 'tokenSymbol',
     showPriceColumns?: boolean,
+    centerAlign?: boolean,
     page: number,
     onPageChange: (newPage: number) => void
   }) => (
@@ -281,20 +283,20 @@ export default function CryptoTransactions() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-right">جزئیات</TableHead>
-                  <TableHead className="text-right">وضعیت</TableHead>
-                  <TableHead className="text-right">تاریخ</TableHead>
+                  <TableHead className={centerAlign ? "text-center" : "text-right"}>جزئیات</TableHead>
+                  <TableHead className={centerAlign ? "text-center" : "text-right"}>وضعیت</TableHead>
+                  <TableHead className={centerAlign ? "text-center" : "text-right"}>تاریخ</TableHead>
                   {showPriceColumns && (
-                    <TableHead className="text-right">قیمت (تومان)</TableHead>
+                    <TableHead className={centerAlign ? "text-center" : "text-right"}>قیمت (تومان)</TableHead>
                   )}
-                  <TableHead className="text-right">مبلغ ({currencySymbol})</TableHead>
-                  <TableHead className="text-right">نوع</TableHead>
+                  <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ ({currencySymbol})</TableHead>
+                  <TableHead className={centerAlign ? "text-center" : "text-right"}>نوع</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {transactions.map((tx) => (
                   <TableRow key={tx.txId}>
-                    <TableCell className="text-right">
+                    <TableCell className={centerAlign ? "text-center" : "text-right"}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -303,7 +305,7 @@ export default function CryptoTransactions() {
                         <ExternalLink className="w-4 h-4" />
                       </Button>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className={centerAlign ? "text-center" : "text-right"}>
                       {tx.status === 'SUCCESS' ? (
                         <Badge variant="outline" className="text-green-600 border-green-600">
                           <CheckCircle2 className="w-3 h-3 ml-1" />
@@ -316,20 +318,20 @@ export default function CryptoTransactions() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground text-right" dir="ltr">
+                    <TableCell className={centerAlign ? "text-center text-sm text-muted-foreground" : "text-sm text-muted-foreground text-right"} dir="ltr">
                       {tx.date}
                     </TableCell>
                     {showPriceColumns && (
-                      <TableCell className="font-mono text-right text-green-600" dir="rtl">
+                      <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
                         {tx.amountIRR || '0'} ﷼
                       </TableCell>
                     )}
-                    <TableCell className="font-mono font-semibold text-right">
+                    <TableCell className={centerAlign ? "font-mono font-semibold text-center" : "font-mono font-semibold text-right"}>
                       {amountKey === 'tokenSymbol' 
                         ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
                         : tx[amountKey]}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className={centerAlign ? "text-center" : "text-right"}>
                       {tx.type === 'incoming' ? (
                         <Badge className="bg-green-500">
                           <ArrowDownLeft className="w-3 h-3 ml-1" />
@@ -625,6 +627,7 @@ export default function CryptoTransactions() {
                 currencySymbol="ADA"
                 amountKey="amountADA"
                 showPriceColumns={true}
+                centerAlign={true}
                 page={cardanoPage}
                 onPageChange={setCardanoPage}
               />
