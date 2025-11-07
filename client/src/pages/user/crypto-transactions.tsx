@@ -274,18 +274,18 @@ export default function CryptoTransactions() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>نوع</TableHead>
-                        <TableHead>مبلغ (TRX)</TableHead>
-                        <TableHead>مبلغ (تومان)</TableHead>
-                        <TableHead>تاریخ</TableHead>
-                        <TableHead>وضعیت</TableHead>
-                        <TableHead>جزئیات</TableHead>
+                        <TableHead className="text-center">نوع</TableHead>
+                        <TableHead className="text-center">مبلغ (TRX)</TableHead>
+                        <TableHead className="text-center">مبلغ (تومان)</TableHead>
+                        <TableHead className="text-center">تاریخ</TableHead>
+                        <TableHead className="text-center">وضعیت</TableHead>
+                        <TableHead className="text-center">جزئیات</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {transactions.map((tx) => (
                         <TableRow key={tx.txId}>
-                          <TableCell>
+                          <TableCell className="text-center">
                             {tx.type === 'incoming' ? (
                               <Badge className="bg-green-500">
                                 <ArrowDownLeft className="w-3 h-3 ml-1" />
@@ -298,16 +298,16 @@ export default function CryptoTransactions() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell className="font-mono font-semibold">
+                          <TableCell className="font-mono font-semibold text-center">
                             {tx.amountTRX}
                           </TableCell>
-                          <TableCell className="font-semibold text-blue-600">
+                          <TableCell className="font-semibold text-blue-600 text-center">
                             {trxPriceInToman > 0 ? formatTomanPrice(tx.amountTRX, trxPriceInToman) : '---'} تومان
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground" dir="ltr">
+                          <TableCell className="text-sm text-muted-foreground text-center" dir="ltr">
                             {tx.date}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             {tx.status === 'SUCCESS' ? (
                               <Badge variant="outline" className="text-green-600 border-green-600">
                                 <CheckCircle2 className="w-3 h-3 ml-1" />
@@ -320,7 +320,7 @@ export default function CryptoTransactions() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <Button
                               variant="ghost"
                               size="sm"
