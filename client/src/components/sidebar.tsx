@@ -110,6 +110,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
     { path: "/content-management", label: "مدیریت محتوای سایت", icon: FileText, adminOnly: true },
     { path: "/whatsapp-settings", label: "تنظیمات واتس‌اپ", icon: MessageSquare, adminOnly: true },
     { path: "/ai-token", label: "توکن هوش مصنوعی", icon: Bot, adminOnly: true },
+    { path: "/cardano-settings", label: "توکن API کاردانو", icon: Wallet, adminOnly: true },
     { path: "/profile", label: "اطلاعات کاربری", icon: User, adminOnly: false },
   ];
 
