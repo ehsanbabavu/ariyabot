@@ -13,6 +13,8 @@ import { generateAndSaveInvoice } from "./invoice-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { db, eq } from "./db-storage";
 import { tronService } from "./tron-service";
+import { rippleService } from "./ripple-service";
+import { cardanoService } from "./cardano-service";
 import { tgjuService } from "./tgju-service";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -3897,7 +3899,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({ 
-        walletAddress: user.tronWalletAddress || null 
+        walletAddress: user.tronWalletAddress || null,
+        usdtWalletAddress: user.usdtTrc20WalletAddress || null,
+        rippleWalletAddress: user.rippleWalletAddress || null,
+        cardanoWalletAddress: user.cardanoWalletAddress || null
       });
     } catch (error) {
       console.error("خطا در دریافت آدرس ولت:", error);
@@ -3911,19 +3916,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "دسترسی غیرمجاز" });
       }
 
-      const { walletAddress } = req.body;
+      const { walletAddress, usdtWalletAddress, rippleWalletAddress, cardanoWalletAddress } = req.body;
 
-      if (!walletAddress || walletAddress.trim() === '') {
-        return res.status(400).json({ message: "آدرس ولت نمی‌تواند خالی باشد" });
+      // حداقل یک آدرس باید وارد شود
+      if (!walletAddress?.trim() && !usdtWalletAddress?.trim() && 
+          !rippleWalletAddress?.trim() && !cardanoWalletAddress?.trim()) {
+        return res.status(400).json({ message: "حداقل یک آدرس ولت را وارد کنید" });
       }
 
-      if (!tronService.validateTronAddress(walletAddress)) {
+      // اعتبارسنجی آدرس ترون در صورت وجود
+      if (walletAddress && walletAddress.trim() && !tronService.validateTronAddress(walletAddress)) {
         return res.status(400).json({ message: "آدرس ولت TRON معتبر نیست" });
       }
 
-      const updatedUser = await storage.updateUser(req.user!.id, {
-        tronWalletAddress: walletAddress.trim()
-      });
+      // اعتبارسنجی آدرس USDT TRC20 در صورت وجود (همان فرمت TRON)
+      if (usdtWalletAddress && usdtWalletAddress.trim() && !tronService.validateTronAddress(usdtWalletAddress)) {
+        return res.status(400).json({ message: "آدرس ولت USDT TRC20 معتبر نیست" });
+      }
+
+      const updateData: any = {};
+      if (walletAddress !== undefined) updateData.tronWalletAddress = walletAddress.trim() || null;
+      if (usdtWalletAddress !== undefined) updateData.usdtTrc20WalletAddress = usdtWalletAddress.trim() || null;
+      if (rippleWalletAddress !== undefined) updateData.rippleWalletAddress = rippleWalletAddress.trim() || null;
+      if (cardanoWalletAddress !== undefined) updateData.cardanoWalletAddress = cardanoWalletAddress.trim() || null;
+
+      const updatedUser = await storage.updateUser(req.user!.id, updateData);
 
       if (!updatedUser) {
         return res.status(404).json({ message: "کاربر یافت نشد" });
@@ -4010,9 +4027,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const user = await storage.getUser(req.user!.id);
-      if (!user || !user.tronWalletAddress) {
+      if (!user || !user.usdtTrc20WalletAddress) {
         return res.status(400).json({ 
-          message: "لطفاً ابتدا آدرس ولت خود را ثبت کنید" 
+          message: "لطفاً ابتدا آدرس ولت USDT TRC20 خود را ثبت کنید" 
         });
       }
 
@@ -4020,21 +4037,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 50;
 
       const transactions = await tronService.getTRC20Transactions(
-        user.tronWalletAddress,
+        user.usdtTrc20WalletAddress,
         contractAddress,
         limit
       );
 
       res.json({ 
         success: true,
-        walletAddress: user.tronWalletAddress,
+        walletAddress: user.usdtTrc20WalletAddress,
         transactions,
         count: transactions.length
       });
     } catch (error: any) {
-      console.error("خطا در دریافت تراکنش‌های TRC20:", error);
+      console.error("خطا در دریافت تراکنش‌های USDT TRC20:", error);
       res.status(500).json({ 
-        message: error.message || "خطا در دریافت تراکنش‌های TRC20",
+        message: error.message || "خطا در دریافت تراکنش‌های USDT TRC20",
+        success: false
+      });
+    }
+  });
+
+  // Ripple (XRP) Transactions
+  app.get("/api/ripple/transactions", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.rippleWalletAddress) {
+        return res.status(400).json({ 
+          message: "لطفاً ابتدا آدرس ولت Ripple خود را ثبت کنید" 
+        });
+      }
+
+      const limit = parseInt(req.query.limit as string) || 50;
+
+      const transactions = await rippleService.getTransactions(
+        user.rippleWalletAddress,
+        limit
+      );
+
+      res.json({ 
+        success: true,
+        walletAddress: user.rippleWalletAddress,
+        transactions,
+        count: transactions.length
+      });
+    } catch (error: any) {
+      console.error("خطا در دریافت تراکنش‌های Ripple:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت تراکنش‌های Ripple",
+        success: false
+      });
+    }
+  });
+
+  // Cardano (ADA) Transactions
+  app.get("/api/cardano/transactions", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const user = await storage.getUser(req.user!.id);
+      if (!user || !user.cardanoWalletAddress) {
+        return res.status(400).json({ 
+          message: "لطفاً ابتدا آدرس ولت Cardano خود را ثبت کنید" 
+        });
+      }
+
+      const limit = parseInt(req.query.limit as string) || 50;
+      const page = parseInt(req.query.page as string) || 1;
+
+      const transactions = await cardanoService.getTransactions(
+        user.cardanoWalletAddress,
+        limit,
+        page
+      );
+
+      res.json({ 
+        success: true,
+        walletAddress: user.cardanoWalletAddress,
+        transactions,
+        count: transactions.length
+      });
+    } catch (error: any) {
+      console.error("خطا در دریافت تراکنش‌های Cardano:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت تراکنش‌های Cardano",
         success: false
       });
     }

@@ -13,6 +13,9 @@ export const users = pgTable("users", {
   whatsappNumber: text("whatsapp_number"), // WhatsApp number for automatic registration
   whatsappToken: text("whatsapp_token"), // Individual WhatsApp token for level 1 users
   tronWalletAddress: text("tron_wallet_address"), // TRON wallet address for crypto transactions
+  usdtTrc20WalletAddress: text("usdt_trc20_wallet_address"), // USDT (TRC20) wallet address
+  rippleWalletAddress: text("ripple_wallet_address"), // Ripple (XRP) wallet address
+  cardanoWalletAddress: text("cardano_wallet_address"), // Cardano (ADA) wallet address
   password: text("password"),
   googleId: text("google_id"),
   role: text("role").notNull().default("user_level_1"), // admin, user_level_1, user_level_2
