@@ -198,6 +198,9 @@ export class CardanoService {
 
       for (const tx of data.transactions) {
         try {
+          // استفاده از فیلد صحیح برای transaction hash
+          const txHash = tx.hash || tx.tx_hash;
+          
           let isIncoming = false;
           let totalAmount = 0;
           let fromAddress = '';
@@ -254,7 +257,7 @@ export class CardanoService {
 
           // Debug log
           if (totalAmount === 0) {
-            console.log(`⚠️ تراکنش ${tx.tx_hash}: مبلغ صفر! incoming=${isIncoming}, inputs=${tx.inputs?.length || 0}, outputs=${tx.outputs?.length || 0}`);
+            console.log(`⚠️ تراکنش ${txHash}: مبلغ صفر! incoming=${isIncoming}, inputs=${tx.inputs?.length || 0}, outputs=${tx.outputs?.length || 0}`);
             if (tx.inputs && tx.inputs.length > 0) {
               console.log(`  Input sample:`, JSON.stringify(tx.inputs[0]).substring(0, 300));
             }
@@ -264,7 +267,7 @@ export class CardanoService {
           }
 
           transactions.push({
-            txId: tx.tx_hash,
+            txId: txHash,
             type: isIncoming ? 'incoming' : 'outgoing',
             amount: totalAmount,
             amountADA: this.formatAmount(totalAmount.toString()),
@@ -281,11 +284,11 @@ export class CardanoService {
               minute: '2-digit',
             }),
             status: 'SUCCESS',
-            explorerUrl: `https://cardanoscan.io/transaction/${tx.tx_hash}`
+            explorerUrl: `https://cardanoscan.io/transaction/${txHash}`
           });
 
         } catch (error) {
-          console.error(`خطا در پردازش تراکنش ${tx.tx_hash}:`, error);
+          console.error(`خطا در پردازش تراکنش ${tx.hash || tx.tx_hash || 'unknown'}:`, error);
           continue;
         }
       }

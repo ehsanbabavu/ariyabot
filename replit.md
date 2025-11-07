@@ -86,7 +86,7 @@ Preferred communication style: Simple, everyday language.
 - **Date**: November 7, 2025
 - **Status**: ✅ Successfully imported and configured in Replit environment (Fresh GitHub Clone)
 - **Setup Actions**:
-  - Installed all npm dependencies (639 packages in ~3 minutes)
+  - Installed all npm dependencies (640 packages in ~2 minutes)
   - Connected to PostgreSQL database (DATABASE_URL pre-provisioned)
   - Pushed database schema using Drizzle Kit (`npm run db:push`)
   - Created admin and test user accounts automatically
@@ -96,6 +96,7 @@ Preferred communication style: Simple, everyday language.
   - Created .gitignore file for proper version control
   - Verified frontend works with Persian RTL layout on Replit proxy
   - All services started successfully (WhatsApp, AI, cleanup)
+  - **Added Cardano Settings page** to admin panel with route `/cardano-settings` in settings menu
   - Application is fully functional and accessible
 
 ## Environment Configuration
@@ -121,7 +122,7 @@ The following environment variables can be set for enhanced functionality:
 - `CARDANOSCAN_API_KEY`: For Cardano blockchain transaction retrieval (can also be configured via admin panel)
 - WhatsApp integration tokens (configured per user in admin panel)
 
-**Note**: Blockchain API tokens (Cardano, Tron, Ripple) are now managed through the admin panel at `/admin/cardano-settings` and stored in the database. Environment variables serve as fallback only.
+**Note**: Blockchain API tokens (Cardano, Tron, Ripple) are now managed through the admin panel at `/cardano-settings` (accessible from Settings menu in admin panel) and stored in the database. Environment variables serve as fallback only.
 
 ## Development Workflow
 - **Start Dev Server**: `npm run dev` (automatically configured)
