@@ -19,6 +19,7 @@ import DatabaseBackup from "@/pages/admin/database-backup";
 import LoginLogs from "@/pages/admin/login-logs";
 import Categories from "@/pages/admin/categories";
 import UserWhatsappTokens from "@/pages/admin/user-whatsapp-tokens";
+import CardanoSettings from "@/pages/admin/cardano-settings";
 import Profile from "@/pages/user/profile";
 import SendTicket from "@/pages/user/send-ticket";
 import MyTickets from "@/pages/user/my-tickets";
@@ -212,6 +213,7 @@ function Router() {
       <Route path="/subscriptions" component={() => <AdminRoute component={Subscriptions} />} />
       <Route path="/categories" component={() => <AdminOrLevel1Route component={Categories} />} />
       <Route path="/ai-token" component={() => <AdminRoute component={AITokenSettings} />} />
+      <Route path="/cardano-settings" component={() => <AdminRoute component={CardanoSettings} />} />
       <Route path="/login-logs" component={() => <AdminRoute component={LoginLogs} />} />
       <Route path="/database-backup" component={() => <AdminRoute component={DatabaseBackup} />} />
       <Route path="/content-management" component={() => <AdminRoute component={ContentManagement} />} />
