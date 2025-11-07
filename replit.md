@@ -40,6 +40,12 @@ Preferred communication style: Simple, everyday language.
   - Path traversal protection with filename validation and directory containment checks
   - Admin-only access with JWT authentication
   - Persian UI accessible at /database-backup in admin settings menu
+- **Cardano Integration**: Cardanoscan API integration for blockchain transaction retrieval:
+  - Fetch transaction history for any Cardano wallet address
+  - Support for pagination (up to 50 transactions per request)
+  - Free tier API usage with proper authentication
+  - Automatic formatting of ADA amounts with Persian date display
+  - Direct links to Cardanoscan explorer for transaction details
 
 ## System Design Choices
 - **AI Architecture**: Dual AI provider system supporting Gemini AI (Google) and Liara AI (OpenAI-compatible) with an AI Service Orchestrator for centralized management and automatic failover. Only one provider is active at a time, configurable via admin settings.
@@ -63,6 +69,9 @@ Preferred communication style: Simple, everyday language.
 
 ## Database & Storage
 - Neon Database (PostgreSQL), Drizzle Kit.
+
+## Blockchain Services
+- **Cardanoscan API**: For Cardano blockchain transaction retrieval and wallet monitoring.
 
 # Replit Setup & Configuration
 
@@ -102,6 +111,7 @@ The following environment variables can be set for enhanced functionality:
 - `ADMIN_PASSWORD`: Custom admin password (defaults to admin123)
 - `GEMINI_API_KEY`: For AI-powered features (OCR, smart ordering)
 - `LIARA_AI_API_KEY`: Alternative AI provider
+- `CARDANOSCAN_API_KEY`: For Cardano blockchain transaction retrieval (✅ **Configured**)
 - WhatsApp integration tokens (configured per user in admin panel)
 
 ## Development Workflow
