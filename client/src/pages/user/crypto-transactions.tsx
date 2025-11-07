@@ -69,7 +69,7 @@ export default function CryptoTransactions() {
     },
   });
 
-  const { data: tronData, isLoading: tronLoading, refetch: refetchTron } = useQuery({
+  const { data: tronData, isLoading: tronLoading, error: tronError, refetch: refetchTron } = useQuery({
     queryKey: ["/api/tron/transactions", tronPage],
     queryFn: async () => {
       const offset = (tronPage - 1) * 20;
@@ -84,7 +84,7 @@ export default function CryptoTransactions() {
     refetchInterval: 60000,
   });
 
-  const { data: usdtData, isLoading: usdtLoading, refetch: refetchUsdt } = useQuery({
+  const { data: usdtData, isLoading: usdtLoading, error: usdtError, refetch: refetchUsdt } = useQuery({
     queryKey: ["/api/tron/transactions/trc20", usdtPage],
     queryFn: async () => {
       const offset = (usdtPage - 1) * 20;
@@ -99,7 +99,7 @@ export default function CryptoTransactions() {
     refetchInterval: 60000,
   });
 
-  const { data: rippleData, isLoading: rippleLoading, refetch: refetchRipple } = useQuery({
+  const { data: rippleData, isLoading: rippleLoading, error: rippleError, refetch: refetchRipple } = useQuery({
     queryKey: ["/api/ripple/transactions", ripplePage],
     queryFn: async () => {
       const offset = (ripplePage - 1) * 20;
@@ -114,7 +114,7 @@ export default function CryptoTransactions() {
     refetchInterval: 60000,
   });
 
-  const { data: cardanoData, isLoading: cardanoLoading, refetch: refetchCardano } = useQuery({
+  const { data: cardanoData, isLoading: cardanoLoading, error: cardanoError, refetch: refetchCardano } = useQuery({
     queryKey: ["/api/cardano/transactions", cardanoPage],
     queryFn: async () => {
       const response = await createAuthenticatedRequest(`/api/cardano/transactions?limit=20&page=${cardanoPage}`);
@@ -217,6 +217,7 @@ export default function CryptoTransactions() {
   const TransactionTable = ({ 
     transactions, 
     isLoading, 
+    error,
     onRefresh, 
     currencySymbol,
     amountKey,
@@ -224,7 +225,8 @@ export default function CryptoTransactions() {
     onPageChange 
   }: { 
     transactions: CryptoTransaction[], 
-    isLoading: boolean, 
+    isLoading: boolean,
+    error: Error | null,
     onRefresh: () => void,
     currencySymbol: string,
     amountKey: 'amountTRX' | 'amountXRP' | 'amountADA' | 'tokenSymbol',
@@ -256,6 +258,13 @@ export default function CryptoTransactions() {
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
+        ) : error ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error.message}
+            </AlertDescription>
+          </Alert>
         ) : transactions.length === 0 ? (
           <Alert>
             <AlertCircle className="h-4 w-4" />
@@ -560,6 +569,7 @@ export default function CryptoTransactions() {
               <TransactionTable
                 transactions={tronData?.transactions || []}
                 isLoading={tronLoading}
+                error={tronError}
                 onRefresh={refetchTron}
                 currencySymbol="TRX"
                 amountKey="amountTRX"
@@ -572,6 +582,7 @@ export default function CryptoTransactions() {
               <TransactionTable
                 transactions={usdtData?.transactions || []}
                 isLoading={usdtLoading}
+                error={usdtError}
                 onRefresh={refetchUsdt}
                 currencySymbol="USDT"
                 amountKey="tokenSymbol"
@@ -584,6 +595,7 @@ export default function CryptoTransactions() {
               <TransactionTable
                 transactions={rippleData?.transactions || []}
                 isLoading={rippleLoading}
+                error={rippleError}
                 onRefresh={refetchRipple}
                 currencySymbol="XRP"
                 amountKey="amountXRP"
@@ -596,6 +608,7 @@ export default function CryptoTransactions() {
               <TransactionTable
                 transactions={cardanoData?.transactions || []}
                 isLoading={cardanoLoading}
+                error={cardanoError}
                 onRefresh={refetchCardano}
                 currencySymbol="ADA"
                 amountKey="amountADA"
