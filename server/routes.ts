@@ -4112,17 +4112,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const limit = parseInt(req.query.limit as string) || 50;
+      const signedMarker = req.query.marker as string | undefined;
 
-      const transactions = await rippleService.getTransactions(
+      const result = await rippleService.getTransactions(
         user.rippleWalletAddress,
-        limit
+        limit,
+        signedMarker
       );
 
       res.json({ 
         success: true,
         walletAddress: user.rippleWalletAddress,
-        transactions,
-        count: transactions.length
+        transactions: result.transactions,
+        count: result.transactions.length,
+        ...(result.marker && { marker: result.marker })
       });
     } catch (error: any) {
       console.error("خطا در دریافت تراکنش‌های Ripple:", error);
