@@ -166,6 +166,11 @@ export class CardanoService {
         return [];
       }
 
+      // لاگ ساختار اولین تراکنش برای دیباگ
+      if (data.transactions.length > 0) {
+        console.log('🔍 ساختار اولین تراکنش:', JSON.stringify(data.transactions[0], null, 2));
+      }
+
       const transactions: ProcessedCardanoTransaction[] = [];
 
       for (const tx of data.transactions) {
@@ -175,21 +180,42 @@ export class CardanoService {
           let fromAddress = '';
           let toAddress = '';
 
+          // بررسی آدرس به صورت hex و bech32
+          const checkAddress = (addr: string) => {
+            return addr === hexAddress || addr === walletAddress;
+          };
+
           if (tx.outputs && Array.isArray(tx.outputs)) {
             for (const output of tx.outputs) {
-              if (output.address === walletAddress) {
+              if (checkAddress(output.address)) {
                 isIncoming = true;
                 toAddress = output.address;
-                totalAmount += parseInt(output.value || '0');
+                // دریافت مقدار ADA - چک کنیم آیا value مستقیم وجود داره یا از amount array
+                if (output.value) {
+                  totalAmount += parseInt(output.value);
+                } else if (output.amount && Array.isArray(output.amount)) {
+                  const adaItem = output.amount.find((a: any) => a.unit === 'lovelace');
+                  if (adaItem) {
+                    totalAmount += parseInt(adaItem.quantity || '0');
+                  }
+                }
               }
             }
           }
 
           if (!isIncoming && tx.inputs && Array.isArray(tx.inputs)) {
             for (const input of tx.inputs) {
-              if (input.address === walletAddress) {
+              if (checkAddress(input.address)) {
                 fromAddress = input.address;
-                totalAmount += parseInt(input.value || '0');
+                // دریافت مقدار ADA - چک کنیم آیا value مستقیم وجود داره یا از amount array
+                if (input.value) {
+                  totalAmount += parseInt(input.value);
+                } else if (input.amount && Array.isArray(input.amount)) {
+                  const adaItem = input.amount.find((a: any) => a.unit === 'lovelace');
+                  if (adaItem) {
+                    totalAmount += parseInt(adaItem.quantity || '0');
+                  }
+                }
               }
             }
           }
@@ -200,11 +226,22 @@ export class CardanoService {
             toAddress = tx.outputs[0].address || 'N/A';
           }
 
-          const timestamp = tx.timestamp ? new Date(tx.timestamp).getTime() : Date.now();
+          const timestamp = tx.block_time ? tx.block_time * 1000 : Date.now();
           const adaAmount = totalAmount / 1_000_000;
 
+          // Debug log
+          if (totalAmount === 0) {
+            console.log(`⚠️ تراکنش ${tx.tx_hash}: مبلغ صفر! incoming=${isIncoming}, inputs=${tx.inputs?.length || 0}, outputs=${tx.outputs?.length || 0}`);
+            if (tx.inputs && tx.inputs.length > 0) {
+              console.log(`  Input sample:`, JSON.stringify(tx.inputs[0]).substring(0, 300));
+            }
+            if (tx.outputs && tx.outputs.length > 0) {
+              console.log(`  Output sample:`, JSON.stringify(tx.outputs[0]).substring(0, 300));
+            }
+          }
+
           transactions.push({
-            txId: tx.hash,
+            txId: tx.tx_hash,
             type: isIncoming ? 'incoming' : 'outgoing',
             amount: totalAmount,
             amountADA: this.formatAmount(totalAmount.toString()),
@@ -221,11 +258,11 @@ export class CardanoService {
               minute: '2-digit',
             }),
             status: 'SUCCESS',
-            explorerUrl: `https://cardanoscan.io/transaction/${tx.hash}`
+            explorerUrl: `https://cardanoscan.io/transaction/${tx.tx_hash}`
           });
 
         } catch (error) {
-          console.error(`خطا در پردازش تراکنش ${tx.hash}:`, error);
+          console.error(`خطا در پردازش تراکنش ${tx.tx_hash}:`, error);
           continue;
         }
       }
