@@ -17,7 +17,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Copy,
-  Info
+  Info,
+  Pencil
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
@@ -55,6 +56,8 @@ export default function CryptoTransactions() {
   const [rippleWalletAddress, setRippleWalletAddress] = useState("");
   const [cardanoWalletAddress, setCardanoWalletAddress] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [editingWallet, setEditingWallet] = useState<string | null>(null);
+  const [activeWallet, setActiveWallet] = useState<string>("tron");
   const [tronPage, setTronPage] = useState(1);
   const [usdtPage, setUsdtPage] = useState(1);
   const [rippleMarker, setRippleMarker] = useState<string | undefined>(undefined);
@@ -197,6 +200,10 @@ export default function CryptoTransactions() {
     });
   };
 
+  const handleToggleActive = (wallet: string) => {
+    setActiveWallet(wallet);
+  };
+
   useEffect(() => {
     if (walletData) {
       setWalletAddress(walletData.walletAddress || "");
@@ -215,9 +222,6 @@ export default function CryptoTransactions() {
       </DashboardLayout>
     );
   }
-
-  const hasWallet = walletData?.walletAddress || walletData?.usdtWalletAddress || 
-                    walletData?.rippleWalletAddress || walletData?.cardanoWalletAddress;
 
   const TransactionTable = ({ 
     transactions, 
@@ -389,277 +393,458 @@ export default function CryptoTransactions() {
     <DashboardLayout title="تراکنش ارز دیجیتال">
       <div className="space-y-6">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wallet className="w-5 h-5" />
-              آدرس‌های ولت ارز دیجیتال
-            </CardTitle>
-            <CardDescription>
-              آدرس ولت‌های خود را برای مشاهده تراکنش‌ها و دریافت ارز وارد کنید
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!hasWallet || isEditing ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="wallet">آدرس ولت ترون (TRX)</Label>
-                  <Input
-                    id="wallet"
-                    value={walletAddress}
-                    onChange={(e) => setWalletAddress(e.target.value)}
-                    placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
-                    className="font-mono"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="usdt-wallet">آدرس ولت تتر بر بستر TRC20</Label>
-                  <Input
-                    id="usdt-wallet"
-                    value={usdtWalletAddress}
-                    onChange={(e) => setUsdtWalletAddress(e.target.value)}
-                    placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
-                    className="font-mono"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="ripple-wallet">آدرس ولت ریپل (XRP)</Label>
-                  <Input
-                    id="ripple-wallet"
-                    value={rippleWalletAddress}
-                    onChange={(e) => setRippleWalletAddress(e.target.value)}
-                    placeholder="مثال: rN7n7otQDd6FczFgLdlqtyMVrn3Q7YrfH"
-                    className="font-mono"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="cardano-wallet">آدرس ولت کاردانو (ADA)</Label>
-                  <Input
-                    id="cardano-wallet"
-                    value={cardanoWalletAddress}
-                    onChange={(e) => setCardanoWalletAddress(e.target.value)}
-                    placeholder="مثال: addr1qxy..."
-                    className="font-mono"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleSaveWallet}
-                    disabled={saveWalletMutation.isPending}
-                    className="flex-1"
-                  >
-                    {saveWalletMutation.isPending ? "در حال ذخیره..." : "ذخیره"}
-                  </Button>
-                  {hasWallet && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setWalletAddress(walletData.walletAddress || "");
-                        setUsdtWalletAddress(walletData.usdtWalletAddress || "");
-                        setRippleWalletAddress(walletData.rippleWalletAddress || "");
-                        setCardanoWalletAddress(walletData.cardanoWalletAddress || "");
-                        setIsEditing(false);
-                      }}
-                    >
-                      انصراف
-                    </Button>
-                  )}
-                </div>
-                
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription>
-                    حداقل یک آدرس ولت را وارد کنید. آدرس‌های ولت را با دقت وارد نمایید.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {walletData.walletAddress && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">آدرس ولت ترون (TRX)</Label>
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex-1 font-mono text-sm break-all">
-                        {walletData.walletAddress}
+          <CardContent className="pt-6">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-center">نوع ارز</TableHead>
+                    <TableHead className="text-center">آدرس ولت</TableHead>
+                    <TableHead className="text-center w-[120px]">عملیات</TableHead>
+                    <TableHead className="text-center w-[120px]">فعال</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Badge variant="outline" className="bg-blue-50">TRX</Badge>
+                        <span className="text-sm">ترون</span>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(walletData.walletAddress)}
-                        className="mr-2"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {walletData.usdtWalletAddress && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">آدرس ولت تتر بر بستر TRC20</Label>
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex-1 font-mono text-sm break-all">
-                        {walletData.usdtWalletAddress}
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      {editingWallet === 'tron' ? (
+                        <Input
+                          value={walletAddress}
+                          onChange={(e) => setWalletAddress(e.target.value)}
+                          className="font-mono text-sm"
+                          dir="ltr"
+                          placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
+                        />
+                      ) : walletData?.walletAddress ? (
+                        <div className="font-mono text-sm break-all" dir="ltr">
+                          {walletData.walletAddress}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {editingWallet === 'tron' ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                handleSaveWallet();
+                                setEditingWallet(null);
+                              }}
+                              disabled={saveWalletMutation.isPending}
+                            >
+                              ذخیره
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setWalletAddress(walletData?.walletAddress || "");
+                                setEditingWallet(null);
+                              }}
+                            >
+                              لغو
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingWallet('tron')}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {walletData?.walletAddress && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(walletData.walletAddress)}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </>
+                        )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(walletData.usdtWalletAddress)}
-                        className="mr-2"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {walletData.rippleWalletAddress && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">آدرس ولت ریپل (XRP)</Label>
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex-1 font-mono text-sm break-all">
-                        {walletData.rippleWalletAddress}
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center">
+                        <Button
+                          variant={activeWallet === 'tron' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleToggleActive('tron')}
+                          disabled={!walletData?.walletAddress}
+                        >
+                          {activeWallet === 'tron' ? 'فعال' : 'غیرفعال'}
+                        </Button>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(walletData.rippleWalletAddress)}
-                        className="mr-2"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                    </TableCell>
+                  </TableRow>
 
-                {walletData.cardanoWalletAddress && (
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">آدرس ولت کاردانو (ADA)</Label>
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex-1 font-mono text-sm break-all">
-                        {walletData.cardanoWalletAddress}
+                  <TableRow>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Badge variant="outline" className="bg-green-50">USDT</Badge>
+                        <span className="text-sm">تتر (TRC20)</span>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(walletData.cardanoWalletAddress)}
-                        className="mr-2"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      {editingWallet === 'usdt' ? (
+                        <Input
+                          value={usdtWalletAddress}
+                          onChange={(e) => setUsdtWalletAddress(e.target.value)}
+                          className="font-mono text-sm"
+                          dir="ltr"
+                          placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
+                        />
+                      ) : walletData?.usdtWalletAddress ? (
+                        <div className="font-mono text-sm break-all" dir="ltr">
+                          {walletData.usdtWalletAddress}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {editingWallet === 'usdt' ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                handleSaveWallet();
+                                setEditingWallet(null);
+                              }}
+                              disabled={saveWalletMutation.isPending}
+                            >
+                              ذخیره
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setUsdtWalletAddress(walletData?.usdtWalletAddress || "");
+                                setEditingWallet(null);
+                              }}
+                            >
+                              لغو
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingWallet('usdt')}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {walletData?.usdtWalletAddress && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(walletData.usdtWalletAddress)}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center">
+                        <Button
+                          variant={activeWallet === 'usdt' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleToggleActive('usdt')}
+                          disabled={!walletData?.usdtWalletAddress}
+                        >
+                          {activeWallet === 'usdt' ? 'فعال' : 'غیرفعال'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsEditing(true)}
-                  className="w-full"
-                >
-                  ویرایش آدرس‌ها
-                </Button>
-              </div>
-            )}
+                  <TableRow>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Badge variant="outline" className="bg-purple-50">XRP</Badge>
+                        <span className="text-sm">ریپل</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      {editingWallet === 'ripple' ? (
+                        <Input
+                          value={rippleWalletAddress}
+                          onChange={(e) => setRippleWalletAddress(e.target.value)}
+                          className="font-mono text-sm"
+                          dir="ltr"
+                          placeholder="مثال: rN7n7otQDd6FczFgLdlqtyMVrn3Q7YrfH"
+                        />
+                      ) : walletData?.rippleWalletAddress ? (
+                        <div className="font-mono text-sm break-all" dir="ltr">
+                          {walletData.rippleWalletAddress}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {editingWallet === 'ripple' ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                handleSaveWallet();
+                                setEditingWallet(null);
+                              }}
+                              disabled={saveWalletMutation.isPending}
+                            >
+                              ذخیره
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setRippleWalletAddress(walletData?.rippleWalletAddress || "");
+                                setEditingWallet(null);
+                              }}
+                            >
+                              لغو
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingWallet('ripple')}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {walletData?.rippleWalletAddress && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(walletData.rippleWalletAddress)}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center">
+                        <Button
+                          variant={activeWallet === 'ripple' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleToggleActive('ripple')}
+                          disabled={!walletData?.rippleWalletAddress}
+                        >
+                          {activeWallet === 'ripple' ? 'فعال' : 'غیرفعال'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+
+                  <TableRow>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Badge variant="outline" className="bg-indigo-50">ADA</Badge>
+                        <span className="text-sm">کاردانو</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      {editingWallet === 'cardano' ? (
+                        <Input
+                          value={cardanoWalletAddress}
+                          onChange={(e) => setCardanoWalletAddress(e.target.value)}
+                          className="font-mono text-sm"
+                          dir="ltr"
+                          placeholder="مثال: addr1qxy..."
+                        />
+                      ) : walletData?.cardanoWalletAddress ? (
+                        <div className="font-mono text-sm break-all" dir="ltr">
+                          {walletData.cardanoWalletAddress}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {editingWallet === 'cardano' ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                handleSaveWallet();
+                                setEditingWallet(null);
+                              }}
+                              disabled={saveWalletMutation.isPending}
+                            >
+                              ذخیره
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setCardanoWalletAddress(walletData?.cardanoWalletAddress || "");
+                                setEditingWallet(null);
+                              }}
+                            >
+                              لغو
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingWallet('cardano')}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            {walletData?.cardanoWalletAddress && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => copyToClipboard(walletData.cardanoWalletAddress)}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center justify-center">
+                      <div className="flex items-center justify-center">
+                        <Button
+                          variant={activeWallet === 'cardano' ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleToggleActive('cardano')}
+                          disabled={!walletData?.cardanoWalletAddress}
+                        >
+                          {activeWallet === 'cardano' ? 'فعال' : 'غیرفعال'}
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
 
-        {hasWallet && (
-          <Tabs defaultValue="tron" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="tron" disabled={!walletData?.walletAddress}>
-                ترون (TRX)
-              </TabsTrigger>
-              <TabsTrigger value="usdt" disabled={!walletData?.usdtWalletAddress}>
-                تتر (USDT)
-              </TabsTrigger>
-              <TabsTrigger value="ripple" disabled={!walletData?.rippleWalletAddress}>
-                ریپل (XRP)
-              </TabsTrigger>
-              <TabsTrigger value="cardano" disabled={!walletData?.cardanoWalletAddress}>
-                کاردانو (ADA)
-              </TabsTrigger>
-            </TabsList>
+        <Tabs defaultValue="tron" className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="tron" disabled={!walletData?.walletAddress}>
+              ترون (TRX)
+            </TabsTrigger>
+            <TabsTrigger value="usdt" disabled={!walletData?.usdtWalletAddress}>
+              تتر (USDT)
+            </TabsTrigger>
+            <TabsTrigger value="ripple" disabled={!walletData?.rippleWalletAddress}>
+              ریپل (XRP)
+            </TabsTrigger>
+            <TabsTrigger value="cardano" disabled={!walletData?.cardanoWalletAddress}>
+              کاردانو (ADA)
+            </TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="tron" className="mt-6">
+          <TabsContent value="tron" className="mt-6">
+            <TransactionTable
+              transactions={tronData?.transactions || []}
+              isLoading={tronLoading}
+              error={tronError}
+              onRefresh={refetchTron}
+              currencySymbol="TRX"
+              amountKey="amountTRX"
+              page={tronPage}
+              onPageChange={setTronPage}
+            />
+          </TabsContent>
+
+          <TabsContent value="usdt" className="mt-6">
+            <TransactionTable
+              transactions={usdtData?.transactions || []}
+              isLoading={usdtLoading}
+              error={usdtError}
+              onRefresh={refetchUsdt}
+              currencySymbol="USDT"
+              amountKey="tokenSymbol"
+              page={usdtPage}
+              onPageChange={setUsdtPage}
+            />
+          </TabsContent>
+
+          <TabsContent value="ripple" className="mt-6">
+            <div className="space-y-4">
               <TransactionTable
-                transactions={tronData?.transactions || []}
-                isLoading={tronLoading}
-                error={tronError}
-                onRefresh={refetchTron}
-                currencySymbol="TRX"
-                amountKey="amountTRX"
-                page={tronPage}
-                onPageChange={setTronPage}
+                transactions={rippleData?.transactions || []}
+                isLoading={rippleLoading}
+                error={rippleError}
+                onRefresh={refetchRipple}
+                currencySymbol="XRP"
+                amountKey="amountXRP"
+                page={1}
+                onPageChange={() => {}}
+                hidePagination={true}
               />
-            </TabsContent>
+              {rippleData?.transactions && rippleData.transactions.length > 0 && (
+                <div className="flex justify-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setRippleMarker(undefined)}
+                    disabled={!rippleMarker || rippleLoading}
+                  >
+                    صفحه اول
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setRippleMarker(rippleData.marker)}
+                    disabled={!rippleData.marker || rippleLoading}
+                  >
+                    صفحه بعد
+                  </Button>
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
-            <TabsContent value="usdt" className="mt-6">
-              <TransactionTable
-                transactions={usdtData?.transactions || []}
-                isLoading={usdtLoading}
-                error={usdtError}
-                onRefresh={refetchUsdt}
-                currencySymbol="USDT"
-                amountKey="tokenSymbol"
-                page={usdtPage}
-                onPageChange={setUsdtPage}
-              />
-            </TabsContent>
-
-            <TabsContent value="ripple" className="mt-6">
-              <div className="space-y-4">
-                <TransactionTable
-                  transactions={rippleData?.transactions || []}
-                  isLoading={rippleLoading}
-                  error={rippleError}
-                  onRefresh={refetchRipple}
-                  currencySymbol="XRP"
-                  amountKey="amountXRP"
-                  page={1}
-                  onPageChange={() => {}}
-                  hidePagination={true}
-                />
-                {rippleData?.transactions && rippleData.transactions.length > 0 && (
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setRippleMarker(undefined)}
-                      disabled={!rippleMarker || rippleLoading}
-                    >
-                      صفحه اول
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setRippleMarker(rippleData.marker)}
-                      disabled={!rippleData.marker || rippleLoading}
-                    >
-                      صفحه بعد
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="cardano" className="mt-6">
-              <TransactionTable
-                transactions={cardanoData?.transactions || []}
-                isLoading={cardanoLoading}
-                error={cardanoError}
-                onRefresh={refetchCardano}
-                currencySymbol="ADA"
-                amountKey="amountADA"
-                showPriceColumns={true}
-                centerAlign={true}
-                page={cardanoPage}
-                onPageChange={setCardanoPage}
-              />
-            </TabsContent>
-          </Tabs>
-        )}
+          <TabsContent value="cardano" className="mt-6">
+            <TransactionTable
+              transactions={cardanoData?.transactions || []}
+              isLoading={cardanoLoading}
+              error={cardanoError}
+              onRefresh={refetchCardano}
+              currencySymbol="ADA"
+              amountKey="amountADA"
+              showPriceColumns={true}
+              centerAlign={true}
+              page={cardanoPage}
+              onPageChange={setCardanoPage}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
