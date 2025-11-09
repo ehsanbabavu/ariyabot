@@ -229,7 +229,8 @@ export default function CryptoTransactions() {
     showPriceColumns = false,
     centerAlign = false,
     page,
-    onPageChange 
+    onPageChange,
+    hidePagination = false
   }: { 
     transactions: CryptoTransaction[], 
     isLoading: boolean,
@@ -240,7 +241,8 @@ export default function CryptoTransactions() {
     showPriceColumns?: boolean,
     centerAlign?: boolean,
     page: number,
-    onPageChange: (newPage: number) => void
+    onPageChange: (newPage: number) => void,
+    hidePagination?: boolean
   }) => (
     <Card>
       <CardHeader>
@@ -354,7 +356,7 @@ export default function CryptoTransactions() {
           </div>
         )}
         
-        {transactions.length > 0 && (
+        {!hidePagination && transactions.length > 0 && (
           <div className="flex items-center justify-between mt-4">
             <div className="text-sm text-muted-foreground">
               صفحه {page} - {transactions.length} تراکنش
@@ -619,19 +621,21 @@ export default function CryptoTransactions() {
                   amountKey="amountXRP"
                   page={1}
                   onPageChange={() => {}}
+                  hidePagination={true}
                 />
-                {rippleData?.marker && (
+                {rippleData?.transactions && rippleData.transactions.length > 0 && (
                   <div className="flex justify-center gap-2">
                     <Button
                       variant="outline"
                       onClick={() => setRippleMarker(undefined)}
-                      disabled={!rippleMarker}
+                      disabled={!rippleMarker || rippleLoading}
                     >
                       صفحه اول
                     </Button>
                     <Button
                       variant="outline"
                       onClick={() => setRippleMarker(rippleData.marker)}
+                      disabled={!rippleData.marker || rippleLoading}
                     >
                       صفحه بعد
                     </Button>
