@@ -12,7 +12,6 @@ import {
   Wallet, 
   ArrowDownLeft, 
   ArrowUpRight,
-  RefreshCw,
   ExternalLink,
   AlertCircle,
   CheckCircle2,
@@ -20,6 +19,7 @@ import {
   Info,
   Pencil
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
 import {
@@ -57,7 +57,7 @@ export default function CryptoTransactions() {
   const [cardanoWalletAddress, setCardanoWalletAddress] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editingWallet, setEditingWallet] = useState<string | null>(null);
-  const [activeWallet, setActiveWallet] = useState<string>("tron");
+  const [activeWallets, setActiveWallets] = useState<string[]>([]);
   const [tronPage, setTronPage] = useState(1);
   const [usdtPage, setUsdtPage] = useState(1);
   const [rippleMarker, setRippleMarker] = useState<string | undefined>(undefined);
@@ -74,7 +74,7 @@ export default function CryptoTransactions() {
     },
   });
 
-  const { data: tronData, isLoading: tronLoading, error: tronError, refetch: refetchTron } = useQuery({
+  const { data: tronData, isLoading: tronLoading, error: tronError } = useQuery({
     queryKey: ["/api/tron/transactions", tronPage],
     queryFn: async () => {
       const offset = (tronPage - 1) * 20;
@@ -86,10 +86,10 @@ export default function CryptoTransactions() {
       return response.json();
     },
     enabled: !!walletData?.walletAddress,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 
-  const { data: usdtData, isLoading: usdtLoading, error: usdtError, refetch: refetchUsdt } = useQuery({
+  const { data: usdtData, isLoading: usdtLoading, error: usdtError } = useQuery({
     queryKey: ["/api/tron/transactions/trc20", usdtPage],
     queryFn: async () => {
       const offset = (usdtPage - 1) * 20;
@@ -101,10 +101,10 @@ export default function CryptoTransactions() {
       return response.json();
     },
     enabled: !!walletData?.usdtWalletAddress,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 
-  const { data: rippleData, isLoading: rippleLoading, error: rippleError, refetch: refetchRipple } = useQuery({
+  const { data: rippleData, isLoading: rippleLoading, error: rippleError } = useQuery({
     queryKey: ["/api/ripple/transactions", rippleMarker],
     queryFn: async () => {
       let url = `/api/ripple/transactions?limit=50`;
@@ -119,10 +119,10 @@ export default function CryptoTransactions() {
       return response.json();
     },
     enabled: !!walletData?.rippleWalletAddress,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 
-  const { data: cardanoData, isLoading: cardanoLoading, error: cardanoError, refetch: refetchCardano } = useQuery({
+  const { data: cardanoData, isLoading: cardanoLoading, error: cardanoError } = useQuery({
     queryKey: ["/api/cardano/transactions", cardanoPage],
     queryFn: async () => {
       const response = await createAuthenticatedRequest(`/api/cardano/transactions?limit=20&page=${cardanoPage}`);
@@ -133,7 +133,7 @@ export default function CryptoTransactions() {
       return response.json();
     },
     enabled: !!walletData?.cardanoWalletAddress,
-    refetchInterval: 60000,
+    refetchInterval: 30000,
   });
 
   const saveWalletMutation = useMutation({
@@ -154,12 +154,21 @@ export default function CryptoTransactions() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/tron/wallet"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tron/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tron/transactions/trc20"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ripple/transactions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/cardano/transactions"] });
+      
+      // فعال کردن خودکار ارزهایی که آدرس جدید دارند
+      const newActiveWallets: string[] = [];
+      if (variables.walletAddress?.trim()) newActiveWallets.push('tron');
+      if (variables.usdtWalletAddress?.trim()) newActiveWallets.push('usdt');
+      if (variables.rippleWalletAddress?.trim()) newActiveWallets.push('ripple');
+      if (variables.cardanoWalletAddress?.trim()) newActiveWallets.push('cardano');
+      setActiveWallets(newActiveWallets);
+      
       toast({
         title: "✅ موفق",
         description: "آدرس‌های ولت با موفقیت ذخیره شدند",
@@ -201,7 +210,13 @@ export default function CryptoTransactions() {
   };
 
   const handleToggleActive = (wallet: string) => {
-    setActiveWallet(wallet);
+    setActiveWallets(prev => {
+      if (prev.includes(wallet)) {
+        return prev.filter(w => w !== wallet);
+      } else {
+        return [...prev, wallet];
+      }
+    });
   };
 
   useEffect(() => {
@@ -210,6 +225,14 @@ export default function CryptoTransactions() {
       setUsdtWalletAddress(walletData.usdtWalletAddress || "");
       setRippleWalletAddress(walletData.rippleWalletAddress || "");
       setCardanoWalletAddress(walletData.cardanoWalletAddress || "");
+      
+      // فعال کردن خودکار ارزهایی که آدرس دارند
+      const activeList: string[] = [];
+      if (walletData.walletAddress) activeList.push('tron');
+      if (walletData.usdtWalletAddress) activeList.push('usdt');
+      if (walletData.rippleWalletAddress) activeList.push('ripple');
+      if (walletData.cardanoWalletAddress) activeList.push('cardano');
+      setActiveWallets(activeList);
     }
   }, [walletData]);
 
@@ -227,7 +250,6 @@ export default function CryptoTransactions() {
     transactions, 
     isLoading, 
     error,
-    onRefresh, 
     currencySymbol,
     amountKey,
     showPriceColumns = false,
@@ -239,7 +261,6 @@ export default function CryptoTransactions() {
     transactions: CryptoTransaction[], 
     isLoading: boolean,
     error: Error | null,
-    onRefresh: () => void,
     currencySymbol: string,
     amountKey: 'amountTRX' | 'amountXRP' | 'amountADA' | 'tokenSymbol',
     showPriceColumns?: boolean,
@@ -249,25 +270,6 @@ export default function CryptoTransactions() {
     hidePagination?: boolean
   }) => (
     <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>تراکنش‌های اخیر</CardTitle>
-            <CardDescription>
-              لیست تراکنش‌های ورودی و خروجی ولت {currencySymbol}
-            </CardDescription>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-4 h-4 ml-2 ${isLoading ? 'animate-spin' : ''}`} />
-            بروزرسانی
-          </Button>
-        </div>
-      </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
@@ -398,16 +400,15 @@ export default function CryptoTransactions() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-center">نوع ارز</TableHead>
+                    <TableHead className="text-right">نوع ارز</TableHead>
                     <TableHead className="text-center">آدرس ولت</TableHead>
-                    <TableHead className="text-center w-[120px]">عملیات</TableHead>
-                    <TableHead className="text-center w-[120px]">فعال</TableHead>
+                    <TableHead className="text-center w-[180px]">عملیات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   <TableRow>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2">
                         <Badge variant="outline" className="bg-blue-50">TRX</Badge>
                         <span className="text-sm">ترون</span>
                       </div>
@@ -430,7 +431,7 @@ export default function CryptoTransactions() {
                       )}
                     </TableCell>
                     <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-2">
                         {editingWallet === 'tron' ? (
                           <>
                             <Button
@@ -473,27 +474,20 @@ export default function CryptoTransactions() {
                                 <Copy className="w-4 h-4" />
                               </Button>
                             )}
+                            <Switch
+                              checked={activeWallets.includes('tron')}
+                              onCheckedChange={() => handleToggleActive('tron')}
+                              disabled={!walletData?.walletAddress}
+                            />
                           </>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center">
-                        <Button
-                          variant={activeWallet === 'tron' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleToggleActive('tron')}
-                          disabled={!walletData?.walletAddress}
-                        >
-                          {activeWallet === 'tron' ? 'فعال' : 'غیرفعال'}
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
 
                   <TableRow>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2">
                         <Badge variant="outline" className="bg-green-50">USDT</Badge>
                         <span className="text-sm">تتر (TRC20)</span>
                       </div>
@@ -516,7 +510,7 @@ export default function CryptoTransactions() {
                       )}
                     </TableCell>
                     <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-2">
                         {editingWallet === 'usdt' ? (
                           <>
                             <Button
@@ -559,27 +553,20 @@ export default function CryptoTransactions() {
                                 <Copy className="w-4 h-4" />
                               </Button>
                             )}
+                            <Switch
+                              checked={activeWallets.includes('usdt')}
+                              onCheckedChange={() => handleToggleActive('usdt')}
+                              disabled={!walletData?.usdtWalletAddress}
+                            />
                           </>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center">
-                        <Button
-                          variant={activeWallet === 'usdt' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleToggleActive('usdt')}
-                          disabled={!walletData?.usdtWalletAddress}
-                        >
-                          {activeWallet === 'usdt' ? 'فعال' : 'غیرفعال'}
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
 
                   <TableRow>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2">
                         <Badge variant="outline" className="bg-purple-50">XRP</Badge>
                         <span className="text-sm">ریپل</span>
                       </div>
@@ -602,7 +589,7 @@ export default function CryptoTransactions() {
                       )}
                     </TableCell>
                     <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-2">
                         {editingWallet === 'ripple' ? (
                           <>
                             <Button
@@ -645,27 +632,20 @@ export default function CryptoTransactions() {
                                 <Copy className="w-4 h-4" />
                               </Button>
                             )}
+                            <Switch
+                              checked={activeWallets.includes('ripple')}
+                              onCheckedChange={() => handleToggleActive('ripple')}
+                              disabled={!walletData?.rippleWalletAddress}
+                            />
                           </>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center">
-                        <Button
-                          variant={activeWallet === 'ripple' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleToggleActive('ripple')}
-                          disabled={!walletData?.rippleWalletAddress}
-                        >
-                          {activeWallet === 'ripple' ? 'فعال' : 'غیرفعال'}
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
 
                   <TableRow>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-2">
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2">
                         <Badge variant="outline" className="bg-indigo-50">ADA</Badge>
                         <span className="text-sm">کاردانو</span>
                       </div>
@@ -688,7 +668,7 @@ export default function CryptoTransactions() {
                       )}
                     </TableCell>
                     <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-2">
                         {editingWallet === 'cardano' ? (
                           <>
                             <Button
@@ -731,20 +711,13 @@ export default function CryptoTransactions() {
                                 <Copy className="w-4 h-4" />
                               </Button>
                             )}
+                            <Switch
+                              checked={activeWallets.includes('cardano')}
+                              onCheckedChange={() => handleToggleActive('cardano')}
+                              disabled={!walletData?.cardanoWalletAddress}
+                            />
                           </>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center justify-center">
-                      <div className="flex items-center justify-center">
-                        <Button
-                          variant={activeWallet === 'cardano' ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => handleToggleActive('cardano')}
-                          disabled={!walletData?.cardanoWalletAddress}
-                        >
-                          {activeWallet === 'cardano' ? 'فعال' : 'غیرفعال'}
-                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -775,7 +748,6 @@ export default function CryptoTransactions() {
               transactions={tronData?.transactions || []}
               isLoading={tronLoading}
               error={tronError}
-              onRefresh={refetchTron}
               currencySymbol="TRX"
               amountKey="amountTRX"
               page={tronPage}
@@ -788,7 +760,6 @@ export default function CryptoTransactions() {
               transactions={usdtData?.transactions || []}
               isLoading={usdtLoading}
               error={usdtError}
-              onRefresh={refetchUsdt}
               currencySymbol="USDT"
               amountKey="tokenSymbol"
               page={usdtPage}
@@ -802,7 +773,6 @@ export default function CryptoTransactions() {
                 transactions={rippleData?.transactions || []}
                 isLoading={rippleLoading}
                 error={rippleError}
-                onRefresh={refetchRipple}
                 currencySymbol="XRP"
                 amountKey="amountXRP"
                 page={1}
@@ -835,7 +805,6 @@ export default function CryptoTransactions() {
               transactions={cardanoData?.transactions || []}
               isLoading={cardanoLoading}
               error={cardanoError}
-              onRefresh={refetchCardano}
               currencySymbol="ADA"
               amountKey="amountADA"
               showPriceColumns={true}
