@@ -83,11 +83,11 @@ Preferred communication style: Simple, everyday language.
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)
-- **Date**: November 7, 2025
+- **Date**: November 9, 2025
 - **Status**: ✅ Successfully imported and configured in Replit environment (Fresh GitHub Clone)
 - **Setup Actions**:
   - Installed all npm dependencies (640 packages in ~2 minutes)
-  - Connected to PostgreSQL database (DATABASE_URL pre-provisioned)
+  - Connected to PostgreSQL database (DATABASE_URL automatically provisioned)
   - Pushed database schema using Drizzle Kit (`npm run db:push`)
   - Created admin and test user accounts automatically
   - Initialized test data (3 categories, 6 products, landing page content)
@@ -96,14 +96,13 @@ Preferred communication style: Simple, everyday language.
   - Created .gitignore file for proper version control
   - Verified frontend works with Persian RTL layout on Replit proxy
   - All services started successfully (WhatsApp, AI, cleanup)
-  - **Added Cardano Settings page** to admin panel with route `/cardano-settings` in settings menu
   - Application is fully functional and accessible
 
 ## Environment Configuration
 1. **Database**: PostgreSQL database is provisioned and connected via `DATABASE_URL`
-2. **Schema**: Database schema pushed successfully using Drizzle Kit (`node ./node_modules/drizzle-kit/bin.cjs push --force`)
+2. **Schema**: Database schema pushed successfully using Drizzle Kit (`npm run db:push`)
 3. **Port**: Server runs on port 5000 (both dev and production)
-4. **Host**: 0.0.0.0 (configured for Replit proxy support with allowedHosts: true)
+4. **Host**: 0.0.0.0 (configured for Replit proxy support with allowedHosts: true in vite.config.ts)
 
 ## Default Credentials
 - **Admin User**: 
