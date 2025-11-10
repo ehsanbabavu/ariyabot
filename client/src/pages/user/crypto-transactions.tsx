@@ -73,7 +73,7 @@ export default function CryptoTransactions() {
       if (!response.ok) throw new Error("خطا در دریافت قیمت‌ها");
       return response.json();
     },
-    refetchInterval: 60000, // Update every minute
+    refetchInterval: 120000, // Update every 2 minutes
   });
 
   const { data: walletData, isLoading: walletLoading } = useQuery({
