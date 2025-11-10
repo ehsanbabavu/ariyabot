@@ -39,7 +39,7 @@ export class TGJUService {
       const tableMatch = html.match(/<tbody[\s\S]*?<\/tbody>/i);
       if (!tableMatch) {
         console.warn('⚠️ جدول در صفحه یافت نشد');
-        return 300000;
+        return 390000;
       }
       
       const tableHtml = tableMatch[0];
@@ -50,22 +50,19 @@ export class TGJUService {
           // Extract all table cells
           const cells = row.match(/<td[^>]*>(.*?)<\/td>/gs);
           if (cells && cells.length >= 5) {
-            // Column index 4 (5th column) contains price in Rial
-            // Format: <td>3,091,000</td> (in Rial)
+            // Column index 4 (5th column) contains price in Toman
+            // Format: <td>391,000</td> (in Toman)
             for (let i = 3; i < Math.min(6, cells.length); i++) {
               const cellContent = cells[i].replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
               const priceMatch = cellContent.match(/^([0-9,]+)$/);
               
               if (priceMatch) {
                 const priceStr = priceMatch[1].replace(/,/g, '');
-                const priceInRial = parseInt(priceStr, 10);
+                const priceInToman = parseInt(priceStr, 10);
                 
-                // TRON price should be between 100,000 and 2,000,000 Rial (10,000 to 200,000 Toman)
-                if (priceInRial >= 100000 && priceInRial <= 2000000) {
-                  // Convert from Rial to Toman (divide by 10)
-                  const priceInToman = Math.round(priceInRial / 10);
-                  
-                  console.log(`✅ قیمت ترون دریافت شد: ${priceInRial.toLocaleString('fa-IR')} ریال (${priceInToman.toLocaleString('fa-IR')} تومان)`);
+                // TRON price should be between 100,000 and 1,000,000 Toman
+                if (priceInToman >= 100000 && priceInToman <= 1000000) {
+                  console.log(`✅ قیمت ترون دریافت شد: ${priceInToman.toLocaleString('fa-IR')} تومان`);
                   
                   // Cache the price in Toman
                   this.trxPriceCache = {
@@ -82,7 +79,7 @@ export class TGJUService {
       }
       
       console.warn('⚠️ قیمت ترون در صفحه یافت نشد، از قیمت پیش‌فرض استفاده می‌شود');
-      return 300000; // Default fallback price
+      return 390000; // Default fallback price
     } catch (error) {
       console.error('❌ خطا در دریافت قیمت ترون از tgju:', error);
       // Return cached price if available, otherwise default
@@ -90,7 +87,7 @@ export class TGJUService {
         console.log('💾 استفاده از قیمت کش شده:', this.trxPriceCache.price.toLocaleString('fa-IR'), 'تومان');
         return this.trxPriceCache.price;
       }
-      return 300000; // Default fallback price (300,000 Toman)
+      return 390000; // Default fallback price (390,000 Toman)
     }
   }
 
@@ -101,10 +98,10 @@ export class TGJUService {
     }
 
     const defaultPrices: CryptoPrices = {
-      TRX: 300000,
-      USDT: 800000000,
-      XRP: 50000000,
-      ADA: 15000000,
+      TRX: 390000,
+      USDT: 1080000,
+      XRP: 2750000,
+      ADA: 650000,
     };
 
     try {
@@ -142,31 +139,29 @@ export class TGJUService {
           
           if (priceMatch) {
             const priceStr = priceMatch[1].replace(/,/g, '');
-            const priceInRial = parseInt(priceStr, 10);
+            const priceInToman = parseInt(priceStr, 10);
             
-            if (priceInRial > 0) {
-              const priceInToman = Math.round(priceInRial / 10);
-              
+            if (priceInToman > 0) {
               if (row.includes('ترون') || row.includes('TRON') || row.includes('TRX')) {
-                if (priceInRial >= 100000 && priceInRial <= 2000000) {
+                if (priceInToman >= 100000 && priceInToman <= 1000000) {
                   prices.TRX = priceInToman;
                   console.log(`✅ قیمت TRX: ${priceInToman.toLocaleString('fa-IR')} تومان`);
                   break;
                 }
               } else if (row.includes('تتر') || row.includes('USDT') || row.includes('Tether')) {
-                if (priceInRial >= 500000000 && priceInRial <= 1000000000) {
+                if (priceInToman >= 800000 && priceInToman <= 2000000) {
                   prices.USDT = priceInToman;
                   console.log(`✅ قیمت USDT: ${priceInToman.toLocaleString('fa-IR')} تومان`);
                   break;
                 }
               } else if (row.includes('ریپل') || row.includes('XRP') || row.includes('Ripple')) {
-                if (priceInRial >= 10000000 && priceInRial <= 100000000) {
+                if (priceInToman >= 1000000 && priceInToman <= 10000000) {
                   prices.XRP = priceInToman;
                   console.log(`✅ قیمت XRP: ${priceInToman.toLocaleString('fa-IR')} تومان`);
                   break;
                 }
               } else if (row.includes('کاردانو') || row.includes('ADA') || row.includes('Cardano')) {
-                if (priceInRial >= 5000000 && priceInRial <= 50000000) {
+                if (priceInToman >= 100000 && priceInToman <= 2000000) {
                   prices.ADA = priceInToman;
                   console.log(`✅ قیمت ADA: ${priceInToman.toLocaleString('fa-IR')} تومان`);
                   break;
