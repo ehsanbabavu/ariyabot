@@ -4060,6 +4060,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all crypto prices in Toman
+  app.get("/api/crypto/prices", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user!.role !== 'user_level_1') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      const prices = await tgjuService.getAllCryptoPrices();
+
+      res.json({ 
+        success: true,
+        prices,
+        lastUpdate: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error("خطا در دریافت قیمت‌های ارز:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت قیمت‌های ارز",
+        success: false
+      });
+    }
+  });
+
   app.get("/api/tron/transactions/trc20", authenticateToken, async (req: AuthRequest, res) => {
     try {
       if (req.user!.role !== 'user_level_1') {
