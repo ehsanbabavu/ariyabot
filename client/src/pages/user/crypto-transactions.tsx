@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Copy,
   Info,
-  Pencil
+  Pencil,
+  Coins
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -64,6 +65,16 @@ export default function CryptoTransactions() {
   const [cardanoPage, setCardanoPage] = useState(1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const { data: cryptoPrices } = useQuery({
+    queryKey: ["/api/crypto/prices"],
+    queryFn: async () => {
+      const response = await createAuthenticatedRequest("/api/crypto/prices");
+      if (!response.ok) throw new Error("خطا در دریافت قیمت‌ها");
+      return response.json();
+    },
+    refetchInterval: 60000, // Update every minute
+  });
 
   const { data: walletData, isLoading: walletLoading } = useQuery({
     queryKey: ["/api/tron/wallet"],
@@ -396,11 +407,12 @@ export default function CryptoTransactions() {
       <div className="space-y-6">
         <Card>
           <CardContent className="pt-6">
-            <div className="rounded-md border">
+            <div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-right">نوع ارز</TableHead>
+                    <TableHead className="text-center">قیمت</TableHead>
                     <TableHead className="text-center">آدرس ولت</TableHead>
                     <TableHead className="text-center w-[180px]">عملیات</TableHead>
                   </TableRow>
@@ -409,9 +421,18 @@ export default function CryptoTransactions() {
                   <TableRow>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-2">
+                        <img src="/images/tron-logo.jpg" alt="TRX" className="w-6 h-6 rounded-full" />
                         <Badge variant="outline" className="bg-blue-50">TRX</Badge>
                         <span className="text-sm">ترون</span>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-semibold text-green-600" dir="rtl">
+                        {cryptoPrices?.prices?.TRX ? 
+                          `${cryptoPrices.prices.TRX.toLocaleString('fa-IR')} ﷼` : 
+                          '...'
+                        }
+                      </span>
                     </TableCell>
                     <TableCell className="text-center justify-center">
                       {editingWallet === 'tron' ? (
@@ -488,9 +509,18 @@ export default function CryptoTransactions() {
                   <TableRow>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-2">
+                        <img src="/images/usdt-logo.jpg" alt="USDT" className="w-6 h-6 rounded-full" />
                         <Badge variant="outline" className="bg-green-50">USDT</Badge>
                         <span className="text-sm">تتر (TRC20)</span>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-semibold text-green-600" dir="rtl">
+                        {cryptoPrices?.prices?.USDT ? 
+                          `${cryptoPrices.prices.USDT.toLocaleString('fa-IR')} ﷼` : 
+                          '...'
+                        }
+                      </span>
                     </TableCell>
                     <TableCell className="text-center justify-center">
                       {editingWallet === 'usdt' ? (
@@ -567,9 +597,18 @@ export default function CryptoTransactions() {
                   <TableRow>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-2">
+                        <img src="/images/xrp-logo.jpg" alt="XRP" className="w-6 h-6 rounded-full" />
                         <Badge variant="outline" className="bg-purple-50">XRP</Badge>
                         <span className="text-sm">ریپل</span>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-semibold text-green-600" dir="rtl">
+                        {cryptoPrices?.prices?.XRP ? 
+                          `${cryptoPrices.prices.XRP.toLocaleString('fa-IR')} ﷼` : 
+                          '...'
+                        }
+                      </span>
                     </TableCell>
                     <TableCell className="text-center justify-center">
                       {editingWallet === 'ripple' ? (
@@ -646,9 +685,18 @@ export default function CryptoTransactions() {
                   <TableRow>
                     <TableCell className="text-right">
                       <div className="flex items-center gap-2">
+                        <img src="/images/ada-logo.png" alt="ADA" className="w-6 h-6 rounded-full" />
                         <Badge variant="outline" className="bg-indigo-50">ADA</Badge>
                         <span className="text-sm">کاردانو</span>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="font-semibold text-green-600" dir="rtl">
+                        {cryptoPrices?.prices?.ADA ? 
+                          `${cryptoPrices.prices.ADA.toLocaleString('fa-IR')} ﷼` : 
+                          '...'
+                        }
+                      </span>
                     </TableCell>
                     <TableCell className="text-center justify-center">
                       {editingWallet === 'cardano' ? (
