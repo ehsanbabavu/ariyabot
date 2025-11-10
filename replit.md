@@ -53,6 +53,13 @@ Preferred communication style: Simple, everyday language.
   - Automatic formatting of ADA amounts with Persian date display
   - Direct links to Cardanoscan explorer for transaction details
   - Centered table alignment for better UX
+- **Cryptocurrency Price Tracking**: Real-time price fetching from TGJU.org profile pages:
+  - Scraping-based price retrieval from individual cryptocurrency profile pages (Tron, USDT, Ripple, Cardano)
+  - All prices are fetched and stored in Rial (not Toman) for consistency
+  - Individual caching system per cryptocurrency (5-minute duration)
+  - Validation ranges to ensure scraped values are reasonable
+  - Robust fallback mechanism using cached values or defaults on scraping failures
+  - Centralized fetchProfilePriceInRial helper for consistent scraping logic
 
 ## System Design Choices
 - **AI Architecture**: Dual AI provider system supporting Gemini AI (Google) and Liara AI (OpenAI-compatible) with an AI Service Orchestrator for centralized management and automatic failover. Only one provider is active at a time, configurable via admin settings.

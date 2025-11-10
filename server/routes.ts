@@ -4018,15 +4018,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         limit
       );
 
-      // Get TRX price in Toman
-      const trxPriceInToman = await tgjuService.getTronPriceInToman();
+      // Get TRX price in Rial
+      const trxPriceInRial = await tgjuService.getTronPriceInRial();
 
       res.json({ 
         success: true,
         walletAddress: user.tronWalletAddress,
         transactions,
         count: transactions.length,
-        trxPriceInToman
+        trxPriceInRial
       });
     } catch (error: any) {
       console.error("خطا در دریافت تراکنش‌ها:", error);
@@ -4037,18 +4037,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get current TRX price in Toman
+  // Get current TRX price in Rial
   app.get("/api/tron/price", authenticateToken, async (req: AuthRequest, res) => {
     try {
       if (req.user!.role !== 'user_level_1') {
         return res.status(403).json({ message: "دسترسی غیرمجاز" });
       }
 
-      const priceInToman = await tgjuService.getTronPriceInToman();
+      const priceInRial = await tgjuService.getTronPriceInRial();
 
       res.json({ 
         success: true,
-        priceInToman,
+        priceInRial,
         lastUpdate: new Date().toISOString()
       });
     } catch (error: any) {
@@ -4060,7 +4060,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all crypto prices in Toman
+  // Get all crypto prices in Rial
   app.get("/api/crypto/prices", authenticateToken, async (req: AuthRequest, res) => {
     try {
       if (req.user!.role !== 'user_level_1') {
