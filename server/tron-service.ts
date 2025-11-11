@@ -262,6 +262,7 @@ export class TronService {
         date: new Date(tx.block_timestamp).toLocaleString('fa-IR'),
         tokenName: tx.token_info?.name || 'TRC20',
         tokenSymbol: tx.token_info?.symbol || 'TRC20',
+        status: 'SUCCESS',
         explorerUrl: `https://tronscan.org/#/transaction/${tx.transaction_id}`
       }));
 
