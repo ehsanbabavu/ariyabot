@@ -4060,6 +4060,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all crypto prices in Rial (Test endpoint - public)
+  app.get("/api/crypto/prices/test", async (req: Request, res: Response) => {
+    try {
+      console.log('🧪 [TEST] درخواست دریافت قیمت‌های تستی...');
+      const prices = await tgjuService.getAllCryptoPrices();
+      console.log('🧪 [TEST] قیمت‌های دریافت شده:', JSON.stringify(prices, null, 2));
+
+      res.json({ 
+        success: true,
+        prices,
+        lastUpdate: new Date().toISOString(),
+        message: 'این یک endpoint تستی است برای بررسی قیمت‌های زنده'
+      });
+    } catch (error: any) {
+      console.error("❌ [TEST] خطا در دریافت قیمت‌های ارز:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت قیمت‌های ارز",
+        success: false,
+        error: error.stack
+      });
+    }
+  });
+
   // Get all crypto prices in Rial
   app.get("/api/crypto/prices", authenticateToken, async (req: AuthRequest, res) => {
     try {

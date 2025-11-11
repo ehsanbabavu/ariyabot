@@ -56,9 +56,10 @@ Preferred communication style: Simple, everyday language.
 - **Cryptocurrency Price Tracking**: Real-time price fetching from TGJU.org profile pages:
   - Scraping-based price retrieval from individual cryptocurrency profile pages (Tron, USDT, Ripple, Cardano)
   - All prices are fetched and stored in Rial (not Toman) for consistency
-  - Individual caching system per cryptocurrency (5-minute duration)
-  - Validation ranges to ensure scraped values are reasonable
-  - Robust fallback mechanism using cached values or defaults on scraping failures
+  - Direct live fetching with no caching - always gets the latest price from TGJU.org
+  - Frontend auto-refresh every 2 minutes for real-time price display
+  - Validation ranges to ensure scraped values are reasonable (800K-2M for USDT, 100K-1M for TRX, 1M-10M for XRP, 100K-2M for ADA)
+  - Error handling: throws error if price cannot be fetched or is out of valid range
   - Centralized fetchProfilePriceInRial helper for consistent scraping logic
 
 ## System Design Choices
@@ -90,7 +91,7 @@ Preferred communication style: Simple, everyday language.
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)
-- **Date**: November 10, 2025
+- **Date**: November 11, 2025
 - **Status**: ✅ Successfully imported and configured in Replit environment (Fresh GitHub Clone)
 - **Setup Actions**:
   - ✅ Installed all npm dependencies (640 packages)
