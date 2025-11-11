@@ -66,7 +66,7 @@ export default function CryptoTransactions() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: cryptoPrices } = useQuery({
+  const { data: cryptoPrices, refetch: refetchPrices, isRefetching: isRefetchingPrices } = useQuery({
     queryKey: ["/api/crypto/prices"],
     queryFn: async () => {
       const response = await createAuthenticatedRequest("/api/crypto/prices");
@@ -74,7 +74,16 @@ export default function CryptoTransactions() {
       return response.json();
     },
     refetchInterval: 120000, // Update every 2 minutes
+    staleTime: 0, // Always fetch fresh data when refetch is called
   });
+
+  const handleRefreshPrices = async () => {
+    await refetchPrices();
+    toast({
+      title: "✅ بروزرسانی شد",
+      description: "قیمت‌ها با موفقیت بروز شدند",
+    });
+  };
 
   const { data: walletData, isLoading: walletLoading } = useQuery({
     queryKey: ["/api/tron/wallet"],
@@ -267,7 +276,9 @@ export default function CryptoTransactions() {
     centerAlign = false,
     page,
     onPageChange,
-    hidePagination = false
+    hidePagination = false,
+    showTomanAmount = false,
+    tomanPrice = 0
   }: { 
     transactions: CryptoTransaction[], 
     isLoading: boolean,
@@ -278,7 +289,9 @@ export default function CryptoTransactions() {
     centerAlign?: boolean,
     page: number,
     onPageChange: (newPage: number) => void,
-    hidePagination?: boolean
+    hidePagination?: boolean,
+    showTomanAmount?: boolean,
+    tomanPrice?: number
   }) => (
     <Card>
       <CardContent>
@@ -308,10 +321,13 @@ export default function CryptoTransactions() {
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>جزئیات</TableHead>
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>وضعیت</TableHead>
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>تاریخ</TableHead>
+                  <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ ({currencySymbol})</TableHead>
+                  {showTomanAmount && (
+                    <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ (تومان)</TableHead>
+                  )}
                   {showPriceColumns && (
                     <TableHead className={centerAlign ? "text-center" : "text-right"}>قیمت (تومان)</TableHead>
                   )}
-                  <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ ({currencySymbol})</TableHead>
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>نوع</TableHead>
                 </TableRow>
               </TableHeader>
@@ -343,16 +359,23 @@ export default function CryptoTransactions() {
                     <TableCell className={centerAlign ? "text-center text-sm text-muted-foreground" : "text-sm text-muted-foreground text-right"} dir="ltr">
                       {tx.date}
                     </TableCell>
-                    {showPriceColumns && (
-                      <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
-                        {tx.amountIRR || '0'} ﷼
-                      </TableCell>
-                    )}
                     <TableCell className={centerAlign ? "font-mono font-semibold text-center" : "font-mono font-semibold text-right"}>
                       {amountKey === 'tokenSymbol' 
                         ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
                         : tx[amountKey]}
                     </TableCell>
+                    {showTomanAmount && (
+                      <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
+                        {tomanPrice > 0 && tx[amountKey] 
+                          ? (parseFloat(tx[amountKey].toString().replace(/,/g, '')) * tomanPrice).toLocaleString('fa-IR') + ' ﷼'
+                          : '0 ﷼'}
+                      </TableCell>
+                    )}
+                    {showPriceColumns && (
+                      <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
+                        {tx.amountIRR || '0'} ﷼
+                      </TableCell>
+                    )}
                     <TableCell className={centerAlign ? "text-center" : "text-right"}>
                       {tx.type === 'incoming' ? (
                         <Badge className="bg-green-500">
@@ -406,7 +429,29 @@ export default function CryptoTransactions() {
     <DashboardLayout title="تراکنش ارز دیجیتال">
       <div className="space-y-6">
         <Card>
-          <CardContent className="pt-6">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>قیمت‌های لحظه‌ای ارزهای دیجیتال</CardTitle>
+              <CardDescription>
+                {cryptoPrices?.lastUpdate && (
+                  <span className="text-xs">
+                    آخرین بروزرسانی: {new Date(cryptoPrices.lastUpdate).toLocaleString('fa-IR')}
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefreshPrices}
+              disabled={isRefetchingPrices}
+              className="gap-2"
+            >
+              <Coins className={`w-4 h-4 ${isRefetchingPrices ? 'animate-spin' : ''}`} />
+              {isRefetchingPrices ? 'در حال بروزرسانی...' : 'بروزرسانی قیمت‌ها'}
+            </Button>
+          </CardHeader>
+          <CardContent>
             <div>
               <Table>
                 <TableHeader>
@@ -775,92 +820,123 @@ export default function CryptoTransactions() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="tron" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="tron" disabled={!walletData?.walletAddress}>
-              ترون (TRX)
-            </TabsTrigger>
-            <TabsTrigger value="usdt" disabled={!walletData?.usdtWalletAddress}>
-              تتر (USDT)
-            </TabsTrigger>
-            <TabsTrigger value="ripple" disabled={!walletData?.rippleWalletAddress}>
-              ریپل (XRP)
-            </TabsTrigger>
-            <TabsTrigger value="cardano" disabled={!walletData?.cardanoWalletAddress}>
-              کاردانو (ADA)
-            </TabsTrigger>
+        <Tabs 
+          defaultValue={
+            walletData?.walletAddress ? "tron" : 
+            walletData?.usdtWalletAddress ? "usdt" : 
+            walletData?.rippleWalletAddress ? "ripple" : 
+            "cardano"
+          } 
+          className="w-full"
+        >
+          <TabsList className={`grid w-full ${
+            [walletData?.walletAddress, walletData?.usdtWalletAddress, walletData?.rippleWalletAddress, walletData?.cardanoWalletAddress].filter(Boolean).length === 4 ? 'grid-cols-4' :
+            [walletData?.walletAddress, walletData?.usdtWalletAddress, walletData?.rippleWalletAddress, walletData?.cardanoWalletAddress].filter(Boolean).length === 3 ? 'grid-cols-3' :
+            [walletData?.walletAddress, walletData?.usdtWalletAddress, walletData?.rippleWalletAddress, walletData?.cardanoWalletAddress].filter(Boolean).length === 2 ? 'grid-cols-2' :
+            'grid-cols-1'
+          }`}>
+            {walletData?.walletAddress && (
+              <TabsTrigger value="tron">
+                ترون (TRX)
+              </TabsTrigger>
+            )}
+            {walletData?.usdtWalletAddress && (
+              <TabsTrigger value="usdt">
+                تتر (USDT)
+              </TabsTrigger>
+            )}
+            {walletData?.rippleWalletAddress && (
+              <TabsTrigger value="ripple">
+                ریپل (XRP)
+              </TabsTrigger>
+            )}
+            {walletData?.cardanoWalletAddress && (
+              <TabsTrigger value="cardano">
+                کاردانو (ADA)
+              </TabsTrigger>
+            )}
           </TabsList>
 
-          <TabsContent value="tron" className="mt-6">
-            <TransactionTable
-              transactions={tronData?.transactions || []}
-              isLoading={tronLoading}
-              error={tronError}
-              currencySymbol="TRX"
-              amountKey="amountTRX"
-              page={tronPage}
-              onPageChange={setTronPage}
-            />
-          </TabsContent>
-
-          <TabsContent value="usdt" className="mt-6">
-            <TransactionTable
-              transactions={usdtData?.transactions || []}
-              isLoading={usdtLoading}
-              error={usdtError}
-              currencySymbol="USDT"
-              amountKey="tokenSymbol"
-              page={usdtPage}
-              onPageChange={setUsdtPage}
-            />
-          </TabsContent>
-
-          <TabsContent value="ripple" className="mt-6">
-            <div className="space-y-4">
+          {walletData?.walletAddress && (
+            <TabsContent value="tron" className="mt-6">
               <TransactionTable
-                transactions={rippleData?.transactions || []}
-                isLoading={rippleLoading}
-                error={rippleError}
-                currencySymbol="XRP"
-                amountKey="amountXRP"
-                page={1}
-                onPageChange={() => {}}
-                hidePagination={true}
+                transactions={tronData?.transactions || []}
+                isLoading={tronLoading}
+                error={tronError}
+                currencySymbol="TRX"
+                amountKey="amountTRX"
+                page={tronPage}
+                onPageChange={setTronPage}
+                showTomanAmount={true}
+                tomanPrice={cryptoPrices?.prices?.TRX || 0}
               />
-              {rippleData?.transactions && rippleData.transactions.length > 0 && (
-                <div className="flex justify-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setRippleMarker(undefined)}
-                    disabled={!rippleMarker || rippleLoading}
-                  >
-                    صفحه اول
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setRippleMarker(rippleData.marker)}
-                    disabled={!rippleData.marker || rippleLoading}
-                  >
-                    صفحه بعد
-                  </Button>
-                </div>
-              )}
-            </div>
-          </TabsContent>
+            </TabsContent>
+          )}
 
-          <TabsContent value="cardano" className="mt-6">
-            <TransactionTable
-              transactions={cardanoData?.transactions || []}
-              isLoading={cardanoLoading}
-              error={cardanoError}
-              currencySymbol="ADA"
-              amountKey="amountADA"
-              showPriceColumns={true}
-              centerAlign={true}
-              page={cardanoPage}
-              onPageChange={setCardanoPage}
-            />
-          </TabsContent>
+          {walletData?.usdtWalletAddress && (
+            <TabsContent value="usdt" className="mt-6">
+              <TransactionTable
+                transactions={usdtData?.transactions || []}
+                isLoading={usdtLoading}
+                error={usdtError}
+                currencySymbol="USDT"
+                amountKey="tokenSymbol"
+                page={usdtPage}
+                onPageChange={setUsdtPage}
+              />
+            </TabsContent>
+          )}
+
+          {walletData?.rippleWalletAddress && (
+            <TabsContent value="ripple" className="mt-6">
+              <div className="space-y-4">
+                <TransactionTable
+                  transactions={rippleData?.transactions || []}
+                  isLoading={rippleLoading}
+                  error={rippleError}
+                  currencySymbol="XRP"
+                  amountKey="amountXRP"
+                  page={1}
+                  onPageChange={() => {}}
+                  hidePagination={true}
+                />
+                {rippleData?.transactions && rippleData.transactions.length > 0 && (
+                  <div className="flex justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setRippleMarker(undefined)}
+                      disabled={!rippleMarker || rippleLoading}
+                    >
+                      صفحه اول
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setRippleMarker(rippleData.marker)}
+                      disabled={!rippleData.marker || rippleLoading}
+                    >
+                      صفحه بعد
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          )}
+
+          {walletData?.cardanoWalletAddress && (
+            <TabsContent value="cardano" className="mt-6">
+              <TransactionTable
+                transactions={cardanoData?.transactions || []}
+                isLoading={cardanoLoading}
+                error={cardanoError}
+                currencySymbol="ADA"
+                amountKey="amountADA"
+                showPriceColumns={true}
+                centerAlign={true}
+                page={cardanoPage}
+                onPageChange={setCardanoPage}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>
