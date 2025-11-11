@@ -73,16 +73,13 @@ export default function CryptoTransactions() {
       if (!response.ok) throw new Error("خطا در دریافت قیمت‌ها");
       return response.json();
     },
-    refetchInterval: 120000, // Update every 2 minutes
+    refetchInterval: 60000, // Update every 1 minute
     staleTime: 0, // Always fetch fresh data when refetch is called
   });
 
-  const handleRefreshPrices = async () => {
-    await refetchPrices();
-    toast({
-      title: "✅ بروزرسانی شد",
-      description: "قیمت‌ها با موفقیت بروز شدند",
-    });
+  const truncateAddress = (address: string, maxLength: number = 33) => {
+    if (address.length <= maxLength) return address;
+    return address.substring(0, maxLength) + '...';
   };
 
   const { data: walletData, isLoading: walletLoading } = useQuery({
@@ -376,7 +373,7 @@ export default function CryptoTransactions() {
                     </TableCell>
                     {tomanFirst && showTomanAmount ? (
                       <>
-                        <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
+                        <TableCell className={centerAlign ? "font-semibold text-center text-green-600" : "font-semibold text-right text-green-600"} dir="rtl">
                           {tomanPrice > 0 
                             ? (() => {
                                 const numericAmount = amountKey === 'tokenSymbol' 
@@ -400,7 +397,7 @@ export default function CryptoTransactions() {
                             : tx[amountKey]}
                         </TableCell>
                         {showTomanAmount && (
-                          <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
+                          <TableCell className={centerAlign ? "font-semibold text-center text-green-600" : "font-semibold text-right text-green-600"} dir="rtl">
                             {tomanPrice > 0 
                               ? (() => {
                                   const numericAmount = amountKey === 'tokenSymbol' 
@@ -471,27 +468,14 @@ export default function CryptoTransactions() {
     <DashboardLayout title="تراکنش ارز دیجیتال">
       <div className="space-y-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>قیمت‌های لحظه‌ای ارزهای دیجیتال</CardTitle>
-              <CardDescription>
-                {cryptoPrices?.lastUpdate && (
-                  <span className="text-xs">
-                    آخرین بروزرسانی: {new Date(cryptoPrices.lastUpdate).toLocaleString('fa-IR')}
-                  </span>
-                )}
-              </CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefreshPrices}
-              disabled={isRefetchingPrices}
-              className="gap-2"
-            >
-              <Coins className={`w-4 h-4 ${isRefetchingPrices ? 'animate-spin' : ''}`} />
-              {isRefetchingPrices ? 'در حال بروزرسانی...' : 'بروزرسانی قیمت‌ها'}
-            </Button>
+          <CardHeader>
+            <CardDescription>
+              {cryptoPrices?.lastUpdate && (
+                <span className="text-xs">
+                  آخرین بروزرسانی: {new Date(cryptoPrices.lastUpdate).toLocaleString('fa-IR')}
+                </span>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div>
@@ -531,8 +515,8 @@ export default function CryptoTransactions() {
                           placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
                         />
                       ) : walletData?.walletAddress ? (
-                        <div className="font-mono text-sm break-all" dir="ltr">
-                          {walletData.walletAddress}
+                        <div className="font-mono text-sm" dir="ltr" title={walletData.walletAddress}>
+                          {truncateAddress(walletData.walletAddress)}
                         </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
@@ -619,8 +603,8 @@ export default function CryptoTransactions() {
                           placeholder="مثال: TLCuBEirVzB6V4menLZKw1jfBTFMZbuKq"
                         />
                       ) : walletData?.usdtWalletAddress ? (
-                        <div className="font-mono text-sm break-all" dir="ltr">
-                          {walletData.usdtWalletAddress}
+                        <div className="font-mono text-sm" dir="ltr" title={walletData.usdtWalletAddress}>
+                          {truncateAddress(walletData.usdtWalletAddress)}
                         </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
@@ -707,8 +691,8 @@ export default function CryptoTransactions() {
                           placeholder="مثال: rN7n7otQDd6FczFgLdlqtyMVrn3Q7YrfH"
                         />
                       ) : walletData?.rippleWalletAddress ? (
-                        <div className="font-mono text-sm break-all" dir="ltr">
-                          {walletData.rippleWalletAddress}
+                        <div className="font-mono text-sm" dir="ltr" title={walletData.rippleWalletAddress}>
+                          {truncateAddress(walletData.rippleWalletAddress)}
                         </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
@@ -795,8 +779,8 @@ export default function CryptoTransactions() {
                           placeholder="مثال: addr1qxy..."
                         />
                       ) : walletData?.cardanoWalletAddress ? (
-                        <div className="font-mono text-sm break-all" dir="ltr">
-                          {walletData.cardanoWalletAddress}
+                        <div className="font-mono text-sm" dir="ltr" title={walletData.cardanoWalletAddress}>
+                          {truncateAddress(walletData.cardanoWalletAddress)}
                         </div>
                       ) : (
                         <span className="text-sm text-muted-foreground">آدرس ثبت نشده</span>
@@ -907,6 +891,7 @@ export default function CryptoTransactions() {
                 error={tronError}
                 currencySymbol="TRX"
                 amountKey="amountTRX"
+                centerAlign={true}
                 page={tronPage}
                 onPageChange={setTronPage}
                 showTomanAmount={true}
@@ -926,6 +911,7 @@ export default function CryptoTransactions() {
                 error={usdtError}
                 currencySymbol="USDT"
                 amountKey="tokenSymbol"
+                centerAlign={true}
                 page={usdtPage}
                 onPageChange={setUsdtPage}
                 showTomanAmount={true}
@@ -946,6 +932,7 @@ export default function CryptoTransactions() {
                   error={rippleError}
                   currencySymbol="XRP"
                   amountKey="amountXRP"
+                  centerAlign={true}
                   page={1}
                   onPageChange={() => {}}
                   hidePagination={true}
