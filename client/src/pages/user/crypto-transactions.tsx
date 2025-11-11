@@ -278,7 +278,10 @@ export default function CryptoTransactions() {
     onPageChange,
     hidePagination = false,
     showTomanAmount = false,
-    tomanPrice = 0
+    tomanPrice = 0,
+    tomanFirst = false,
+    showTomanCurrencySymbol = true,
+    hideBorder = false
   }: { 
     transactions: CryptoTransaction[], 
     isLoading: boolean,
@@ -291,7 +294,10 @@ export default function CryptoTransactions() {
     onPageChange: (newPage: number) => void,
     hidePagination?: boolean,
     showTomanAmount?: boolean,
-    tomanPrice?: number
+    tomanPrice?: number,
+    tomanFirst?: boolean,
+    showTomanCurrencySymbol?: boolean,
+    hideBorder?: boolean
   }) => (
     <Card>
       <CardContent>
@@ -314,19 +320,28 @@ export default function CryptoTransactions() {
             </AlertDescription>
           </Alert>
         ) : (
-          <div className="rounded-md border">
+          <div className={hideBorder ? "rounded-md" : "rounded-md border"}>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>جزئیات</TableHead>
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>وضعیت</TableHead>
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>تاریخ</TableHead>
-                  <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ ({currencySymbol})</TableHead>
-                  {showTomanAmount && (
-                    <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ (تومان)</TableHead>
+                  {tomanFirst && showTomanAmount ? (
+                    <>
+                      <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ (ریال)</TableHead>
+                      <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ ({currencySymbol})</TableHead>
+                    </>
+                  ) : (
+                    <>
+                      <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ ({currencySymbol})</TableHead>
+                      {showTomanAmount && (
+                        <TableHead className={centerAlign ? "text-center" : "text-right"}>مبلغ (ریال)</TableHead>
+                      )}
+                    </>
                   )}
                   {showPriceColumns && (
-                    <TableHead className={centerAlign ? "text-center" : "text-right"}>قیمت (تومان)</TableHead>
+                    <TableHead className={centerAlign ? "text-center" : "text-right"}>قیمت (ریال)</TableHead>
                   )}
                   <TableHead className={centerAlign ? "text-center" : "text-right"}>نوع</TableHead>
                 </TableRow>
@@ -359,17 +374,44 @@ export default function CryptoTransactions() {
                     <TableCell className={centerAlign ? "text-center text-sm text-muted-foreground" : "text-sm text-muted-foreground text-right"} dir="ltr">
                       {tx.date}
                     </TableCell>
-                    <TableCell className={centerAlign ? "font-mono font-semibold text-center" : "font-mono font-semibold text-right"}>
-                      {amountKey === 'tokenSymbol' 
-                        ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
-                        : tx[amountKey]}
-                    </TableCell>
-                    {showTomanAmount && (
-                      <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
-                        {tomanPrice > 0 && tx[amountKey] 
-                          ? (parseFloat(tx[amountKey].toString().replace(/,/g, '')) * tomanPrice).toLocaleString('fa-IR') + ' ﷼'
-                          : '0 ﷼'}
-                      </TableCell>
+                    {tomanFirst && showTomanAmount ? (
+                      <>
+                        <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
+                          {tomanPrice > 0 
+                            ? (() => {
+                                const numericAmount = amountKey === 'tokenSymbol' 
+                                  ? (tx.amount / 1000000)
+                                  : parseFloat(tx[amountKey]?.toString().replace(/,/g, '') || '0');
+                                return Math.floor(numericAmount * tomanPrice).toLocaleString('fa-IR') + (showTomanCurrencySymbol ? ' ﷼' : '');
+                              })()
+                            : '0'}
+                        </TableCell>
+                        <TableCell className={centerAlign ? "font-mono font-semibold text-center" : "font-mono font-semibold text-right"}>
+                          {amountKey === 'tokenSymbol' 
+                            ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
+                            : tx[amountKey]}
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell className={centerAlign ? "font-mono font-semibold text-center" : "font-mono font-semibold text-right"}>
+                          {amountKey === 'tokenSymbol' 
+                            ? `${(tx.amount / 1000000).toLocaleString('en-US')} ${tx.tokenSymbol || 'USDT'}`
+                            : tx[amountKey]}
+                        </TableCell>
+                        {showTomanAmount && (
+                          <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
+                            {tomanPrice > 0 
+                              ? (() => {
+                                  const numericAmount = amountKey === 'tokenSymbol' 
+                                    ? (tx.amount / 1000000)
+                                    : parseFloat(tx[amountKey]?.toString().replace(/,/g, '') || '0');
+                                  return Math.floor(numericAmount * tomanPrice).toLocaleString('fa-IR') + (showTomanCurrencySymbol ? ' ﷼' : '');
+                                })()
+                              : showTomanCurrencySymbol ? '0 ﷼' : '0'}
+                          </TableCell>
+                        )}
+                      </>
                     )}
                     {showPriceColumns && (
                       <TableCell className={centerAlign ? "font-mono text-center text-green-600" : "font-mono text-right text-green-600"} dir="rtl">
@@ -869,6 +911,9 @@ export default function CryptoTransactions() {
                 onPageChange={setTronPage}
                 showTomanAmount={true}
                 tomanPrice={cryptoPrices?.prices?.TRX || 0}
+                tomanFirst={true}
+                showTomanCurrencySymbol={false}
+                hideBorder={true}
               />
             </TabsContent>
           )}
@@ -883,6 +928,11 @@ export default function CryptoTransactions() {
                 amountKey="tokenSymbol"
                 page={usdtPage}
                 onPageChange={setUsdtPage}
+                showTomanAmount={true}
+                tomanPrice={cryptoPrices?.prices?.USDT || 0}
+                tomanFirst={true}
+                showTomanCurrencySymbol={false}
+                hideBorder={true}
               />
             </TabsContent>
           )}
@@ -899,6 +949,11 @@ export default function CryptoTransactions() {
                   page={1}
                   onPageChange={() => {}}
                   hidePagination={true}
+                  showTomanAmount={true}
+                  tomanPrice={cryptoPrices?.prices?.XRP || 0}
+                  tomanFirst={true}
+                  showTomanCurrencySymbol={false}
+                  hideBorder={true}
                 />
                 {rippleData?.transactions && rippleData.transactions.length > 0 && (
                   <div className="flex justify-center gap-2">
@@ -930,10 +985,15 @@ export default function CryptoTransactions() {
                 error={cardanoError}
                 currencySymbol="ADA"
                 amountKey="amountADA"
-                showPriceColumns={true}
+                showPriceColumns={false}
                 centerAlign={true}
                 page={cardanoPage}
                 onPageChange={setCardanoPage}
+                showTomanAmount={true}
+                tomanPrice={cryptoPrices?.prices?.ADA || 0}
+                tomanFirst={true}
+                showTomanCurrencySymbol={false}
+                hideBorder={true}
               />
             </TabsContent>
           )}
