@@ -666,6 +666,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedUser = await storage.updateUser(req.user!.id, {
         bankCardNumber: bankCardNumber.replace(/\s/g, ''),
         bankCardHolderName,
+        bankCardApprovalStatus: 'pending',
       });
 
       if (!updatedUser) {
@@ -680,6 +681,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("خطا در بروزرسانی کارت بانکی:", error);
       res.status(500).json({ message: "خطا در بروزرسانی کارت بانکی" });
+    }
+  });
+
+  // Admin: Get all level 1 users with bank cards for approval
+  app.get("/api/admin/bank-cards", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const level1UsersWithCards = users
+        .filter(user => user.role === 'user_level_1' && user.bankCardNumber)
+        .map(user => ({
+          id: user.id,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          phone: user.phone,
+          bankCardNumber: user.bankCardNumber,
+          bankCardHolderName: user.bankCardHolderName,
+          bankCardApprovalStatus: user.bankCardApprovalStatus || 'pending',
+          createdAt: user.createdAt,
+        }));
+
+      res.json(level1UsersWithCards);
+    } catch (error) {
+      console.error("خطا در دریافت کارت‌های بانکی:", error);
+      res.status(500).json({ message: "خطا در دریافت کارت‌های بانکی" });
+    }
+  });
+
+  // Admin: Approve or reject bank card
+  app.put("/api/admin/bank-cards/:userId/approval", authenticateToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { userId } = req.params;
+      const { status } = req.body; // 'approved' or 'rejected'
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "وضعیت نامعتبر است" });
+      }
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      if (user.role !== 'user_level_1') {
+        return res.status(400).json({ message: "فقط کاربران سطح 1 می‌توانند کارت بانکی داشته باشند" });
+      }
+
+      const updatedUser = await storage.updateUser(userId, {
+        bankCardApprovalStatus: status,
+      });
+
+      if (!updatedUser) {
+        return res.status(500).json({ message: "خطا در بروزرسانی وضعیت تایید" });
+      }
+
+      console.log(`✅ کارت بانکی کاربر ${user.username} توسط مدیر ${status === 'approved' ? 'تایید' : 'رد'} شد`);
+      
+      res.json({
+        message: `کارت بانکی با موفقیت ${status === 'approved' ? 'تایید' : 'رد'} شد`,
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          bankCardApprovalStatus: updatedUser.bankCardApprovalStatus,
+        }
+      });
+    } catch (error) {
+      console.error("خطا در بروزرسانی وضعیت تایید:", error);
+      res.status(500).json({ message: "خطا در بروزرسانی وضعیت تایید" });
     }
   });
 

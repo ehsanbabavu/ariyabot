@@ -18,6 +18,7 @@ export const users = pgTable("users", {
   cardanoWalletAddress: text("cardano_wallet_address"), // Cardano (ADA) wallet address
   bankCardNumber: text("bank_card_number"), // شماره کارت بانکی (برای کاربران سطح 1)
   bankCardHolderName: text("bank_card_holder_name"), // نام صاحب کارت (برای کاربران سطح 1)
+  bankCardApprovalStatus: text("bank_card_approval_status").default("pending"), // pending, approved, rejected
   password: text("password"),
   googleId: text("google_id"),
   role: text("role").notNull().default("user_level_1"), // admin, user_level_1, user_level_2
