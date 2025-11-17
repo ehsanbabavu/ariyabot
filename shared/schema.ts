@@ -16,6 +16,8 @@ export const users = pgTable("users", {
   usdtTrc20WalletAddress: text("usdt_trc20_wallet_address"), // USDT (TRC20) wallet address
   rippleWalletAddress: text("ripple_wallet_address"), // Ripple (XRP) wallet address
   cardanoWalletAddress: text("cardano_wallet_address"), // Cardano (ADA) wallet address
+  bankCardNumber: text("bank_card_number"), // شماره کارت بانکی (برای کاربران سطح 1)
+  bankCardHolderName: text("bank_card_holder_name"), // نام صاحب کارت (برای کاربران سطح 1)
   password: text("password"),
   googleId: text("google_id"),
   role: text("role").notNull().default("user_level_1"), // admin, user_level_1, user_level_2
@@ -292,6 +294,17 @@ export const maintenanceMode = pgTable("maintenance_mode", {
   isEnabled: boolean("is_enabled").notNull().default(false), // فعال/غیرفعال
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const cryptoPrices = pgTable("crypto_prices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  symbol: text("symbol").notNull(), // TRX, USDT, XRP, ADA
+  priceInRial: decimal("price_in_rial", { precision: 20, scale: 2 }).notNull(), // قیمت به ریال
+  priceInToman: decimal("price_in_toman", { precision: 20, scale: 2 }).notNull(), // قیمت به تومان
+  fetchedAt: timestamp("fetched_at").notNull(), // زمان دریافت قیمت
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  symbolUnique: unique("crypto_prices_symbol_unique").on(table.symbol),
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -632,3 +645,14 @@ export const insertLoginLogSchema = createInsertSchema(loginLogs);
 
 export type LoginLog = typeof loginLogs.$inferSelect;
 export type InsertLoginLog = z.infer<typeof insertLoginLogSchema>;
+
+export const insertCryptoPriceSchema = createInsertSchema(cryptoPrices).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  priceInRial: z.union([z.string(), z.number()]).transform(val => String(val)),
+  priceInToman: z.union([z.string(), z.number()]).transform(val => String(val)),
+});
+
+export type CryptoPrice = typeof cryptoPrices.$inferSelect;
+export type InsertCryptoPrice = z.infer<typeof insertCryptoPriceSchema>;

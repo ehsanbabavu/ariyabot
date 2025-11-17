@@ -16,6 +16,7 @@ import { tronService } from "./tron-service";
 import { rippleService } from "./ripple-service";
 import { cardanoService } from "./cardano-service";
 import { tgjuService } from "./tgju-service";
+import { cryptoPriceCacheService } from "./crypto-price-cache-service";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -644,6 +645,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ ...user, password: undefined });
     } catch (error) {
       res.status(500).json({ message: "خطا در بروزرسانی کاربر" });
+    }
+  });
+
+  // Update bank card info for level 1 users
+  app.put("/api/users/bank-card", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
+    try {
+      const { bankCardNumber, bankCardHolderName } = req.body;
+
+      if (!bankCardNumber || !bankCardHolderName) {
+        return res.status(400).json({ message: "شماره کارت و نام صاحب کارت الزامی است" });
+      }
+
+      // Validate card number (16 digits)
+      const cardNumberRegex = /^\d{16}$/;
+      if (!cardNumberRegex.test(bankCardNumber.replace(/\s/g, ''))) {
+        return res.status(400).json({ message: "شماره کارت باید 16 رقم باشد" });
+      }
+
+      const updatedUser = await storage.updateUser(req.user!.id, {
+        bankCardNumber: bankCardNumber.replace(/\s/g, ''),
+        bankCardHolderName,
+      });
+
+      if (!updatedUser) {
+        return res.status(500).json({ message: "خطا در بروزرسانی اطلاعات کارت بانکی" });
+      }
+
+      res.json({
+        message: "اطلاعات کارت بانکی با موفقیت بروزرسانی شد",
+        bankCardNumber: updatedUser.bankCardNumber,
+        bankCardHolderName: updatedUser.bankCardHolderName,
+      });
+    } catch (error) {
+      console.error("خطا در بروزرسانی کارت بانکی:", error);
+      res.status(500).json({ message: "خطا در بروزرسانی کارت بانکی" });
+    }
+  });
+
+  // Get parent user bank card info (for level 2 users during payment)
+  app.get("/api/parent-user-bank-card", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const currentUser = req.user!;
+
+      if (currentUser.role !== 'user_level_2') {
+        return res.status(403).json({ message: "دسترسی غیرمجاز. این اندپوینت فقط برای کاربران سطح 2 است." });
+      }
+
+      if (!currentUser.parentUserId) {
+        return res.status(404).json({ message: "کاربر والد یافت نشد" });
+      }
+
+      const parentUser = await storage.getUser(currentUser.parentUserId);
+
+      if (!parentUser) {
+        return res.status(404).json({ message: "کاربر والد یافت نشد" });
+      }
+
+      res.json({
+        bankCardNumber: parentUser.bankCardNumber || null,
+        bankCardHolderName: parentUser.bankCardHolderName || null,
+        sellerId: parentUser.id,
+        sellerName: `${parentUser.firstName} ${parentUser.lastName}`,
+      });
+    } catch (error) {
+      console.error("خطا در دریافت اطلاعات کارت بانکی والد:", error);
+      res.status(500).json({ message: "خطا در دریافت اطلاعات کارت بانکی" });
     }
   });
 
@@ -4083,19 +4150,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all crypto prices in Rial
+  // Get all crypto prices in Rial (from cache)
   app.get("/api/crypto/prices", authenticateToken, async (req: AuthRequest, res) => {
     try {
       if (req.user!.role !== 'user_level_1') {
         return res.status(403).json({ message: "دسترسی غیرمجاز" });
       }
 
-      const prices = await tgjuService.getAllCryptoPrices();
+      const cachedPrices = await cryptoPriceCacheService.getCachedPrices();
+
+      if (!cachedPrices) {
+        return res.status(503).json({ 
+          message: "قیمت‌ها هنوز آماده نیستند. لطفاً چند لحظه صبر کنید.",
+          success: false
+        });
+      }
 
       res.json({ 
         success: true,
-        prices,
-        lastUpdate: new Date().toISOString()
+        prices: {
+          TRX: cachedPrices.TRX,
+          USDT: cachedPrices.USDT,
+          XRP: cachedPrices.XRP,
+          ADA: cachedPrices.ADA,
+        },
+        lastUpdate: cachedPrices.lastUpdate?.toISOString() || new Date().toISOString()
       });
     } catch (error: any) {
       console.error("خطا در دریافت قیمت‌های ارز:", error);

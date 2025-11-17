@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { whatsAppMessageService } from "./whatsapp-service";
 import { aiService } from "./ai-service";
 import { cleanupService } from "./cleanup-service";
+import { cryptoPriceCacheService } from "./crypto-price-cache-service";
 import path from "path";
 
 const app = express();
@@ -95,6 +96,8 @@ app.use((req, res, next) => {
     log("[AI] شروع initialize سرویس AI...");
     await aiService.initialize();
     log(`[AI] AI Service initialized با provider: ${aiService.getCurrentProvider() || 'هیچکدام'}`);
+    // سرویس کش قیمت ارزهای دیجیتال رو شروع کن
+    await cryptoPriceCacheService.initialize();
     // بعد سرویس پیام‌های واتس‌اپ رو شروع کن
     whatsAppMessageService.start();
     // سرویس پاکسازی فایل‌های موقت رو شروع کن
