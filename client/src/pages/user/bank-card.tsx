@@ -12,6 +12,7 @@ import { createAuthenticatedRequest } from "@/lib/auth";
 interface User {
   bankCardNumber?: string;
   bankCardHolderName?: string;
+  bankCardApprovalStatus?: string;
 }
 
 export default function BankCardPage() {
@@ -176,9 +177,25 @@ export default function BankCardPage() {
             </form>
 
             {user?.bankCardNumber && (
-              <div className="mt-6 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200">
-                <p className="text-sm text-green-700 dark:text-green-300">
-                  ✓ اطلاعات کارت بانکی شما ثبت شده است
+              <div className={`mt-6 p-4 rounded-lg border ${
+                user.bankCardApprovalStatus === 'approved' 
+                  ? 'bg-green-50 dark:bg-green-950/20 border-green-200' 
+                  : user.bankCardApprovalStatus === 'rejected'
+                  ? 'bg-red-50 dark:bg-red-950/20 border-red-200'
+                  : 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200'
+              }`}>
+                <p className={`text-sm ${
+                  user.bankCardApprovalStatus === 'approved' 
+                    ? 'text-green-700 dark:text-green-300' 
+                    : user.bankCardApprovalStatus === 'rejected'
+                    ? 'text-red-700 dark:text-red-300'
+                    : 'text-yellow-700 dark:text-yellow-300'
+                }`}>
+                  {user.bankCardApprovalStatus === 'approved' 
+                    ? '✓ اطلاعات کارت بانکی شما تایید شده است' 
+                    : user.bankCardApprovalStatus === 'rejected'
+                    ? '✗ اطلاعات کارت بانکی شما رد شده است. لطفاً مجدداً ثبت کنید'
+                    : '⏳ اطلاعات کارت بانکی شما در انتظار تایید است'}
                 </p>
               </div>
             )}

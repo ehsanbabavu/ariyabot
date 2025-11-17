@@ -68,14 +68,21 @@ export default function OrdersPage() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   // Fetch crypto prices
-  const { data: cryptoPrices } = useQuery<{
-    usdtTron: number;
-    usdtCardano: number;
-    xrp: number;
+  const { data: cryptoPricesData } = useQuery<{
+    success: boolean;
+    prices: {
+      TRX: number;
+      USDT: number;
+      XRP: number;
+      ADA: number;
+    };
+    lastUpdate?: string;
   }>({
     queryKey: ['/api/crypto/prices'],
     refetchInterval: 60000, // Refetch every minute
   });
+  
+  const cryptoPrices = cryptoPricesData?.prices;
 
   // Fetch seller's bank card info
   const { data: sellerBankCard } = useQuery<{
@@ -911,12 +918,12 @@ export default function OrdersPage() {
                             <div className="text-sm space-y-1">
                               <div>
                                 <span className="text-gray-600 dark:text-gray-400">قیمت: </span>
-                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.usdtTron)} تومان</span>
+                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.USDT)} تومان</span>
                               </div>
                               <div>
                                 <span className="text-gray-600 dark:text-gray-400">مقدار مورد نیاز: </span>
                                 <span className="font-bold text-green-600">
-                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.usdtTron).toFixed(2)} USDT
+                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.USDT).toFixed(2)} USDT
                                 </span>
                               </div>
                               <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -955,12 +962,12 @@ export default function OrdersPage() {
                             <div className="text-sm space-y-1">
                               <div>
                                 <span className="text-gray-600 dark:text-gray-400">قیمت: </span>
-                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.usdtCardano)} تومان</span>
+                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.ADA)} تومان</span>
                               </div>
                               <div>
                                 <span className="text-gray-600 dark:text-gray-400">مقدار مورد نیاز: </span>
                                 <span className="font-bold text-green-600">
-                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.usdtCardano).toFixed(2)} USDT
+                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.ADA).toFixed(2)} ADA
                                 </span>
                               </div>
                               <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
@@ -999,12 +1006,12 @@ export default function OrdersPage() {
                             <div className="text-sm space-y-1">
                               <div>
                                 <span className="text-gray-600 dark:text-gray-400">قیمت: </span>
-                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.xrp)} تومان</span>
+                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.XRP)} تومان</span>
                               </div>
                               <div>
                                 <span className="text-gray-600 dark:text-gray-400">مقدار مورد نیاز: </span>
                                 <span className="font-bold text-green-600">
-                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.xrp).toFixed(2)} XRP
+                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.XRP).toFixed(2)} XRP
                                 </span>
                               </div>
                               <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
