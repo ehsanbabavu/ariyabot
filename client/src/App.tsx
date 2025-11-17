@@ -41,6 +41,7 @@ import ChatWithSeller from "@/pages/user/chat-with-seller";
 import CustomerChats from "@/pages/level1/customer-chats";
 import ShippingSettings from "@/pages/level1/shipping-settings";
 import VatSettings from "@/pages/level1/vat-settings";
+import BankCard from "@/pages/user/bank-card";
 import FaqsPage from "@/pages/faqs";
 import AddFaqPage from "@/pages/user/add-faq";
 import ManageFaqsPage from "@/pages/user/manage-faqs";
@@ -239,6 +240,7 @@ function Router() {
       <Route path="/customer-chats" component={() => <Level1Route component={WithLayout(CustomerChats, "مدیریت چت با مشتریان")} />} />
       <Route path="/shipping-settings" component={() => <AdminOrLevel1Route component={ShippingSettings} />} />
       <Route path="/vat-settings" component={() => <AdminOrLevel1Route component={VatSettings} />} />
+      <Route path="/bank-card" component={() => <Level1Route component={BankCard} />} />
       <Route path="/chat-with-seller" component={() => <Level2Route component={ChatWithSeller} />} />
       <Route path="/faqs" component={() => <ProtectedRoute component={FaqsPage} />} />
       <Route path="/manage-faqs" component={() => <AdminOrLevel1Route component={ManageFaqsPage} />} />
