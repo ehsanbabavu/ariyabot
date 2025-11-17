@@ -79,6 +79,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const adminMenuItems = [
     { path: "/users", label: "مدیریت کاربران", icon: Users },
     { path: "/user-whatsapp-tokens", label: "توکن واتس‌اپ کاربران", icon: MessageCircle },
+    { path: "/bank-cards-management", label: "تایید کارت‌های بانکی", icon: CreditCard },
     { path: "/tickets", label: "مدیریت تیکت‌ها", icon: Ticket },
     { path: "/subscriptions", label: "اشتراک‌ها", icon: Crown },
     { path: "/login-logs", label: "لاگ‌های ورود", icon: History },
