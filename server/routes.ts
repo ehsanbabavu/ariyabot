@@ -632,23 +632,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/users/:id", authenticateToken, requireAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updates = req.body;
-      
-      const user = await storage.updateUser(id, updates);
-      if (!user) {
-        return res.status(404).json({ message: "کاربر یافت نشد" });
-      }
-
-      res.json({ ...user, password: undefined });
-    } catch (error) {
-      res.status(500).json({ message: "خطا در بروزرسانی کاربر" });
-    }
-  });
-
   // Update bank card info for level 1 users
+  // IMPORTANT: This route must come BEFORE /api/users/:id to avoid Express matching "bank-card" as :id
   app.put("/api/users/bank-card", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
     try {
       const { bankCardNumber, bankCardHolderName } = req.body;
@@ -681,6 +666,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("خطا در بروزرسانی کارت بانکی:", error);
       res.status(500).json({ message: "خطا در بروزرسانی کارت بانکی" });
+    }
+  });
+
+  app.put("/api/users/:id", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const user = await storage.updateUser(id, updates);
+      if (!user) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      res.status(500).json({ message: "خطا در بروزرسانی کاربر" });
     }
   });
 
@@ -4222,7 +4223,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all crypto prices in Rial (from cache)
   app.get("/api/crypto/prices", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      if (req.user!.role !== 'user_level_1') {
+      // Allow both level 1 and level 2 users to see crypto prices
+      if (req.user!.role !== 'user_level_1' && req.user!.role !== 'user_level_2') {
         return res.status(403).json({ message: "دسترسی غیرمجاز" });
       }
 
