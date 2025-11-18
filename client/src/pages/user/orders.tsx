@@ -1,14 +1,24 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Package, Calendar, MapPin, CreditCard, Clock, CheckCircle2, Truck, Package2, ShoppingBag, Download, Eye, Wallet, Copy, Check } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Package, Calendar, MapPin, CreditCard, Clock, CheckCircle2, Truck, Package2, ShoppingBag, Download, Eye, Wallet, Copy, Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { type Order, type OrderItem } from "@shared/schema";
 import { useState, useRef } from "react";
 import html2canvas from "html2canvas";
 import { useToast } from "@/hooks/use-toast";
+import { TronIcon, UsdtIcon, RippleIcon, CardanoIcon } from "@/components/crypto-icons";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import moment from "moment-jalaali";
+import { PersianDatePicker } from "@/components/persian-date-picker";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
   // Helper function to escape HTML content for security
   const escapeHtml = (unsafe: string | undefined | null) => {
@@ -51,6 +61,17 @@ const statusIcons = {
   cancelled: Clock
 };
 
+const transactionSchema = z.object({
+  amount: z.coerce.number().positive("مبلغ باید مثبت باشد"),
+  transactionDate: z.string().min(1, "تاریخ انجام تراکنش الزامی است"),
+  transactionTime: z.string().min(1, "ساعت انجام تراکنش الزامی است"),
+  accountSource: z.string().min(1, "از حساب الزامی است"),
+  referenceId: z.string().optional(),
+});
+
+type CryptoType = 'TRX' | 'USDT' | 'XRP' | 'ADA';
+type PaymentMethod = { type: 'crypto'; crypto: CryptoType } | { type: 'card' };
+
 export default function OrdersPage() {
   const { toast } = useToast();
   
@@ -63,9 +84,13 @@ export default function OrdersPage() {
     return new Intl.NumberFormat('fa-IR').format(Number(price)) + ' تومان';
   };
 
+  // Payment dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedPaymentOrderId, setSelectedPaymentOrderId] = useState<string | null>(null);
+  const [paymentStep, setPaymentStep] = useState<1 | 2>(1); // Step 1: Select method, Step 2: Details
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [formattedAmount, setFormattedAmount] = useState('');
 
   // Fetch crypto prices
   const { data: cryptoPricesData } = useQuery<{
@@ -84,8 +109,29 @@ export default function OrdersPage() {
   
   const cryptoPrices = cryptoPricesData?.prices;
 
+  // Fetch seller info when payment dialog opens
+  const { data: sellerInfo } = useQuery<{
+    sellerId: string;
+    sellerName: string;
+    bankCardNumber: string | null;
+    bankCardHolderName: string | null;
+    tronWalletAddress: string | null;
+    usdtTrc20WalletAddress: string | null;
+    rippleWalletAddress: string | null;
+    cardanoWalletAddress: string | null;
+  }>({
+    queryKey: ['/api/orders', selectedPaymentOrderId, 'seller-info'],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/seller-info`);
+      return response.json();
+    },
+    enabled: !!selectedPaymentOrderId && paymentDialogOpen,
+  });
+
   const handlePayment = (orderId: string) => {
     setSelectedPaymentOrderId(orderId);
+    setPaymentStep(1);
+    setSelectedPaymentMethod(null);
     setPaymentDialogOpen(true);
   };
 
@@ -108,6 +154,78 @@ export default function OrdersPage() {
   };
 
   const selectedPaymentOrder = orders.find(o => o.id === selectedPaymentOrderId);
+
+  // Transaction form
+  const form = useForm({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      amount: 0,
+      transactionDate: moment().format('YYYY-MM-DD'),
+      transactionTime: moment().format('HH:mm'),
+      accountSource: "",
+      referenceId: ""
+    }
+  });
+
+  // Create transaction mutation
+  const createTransactionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest('POST', '/api/transactions', data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      setPaymentDialogOpen(false);
+      setPaymentStep(1);
+      setSelectedPaymentMethod(null);
+      form.reset();
+      toast({
+        title: "موفق",
+        description: "تراکنش با موفقیت ثبت شد و در انتظار تایید است"
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "خطا",
+        description: "خطا در ثبت تراکنش",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const onSubmitTransaction = (data: any) => {
+    if (!selectedPaymentOrder || !selectedPaymentMethod) return;
+
+    // تبدیل ریال به تومان
+    const amountInToman = Math.floor(data.amount / 10);
+    
+    // Determine payment method and type
+    const paymentMethodValue = selectedPaymentMethod.type === 'crypto' 
+      ? `crypto_${selectedPaymentMethod.crypto.toLowerCase()}`
+      : 'card';
+    
+    const payload = {
+      ...data,
+      type: "deposit",
+      status: "pending",
+      paymentMethod: paymentMethodValue,
+      orderId: selectedPaymentOrder.id,
+      amount: String(amountInToman)
+    };
+    
+    createTransactionMutation.mutate(payload);
+  };
+
+  const handleSelectPaymentMethod = (method: PaymentMethod) => {
+    setSelectedPaymentMethod(method);
+    setPaymentStep(2);
+  };
+
+  const handleBackToMethodSelection = () => {
+    setPaymentStep(1);
+    setSelectedPaymentMethod(null);
+  };
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
@@ -269,14 +387,14 @@ export default function OrdersPage() {
     return result.trim();
   };
 
-  const queryClient = useQueryClient();
+  const queryClientInstance = useQueryClient();
 
   const handleDownloadInvoice = async (orderId: string) => {
     try {
       setDownloadingOrderId(orderId);
       
       // Fetch fresh order details
-      const orderData = await queryClient.ensureQueryData<Order & { items: (OrderItem & { productName: string; productDescription?: string; productImage?: string })[]; addressTitle?: string; fullAddress?: string; postalCode?: string; buyerFirstName?: string; buyerLastName?: string; buyerPhone?: string; sellerFirstName?: string; sellerLastName?: string }>({
+      const orderData = await queryClientInstance.ensureQueryData<Order & { items: (OrderItem & { productName: string; productDescription?: string; productImage?: string })[]; addressTitle?: string; fullAddress?: string; postalCode?: string; buyerFirstName?: string; buyerLastName?: string; buyerPhone?: string; sellerFirstName?: string; sellerLastName?: string }>({
         queryKey: ['/api/orders', orderId],
         staleTime: 0 // Force fresh fetch
       });
@@ -857,11 +975,18 @@ export default function OrdersPage() {
       </div>
 
       {/* Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+      <Dialog open={paymentDialogOpen} onOpenChange={(open) => {
+        setPaymentDialogOpen(open);
+        if (!open) {
+          setPaymentStep(1);
+          setSelectedPaymentMethod(null);
+          form.reset();
+        }
+      }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-right text-xl">
-              انتخاب روش پرداخت
+              {paymentStep === 1 ? 'انتخاب روش پرداخت' : 'جزئیات پرداخت'}
             </DialogTitle>
           </DialogHeader>
           
@@ -882,103 +1007,417 @@ export default function OrdersPage() {
                 </div>
               </div>
 
-              {/* Payment Methods */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Crypto Payment Card */}
-                <Card className="border-2 border-blue-200">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <Wallet className="w-5 h-5 text-blue-600" />
-                      <CardTitle className="text-base">پرداخت با ارز دیجیتال</CardTitle>
+              {paymentStep === 1 ? (
+                /* Step 1: Select Payment Method */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Crypto Payment Card */}
+                  <Card className="border-2 border-blue-200 cursor-pointer hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-5 h-5 text-blue-600" />
+                        <CardTitle className="text-base">پرداخت با ارز دیجیتال</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3 space-y-2">
+                      {cryptoPrices ? (
+                        <div className="space-y-2">
+                          {/* TRX */}
+                          <div 
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                            onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'TRX' })}
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              <TronIcon className="w-8 h-8" />
+                              <div>
+                                <div className="font-semibold">TRX (Tron)</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {new Intl.NumberFormat('fa-IR').format(cryptoPrices.TRX)} تومان
+                                </div>
+                              </div>
+                            </div>
+                            <Checkbox 
+                              checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'TRX'}
+                              onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'TRX' })}
+                            />
+                          </div>
+
+                          {/* USDT */}
+                          <div 
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                            onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'USDT' })}
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              <UsdtIcon className="w-8 h-8" />
+                              <div>
+                                <div className="font-semibold">USDT (Tether)</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {new Intl.NumberFormat('fa-IR').format(cryptoPrices.USDT)} تومان
+                                </div>
+                              </div>
+                            </div>
+                            <Checkbox 
+                              checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'USDT'}
+                              onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'USDT' })}
+                            />
+                          </div>
+
+                          {/* XRP */}
+                          <div 
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                            onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'XRP' })}
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              <RippleIcon className="w-8 h-8" />
+                              <div>
+                                <div className="font-semibold">XRP (Ripple)</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {new Intl.NumberFormat('fa-IR').format(cryptoPrices.XRP)} تومان
+                                </div>
+                              </div>
+                            </div>
+                            <Checkbox 
+                              checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'XRP'}
+                              onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'XRP' })}
+                            />
+                          </div>
+
+                          {/* ADA */}
+                          <div 
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                            onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'ADA' })}
+                          >
+                            <div className="flex items-center gap-3 flex-1">
+                              <CardanoIcon className="w-8 h-8" />
+                              <div>
+                                <div className="font-semibold">ADA (Cardano)</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {new Intl.NumberFormat('fa-IR').format(cryptoPrices.ADA)} تومان
+                                </div>
+                              </div>
+                            </div>
+                            <Checkbox 
+                              checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'ADA'}
+                              onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'ADA' })}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">در حال دریافت قیمت‌ها...</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Bank Card Payment */}
+                  <Card className="border-2 border-green-200 cursor-pointer hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-green-600" />
+                        <CardTitle className="text-base">پرداخت با کارت بانکی</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div 
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                        onClick={() => handleSelectPaymentMethod({ type: 'card' })}
+                      >
+                        <div className="flex-1">
+                          {sellerInfo && sellerInfo.bankCardNumber ? (
+                            <div className="space-y-2">
+                              <div className="text-sm">
+                                <span className="text-gray-600 dark:text-gray-400">شماره کارت: </span>
+                                <span className="font-bold font-mono">{sellerInfo.bankCardNumber}</span>
+                              </div>
+                              {sellerInfo.bankCardHolderName && (
+                                <div className="text-sm">
+                                  <span className="text-gray-600 dark:text-gray-400">نام صاحب کارت: </span>
+                                  <span className="font-semibold">{sellerInfo.bankCardHolderName}</span>
+                                </div>
+                              )}
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                مبلغ: {formatPrice(selectedPaymentOrder.totalAmount)}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">مبلغ قابل پرداخت</div>
+                              <div className="text-xl font-bold text-green-600">
+                                {formatPrice(selectedPaymentOrder.totalAmount)}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                                اطلاعات کارت از فروشنده دریافت شود
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <Checkbox 
+                          checked={selectedPaymentMethod?.type === 'card'}
+                          onCheckedChange={() => handleSelectPaymentMethod({ type: 'card' })}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              ) : (
+                /* Step 2: Payment Details */
+                <div className="space-y-4">
+                  {selectedPaymentMethod?.type === 'crypto' ? (
+                    /* Crypto Payment Details */
+                    <div className="space-y-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleBackToMethodSelection}
+                        className="mb-2"
+                      >
+                        <ArrowRight className="w-4 h-4 ml-1" />
+                        بازگشت
+                      </Button>
+
+                      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
+                        <CardContent className="p-6">
+                          <div className="flex items-center gap-4 mb-6">
+                            {selectedPaymentMethod.crypto === 'TRX' && <TronIcon className="w-12 h-12" />}
+                            {selectedPaymentMethod.crypto === 'USDT' && <UsdtIcon className="w-12 h-12" />}
+                            {selectedPaymentMethod.crypto === 'XRP' && <RippleIcon className="w-12 h-12" />}
+                            {selectedPaymentMethod.crypto === 'ADA' && <CardanoIcon className="w-12 h-12" />}
+                            <div>
+                              <h3 className="text-xl font-bold">
+                                {selectedPaymentMethod.crypto === 'TRX' && 'TRX (Tron)'}
+                                {selectedPaymentMethod.crypto === 'USDT' && 'USDT (Tether)'}
+                                {selectedPaymentMethod.crypto === 'XRP' && 'XRP (Ripple)'}
+                                {selectedPaymentMethod.crypto === 'ADA' && 'ADA (Cardano)'}
+                              </h3>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {cryptoPrices && new Intl.NumberFormat('fa-IR').format(cryptoPrices[selectedPaymentMethod.crypto])} تومان
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Wallet Address */}
+                          {sellerInfo && (
+                            <div className="space-y-4">
+                              {(() => {
+                                let walletAddress = '';
+                                if (selectedPaymentMethod.crypto === 'TRX') walletAddress = sellerInfo.tronWalletAddress || '';
+                                if (selectedPaymentMethod.crypto === 'USDT') walletAddress = sellerInfo.usdtTrc20WalletAddress || '';
+                                if (selectedPaymentMethod.crypto === 'XRP') walletAddress = sellerInfo.rippleWalletAddress || '';
+                                if (selectedPaymentMethod.crypto === 'ADA') walletAddress = sellerInfo.cardanoWalletAddress || '';
+
+                                return walletAddress ? (
+                                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">آدرس ولت:</span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(walletAddress, 'آدرس ولت')}
+                                      >
+                                        {copiedAddress === 'آدرس ولت' ? (
+                                          <Check className="w-4 h-4 text-green-600" />
+                                        ) : (
+                                          <Copy className="w-4 h-4" />
+                                        )}
+                                      </Button>
+                                    </div>
+                                    <p className="font-mono text-sm break-all bg-gray-50 dark:bg-gray-900 p-2 rounded">
+                                      {walletAddress}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
+                                    فروشنده هنوز آدرس ولت خود را ثبت نکرده است. لطفاً با فروشنده تماس بگیرید.
+                                  </div>
+                                );
+                              })()}
+
+                              {/* Amount Details */}
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded">
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">مقدار واریزی:</span>
+                                  <span className="font-bold text-lg">
+                                    {cryptoPrices && (Number(selectedPaymentOrder.totalAmount) / cryptoPrices[selectedPaymentMethod.crypto]).toFixed(6)} {selectedPaymentMethod.crypto}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded">
+                                  <span className="text-sm text-gray-600 dark:text-gray-400">معادل تومان:</span>
+                                  <span className="font-bold text-green-600">
+                                    {formatPrice(selectedPaymentOrder.totalAmount)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg text-sm text-blue-800 dark:text-blue-200">
+                                <p className="font-semibold mb-2">راهنمای پرداخت:</p>
+                                <ol className="list-decimal list-inside space-y-1 text-xs">
+                                  <li>آدرس ولت را کپی کنید</li>
+                                  <li>مقدار مشخص شده را به آدرس ولت واریز کنید</li>
+                                  <li>پس از واریز، منتظر تایید فروشنده باشید</li>
+                                </ol>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-2">
-                    {cryptoPrices ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {/* TRX */}
-                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
-                          <div className="font-semibold mb-1">TRX</div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.TRX)} تومان
-                          </div>
-                          <div className="text-green-600 font-bold mt-1">
-                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.TRX).toFixed(2)} TRX
-                          </div>
-                        </div>
+                  ) : (
+                    /* Bank Card Payment Details - Manual Transaction Form */
+                    <div className="space-y-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleBackToMethodSelection}
+                        className="mb-2"
+                      >
+                        <ArrowRight className="w-4 h-4 ml-1" />
+                        بازگشت
+                      </Button>
 
-                        {/* USDT */}
-                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
-                          <div className="font-semibold mb-1">USDT</div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.USDT)} تومان
-                          </div>
-                          <div className="text-green-600 font-bold mt-1">
-                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.USDT).toFixed(2)} USDT
-                          </div>
-                        </div>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">ثبت اطلاعات تراکنش کارت به کارت</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <Form {...form}>
+                            <form onSubmit={form.handleSubmit(onSubmitTransaction)} className="space-y-4">
+                              <FormField
+                                control={form.control}
+                                name="amount"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>مبلغ (ریال)</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="text"
+                                        value={formattedAmount}
+                                        onChange={(e) => {
+                                          const value = e.target.value.replace(/[^0-9]/g, '');
+                                          const numericValue = value ? parseInt(value, 10) : 0;
+                                          
+                                          const formatted = numericValue.toLocaleString('en-US');
+                                          setFormattedAmount(formatted === '0' ? '' : formatted);
+                                          
+                                          field.onChange(numericValue);
+                                        }}
+                                        placeholder="۰"
+                                        className="text-right"
+                                        dir="rtl"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
 
-                        {/* XRP */}
-                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
-                          <div className="font-semibold mb-1">XRP</div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.XRP)} تومان
-                          </div>
-                          <div className="text-green-600 font-bold mt-1">
-                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.XRP).toFixed(2)} XRP
-                          </div>
-                        </div>
+                              <FormField
+                                control={form.control}
+                                name="transactionDate"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>تاریخ انجام تراکنش</FormLabel>
+                                    <FormControl>
+                                      <PersianDatePicker 
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        placeholder="انتخاب تاریخ"
+                                        className="text-right"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
 
-                        {/* ADA */}
-                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
-                          <div className="font-semibold mb-1">ADA</div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.ADA)} تومان
-                          </div>
-                          <div className="text-green-600 font-bold mt-1">
-                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.ADA).toFixed(2)} ADA
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">در حال دریافت قیمت‌ها...</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                              <FormField
+                                control={form.control}
+                                name="transactionTime"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>ساعت انجام تراکنش</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        type="time"
+                                        {...field}
+                                        className="text-right"
+                                        dir="rtl"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
 
-                {/* Bank Card Payment */}
-                <Card className="border-2 border-green-200">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-5 h-5 text-green-600" />
-                      <CardTitle className="text-base">پرداخت با کارت بانکی</CardTitle>
+                              <FormField
+                                control={form.control}
+                                name="accountSource"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>از حساب</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="نام بانک یا منبع حساب..."
+                                        {...field}
+                                        className="text-right"
+                                        dir="rtl"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={form.control}
+                                name="referenceId"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>شماره پیگیری (اختیاری)</FormLabel>
+                                    <FormControl>
+                                      <Input 
+                                        {...field}
+                                        value={field.value ?? ""}
+                                        placeholder="شماره پیگیری تراکنش"
+                                        className="text-right"
+                                        dir="rtl"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <div className="flex gap-3 pt-4">
+                                <Button 
+                                  type="submit" 
+                                  disabled={createTransactionMutation.isPending}
+                                  size="lg"
+                                  className="bg-blue-500 hover:bg-blue-600 text-white flex-1"
+                                >
+                                  {createTransactionMutation.isPending ? "در حال ثبت..." : "ثبت تراکنش"}
+                                </Button>
+                              </div>
+                            </form>
+                          </Form>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-3">
-                    <div className="text-center">
-                      <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">مبلغ قابل پرداخت</div>
-                      <div className="text-xl font-bold text-green-600">
-                        {formatPrice(selectedPaymentOrder.totalAmount)}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        اطلاعات کارت از فروشنده دریافت شود
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={() => setPaymentDialogOpen(false)}
-                >
-                  بستن
-                </Button>
-              </div>
+              {paymentStep === 1 && (
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => setPaymentDialogOpen(false)}
+                  >
+                    بستن
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
