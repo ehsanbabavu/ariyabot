@@ -2343,6 +2343,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get seller info by order ID (for level 2 users to see payment details)
+  app.get("/api/orders/:orderId/seller-info", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      
+      if (!order) {
+        return res.status(404).json({ message: "سفارش یافت نشد" });
+      }
+
+      // Verify that the order belongs to the current user
+      if (order.userId !== req.user!.id) {
+        return res.status(403).json({ message: "شما مجاز به دسترسی به این سفارش نیستید" });
+      }
+
+      // Get seller information
+      const seller = await storage.getUser(order.sellerId);
+      
+      if (!seller) {
+        return res.status(404).json({ message: "فروشنده یافت نشد" });
+      }
+
+      // Return only necessary seller information for payment
+      res.json({
+        sellerId: seller.id,
+        sellerName: `${seller.firstName} ${seller.lastName}`,
+        bankCardNumber: seller.bankCardNumber,
+        bankCardHolderName: seller.bankCardHolderName,
+        tronWalletAddress: seller.tronWalletAddress,
+        usdtTrc20WalletAddress: seller.usdtTrc20WalletAddress,
+        rippleWalletAddress: seller.rippleWalletAddress,
+        cardanoWalletAddress: seller.cardanoWalletAddress
+      });
+    } catch (error) {
+      console.error("Get seller info error:", error);
+      res.status(500).json({ message: "خطا در دریافت اطلاعات فروشنده" });
+    }
+  });
+
   // Get orders for seller (for level 1 users - orders from their customers)
   app.get("/api/orders/seller", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
     try {
