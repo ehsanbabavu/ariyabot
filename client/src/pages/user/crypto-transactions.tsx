@@ -228,11 +228,13 @@ export default function CryptoTransactions() {
 
   const handleToggleActive = (wallet: string) => {
     setActiveWallets(prev => {
-      if (prev.includes(wallet)) {
-        return prev.filter(w => w !== wallet);
-      } else {
-        return [...prev, wallet];
-      }
+      const newActiveWallets = prev.includes(wallet)
+        ? prev.filter(w => w !== wallet)
+        : [...prev, wallet];
+      
+      // ذخیره در localStorage
+      localStorage.setItem('activeWallets', JSON.stringify(newActiveWallets));
+      return newActiveWallets;
     });
   };
 
@@ -243,13 +245,32 @@ export default function CryptoTransactions() {
       setRippleWalletAddress(walletData.rippleWalletAddress || "");
       setCardanoWalletAddress(walletData.cardanoWalletAddress || "");
       
-      // فعال کردن خودکار ارزهایی که آدرس دارند
-      const activeList: string[] = [];
-      if (walletData.walletAddress) activeList.push('tron');
-      if (walletData.usdtWalletAddress) activeList.push('usdt');
-      if (walletData.rippleWalletAddress) activeList.push('ripple');
-      if (walletData.cardanoWalletAddress) activeList.push('cardano');
-      setActiveWallets(activeList);
+      // بررسی localStorage برای وضعیت ذخیره شده
+      const savedActiveWallets = localStorage.getItem('activeWallets');
+      if (savedActiveWallets) {
+        try {
+          const parsedActiveWallets = JSON.parse(savedActiveWallets);
+          setActiveWallets(parsedActiveWallets);
+        } catch {
+          // اگر خطا داشت، از حالت پیش‌فرض استفاده کن
+          const activeList: string[] = [];
+          if (walletData.walletAddress) activeList.push('tron');
+          if (walletData.usdtWalletAddress) activeList.push('usdt');
+          if (walletData.rippleWalletAddress) activeList.push('ripple');
+          if (walletData.cardanoWalletAddress) activeList.push('cardano');
+          setActiveWallets(activeList);
+          localStorage.setItem('activeWallets', JSON.stringify(activeList));
+        }
+      } else {
+        // فعال کردن خودکار ارزهایی که آدرس دارند
+        const activeList: string[] = [];
+        if (walletData.walletAddress) activeList.push('tron');
+        if (walletData.usdtWalletAddress) activeList.push('usdt');
+        if (walletData.rippleWalletAddress) activeList.push('ripple');
+        if (walletData.cardanoWalletAddress) activeList.push('cardano');
+        setActiveWallets(activeList);
+        localStorage.setItem('activeWallets', JSON.stringify(activeList));
+      }
     }
   }, [walletData]);
 
@@ -469,13 +490,6 @@ export default function CryptoTransactions() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardDescription>
-              {cryptoPrices?.lastUpdate && (
-                <span className="text-xs">
-                  آخرین بروزرسانی: {new Date(cryptoPrices.lastUpdate).toLocaleString('fa-IR')}
-                </span>
-              )}
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <div>
@@ -843,6 +857,13 @@ export default function CryptoTransactions() {
                 </TableBody>
               </Table>
             </div>
+            {cryptoPrices?.lastUpdate && (
+              <div className="mt-4 text-left">
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  آخرین بروزرسانی: {new Date(cryptoPrices.lastUpdate).toLocaleString('fa-IR')}
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
