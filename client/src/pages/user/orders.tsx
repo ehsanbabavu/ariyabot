@@ -84,15 +84,6 @@ export default function OrdersPage() {
   
   const cryptoPrices = cryptoPricesData?.prices;
 
-  // Fetch seller's bank card info
-  const { data: sellerBankCard } = useQuery<{
-    bankCardNumber?: string;
-    bankCardHolderName?: string;
-  }>({
-    queryKey: ['/api/parent-user-bank-card'],
-    enabled: paymentDialogOpen && !!selectedPaymentOrderId,
-  });
-
   const handlePayment = (orderId: string) => {
     setSelectedPaymentOrderId(orderId);
     setPaymentDialogOpen(true);
@@ -894,247 +885,87 @@ export default function OrdersPage() {
               {/* Payment Methods */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Crypto Payment Card */}
-                <Card className="border-2 border-blue-200 hover:border-blue-400 transition-colors">
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30">
-                    <div className="flex items-center gap-3">
-                      <Wallet className="w-6 h-6 text-blue-600" />
-                      <CardTitle className="text-lg">پرداخت با ارز دیجیتال</CardTitle>
+                <Card className="border-2 border-blue-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="w-5 h-5 text-blue-600" />
+                      <CardTitle className="text-base">پرداخت با ارز دیجیتال</CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4 space-y-4">
+                  <CardContent className="p-3 space-y-2">
                     {cryptoPrices ? (
-                      <>
-                        <div className="space-y-3">
-                          {/* USDT Tron */}
-                          <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                              <img 
-                                src="/images/usdt-logo.jpg" 
-                                alt="USDT" 
-                                className="w-6 h-6 rounded-full"
-                              />
-                              <span className="font-semibold">USDT (Tron)</span>
-                            </div>
-                            <div className="text-sm space-y-1">
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">قیمت: </span>
-                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.USDT)} تومان</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">مقدار مورد نیاز: </span>
-                                <span className="font-bold text-green-600">
-                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.USDT).toFixed(2)} USDT
-                                </span>
-                              </div>
-                              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                <span className="text-gray-600 dark:text-gray-400 text-xs">آدرس کیف پول:</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <code className="text-xs bg-white dark:bg-gray-800 px-2 py-1 rounded flex-1 break-all">
-                                    TRX... (در انتظار دریافت از فروشنده)
-                                  </code>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => copyToClipboard("TRX...", "آدرس USDT Tron")}
-                                    className="shrink-0"
-                                  >
-                                    {copiedAddress === "آدرس USDT Tron" ? (
-                                      <Check className="w-4 h-4" />
-                                    ) : (
-                                      <Copy className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* TRX */}
+                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
+                          <div className="font-semibold mb-1">TRX</div>
+                          <div className="text-gray-600 dark:text-gray-400">
+                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.TRX)} تومان
                           </div>
-
-                          {/* USDT Cardano */}
-                          <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                              <img 
-                                src="/images/ada-logo.png" 
-                                alt="Cardano" 
-                                className="w-6 h-6 rounded-full"
-                              />
-                              <span className="font-semibold">USDT (Cardano)</span>
-                            </div>
-                            <div className="text-sm space-y-1">
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">قیمت: </span>
-                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.ADA)} تومان</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">مقدار مورد نیاز: </span>
-                                <span className="font-bold text-green-600">
-                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.ADA).toFixed(2)} ADA
-                                </span>
-                              </div>
-                              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                <span className="text-gray-600 dark:text-gray-400 text-xs">آدرس کیف پول:</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <code className="text-xs bg-white dark:bg-gray-800 px-2 py-1 rounded flex-1 break-all">
-                                    addr1... (در انتظار دریافت از فروشنده)
-                                  </code>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => copyToClipboard("addr1...", "آدرس USDT Cardano")}
-                                    className="shrink-0"
-                                  >
-                                    {copiedAddress === "آدرس USDT Cardano" ? (
-                                      <Check className="w-4 h-4" />
-                                    ) : (
-                                      <Copy className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* XRP */}
-                          <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                              <img 
-                                src="/images/xrp-logo.jpg" 
-                                alt="XRP" 
-                                className="w-6 h-6 rounded-full"
-                              />
-                              <span className="font-semibold">XRP (Ripple)</span>
-                            </div>
-                            <div className="text-sm space-y-1">
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">قیمت: </span>
-                                <span className="font-bold">{new Intl.NumberFormat('fa-IR').format(cryptoPrices.XRP)} تومان</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-600 dark:text-gray-400">مقدار مورد نیاز: </span>
-                                <span className="font-bold text-green-600">
-                                  {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.XRP).toFixed(2)} XRP
-                                </span>
-                              </div>
-                              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                                <span className="text-gray-600 dark:text-gray-400 text-xs">آدرس کیف پول:</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <code className="text-xs bg-white dark:bg-gray-800 px-2 py-1 rounded flex-1 break-all">
-                                    rXXX... (در انتظار دریافت از فروشنده)
-                                  </code>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => copyToClipboard("rXXX...", "آدرس XRP")}
-                                    className="shrink-0"
-                                  >
-                                    {copiedAddress === "آدرس XRP" ? (
-                                      <Check className="w-4 h-4" />
-                                    ) : (
-                                      <Copy className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
+                          <div className="text-green-600 font-bold mt-1">
+                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.TRX).toFixed(2)} TRX
                           </div>
                         </div>
 
-                        <div className="bg-yellow-50 dark:bg-yellow-950/20 p-3 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
-                          <p className="font-semibold mb-1">⚠️ توجه:</p>
-                          <ul className="list-disc list-inside space-y-1">
-                            <li>پس از واریز، اسکرین‌شات تراکنش را ارسال کنید</li>
-                            <li>قیمت‌ها به‌صورت لحظه‌ای به‌روزرسانی می‌شوند</li>
-                            <li>از شبکه صحیح استفاده کنید</li>
-                          </ul>
+                        {/* USDT */}
+                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
+                          <div className="font-semibold mb-1">USDT</div>
+                          <div className="text-gray-600 dark:text-gray-400">
+                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.USDT)} تومان
+                          </div>
+                          <div className="text-green-600 font-bold mt-1">
+                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.USDT).toFixed(2)} USDT
+                          </div>
                         </div>
-                      </>
+
+                        {/* XRP */}
+                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
+                          <div className="font-semibold mb-1">XRP</div>
+                          <div className="text-gray-600 dark:text-gray-400">
+                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.XRP)} تومان
+                          </div>
+                          <div className="text-green-600 font-bold mt-1">
+                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.XRP).toFixed(2)} XRP
+                          </div>
+                        </div>
+
+                        {/* ADA */}
+                        <div className="bg-gray-50 dark:bg-gray-900 p-2 rounded text-xs">
+                          <div className="font-semibold mb-1">ADA</div>
+                          <div className="text-gray-600 dark:text-gray-400">
+                            {new Intl.NumberFormat('fa-IR').format(cryptoPrices.ADA)} تومان
+                          </div>
+                          <div className="text-green-600 font-bold mt-1">
+                            {(Number(selectedPaymentOrder.totalAmount) / cryptoPrices.ADA).toFixed(2)} ADA
+                          </div>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                        <p className="text-gray-600 dark:text-gray-400">در حال دریافت قیمت‌ها...</p>
+                      <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">در حال دریافت قیمت‌ها...</p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
                 {/* Bank Card Payment */}
-                <Card className="border-2 border-green-200 hover:border-green-400 transition-colors">
-                  <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30">
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="w-6 h-6 text-green-600" />
-                      <CardTitle className="text-lg">پرداخت با کارت بانکی</CardTitle>
+                <Card className="border-2 border-green-200">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-green-600" />
+                      <CardTitle className="text-base">پرداخت با کارت بانکی</CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-4 space-y-4">
-                    {sellerBankCard && sellerBankCard.bankCardNumber ? (
-                      <>
-                        <div className="space-y-3">
-                          <div className="bg-gradient-to-br from-gray-700 to-gray-900 p-6 rounded-xl text-white shadow-lg">
-                            <div className="mb-4">
-                              <div className="text-xs text-gray-300 mb-1">شماره کارت</div>
-                              <div className="flex items-center justify-between">
-                                <div className="font-mono text-lg tracking-wider" dir="ltr">
-                                  {sellerBankCard.bankCardNumber.match(/.{1,4}/g)?.join(' ')}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => copyToClipboard(sellerBankCard.bankCardNumber || "", "شماره کارت")}
-                                  className="text-white hover:text-white hover:bg-white/20"
-                                >
-                                  {copiedAddress === "شماره کارت" ? (
-                                    <Check className="w-4 h-4" />
-                                  ) : (
-                                    <Copy className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-xs text-gray-300 mb-1">نام صاحب کارت</div>
-                              <div className="font-semibold">{sellerBankCard.bankCardHolderName}</div>
-                            </div>
-                          </div>
-
-                          <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-                            <div className="text-center">
-                              <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">مبلغ قابل پرداخت</div>
-                              <div className="text-2xl font-bold text-green-600">
-                                {formatPrice(selectedPaymentOrder.totalAmount)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg text-sm text-blue-800 dark:text-blue-200">
-                          <p className="font-semibold mb-1">📌 راهنما:</p>
-                          <ol className="list-decimal list-inside space-y-1">
-                            <li>مبلغ را به شماره کارت بالا واریز کنید</li>
-                            <li>اسکرین‌شات رسید پرداخت را ذخیره کنید</li>
-                            <li>از بخش "امور مالی" تراکنش را ثبت کنید</li>
-                            <li>سفارش پس از تایید پرداخت پردازش می‌شود</li>
-                          </ol>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-center py-8">
-                        {sellerBankCard === undefined ? (
-                          <>
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-3"></div>
-                            <p className="text-gray-600 dark:text-gray-400">در حال دریافت اطلاعات...</p>
-                          </>
-                        ) : (
-                          <>
-                            <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                            <p className="text-gray-600 dark:text-gray-400">
-                              اطلاعات کارت بانکی فروشنده در دسترس نیست
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                              لطفاً از روش پرداخت دیگری استفاده کنید
-                            </p>
-                          </>
-                        )}
+                  <CardContent className="p-3">
+                    <div className="text-center">
+                      <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">مبلغ قابل پرداخت</div>
+                      <div className="text-xl font-bold text-green-600">
+                        {formatPrice(selectedPaymentOrder.totalAmount)}
                       </div>
-                    )}
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        اطلاعات کارت از فروشنده دریافت شود
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

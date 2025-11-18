@@ -100,18 +100,7 @@ export default function BankCardsManagement() {
     <DashboardLayout title="مدیریت کارت‌های بانکی">
       <div className="space-y-6">
         <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <CreditCard className="w-6 h-6 text-blue-600" />
-              <div>
-                <CardTitle>کارت‌های بانکی کاربران سطح 1</CardTitle>
-                <CardDescription>
-                  مشاهده و تایید کارت‌های بانکی ثبت شده توسط کاربران سطح 1
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Search className="w-4 h-4 text-gray-500" />
