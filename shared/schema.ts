@@ -208,6 +208,7 @@ export const orders = pgTable("orders", {
   orderNumber: text("order_number").notNull().unique(), // شماره سفارش منحصر به فرد
   shippingMethod: text("shipping_method"), // روش ارسال: post_pishtaz, post_normal, piyk, free
   notes: text("notes"), // یادداشت‌های کاربر
+  paymentStartedAt: timestamp("payment_started_at"), // زمان شروع پرداخت برای تایمر 10 دقیقه‌ای
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

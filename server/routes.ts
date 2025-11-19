@@ -12,6 +12,7 @@ import fs from "fs";
 import { generateAndSaveInvoice } from "./invoice-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { db, eq } from "./db-storage";
+import { orders } from "@shared/schema";
 import { tronService } from "./tron-service";
 import { rippleService } from "./ripple-service";
 import { cardanoService } from "./cardano-service";
@@ -2378,6 +2379,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get seller info error:", error);
       res.status(500).json({ message: "خطا در دریافت اطلاعات فروشنده" });
+    }
+  });
+
+  // Start payment timer for an order
+  app.post("/api/orders/:orderId/start-payment-timer", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      
+      if (!order) {
+        return res.status(404).json({ message: "سفارش یافت نشد" });
+      }
+
+      // Verify that the order belongs to the current user
+      if (order.userId !== req.user!.id) {
+        return res.status(403).json({ message: "شما مجاز به دسترسی به این سفارش نیستید" });
+      }
+
+      // Set payment started time
+      const now = new Date();
+      await db.update(orders).set({
+        paymentStartedAt: now
+      }).where(eq(orders.id, req.params.orderId));
+
+      res.json({
+        success: true,
+        paymentStartedAt: now.toISOString()
+      });
+    } catch (error) {
+      console.error("Start payment timer error:", error);
+      res.status(500).json({ message: "خطا در شروع تایمر پرداخت" });
+    }
+  });
+
+  // Get payment timer status for an order
+  app.get("/api/orders/:orderId/payment-timer", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      
+      if (!order) {
+        return res.status(404).json({ message: "سفارش یافت نشد" });
+      }
+
+      // Verify that the order belongs to the current user
+      if (order.userId !== req.user!.id) {
+        return res.status(403).json({ message: "شما مجاز به دسترسی به این سفارش نیستید" });
+      }
+
+      if (!order.paymentStartedAt) {
+        return res.json({
+          hasTimer: false,
+          remainingSeconds: 0
+        });
+      }
+
+      const startTime = new Date(order.paymentStartedAt).getTime();
+      const currentTime = new Date().getTime();
+      const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+      const totalSeconds = 10 * 60; // 10 minutes
+      const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+
+      res.json({
+        hasTimer: true,
+        paymentStartedAt: order.paymentStartedAt,
+        remainingSeconds,
+        isExpired: remainingSeconds === 0
+      });
+    } catch (error) {
+      console.error("Get payment timer error:", error);
+      res.status(500).json({ message: "خطا در دریافت وضعیت تایمر پرداخت" });
     }
   });
 
