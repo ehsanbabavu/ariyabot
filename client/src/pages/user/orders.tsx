@@ -233,7 +233,12 @@ export default function OrdersPage() {
 
   const handleSelectPaymentMethod = (method: PaymentMethod) => {
     setSelectedPaymentMethod(method);
-    setPaymentStep(2);
+  };
+
+  const handleProceedToPayment = () => {
+    if (selectedPaymentMethod) {
+      setPaymentStep(2);
+    }
   };
 
   const handleBackToMethodSelection = () => {
@@ -1023,6 +1028,7 @@ export default function OrdersPage() {
 
               {paymentStep === 1 ? (
                 /* Step 1: Select Payment Method */
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Crypto Payment Card */}
                   <Card className="border-2 border-blue-200 cursor-pointer hover:shadow-lg transition-shadow">
@@ -1052,7 +1058,11 @@ export default function OrdersPage() {
                               </div>
                               <Checkbox 
                                 checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'TRX'}
-                                onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'TRX' })}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleSelectPaymentMethod({ type: 'crypto', crypto: 'TRX' });
+                                  }
+                                }}
                               />
                             </div>
                           )}
@@ -1074,7 +1084,11 @@ export default function OrdersPage() {
                               </div>
                               <Checkbox 
                                 checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'USDT'}
-                                onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'USDT' })}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleSelectPaymentMethod({ type: 'crypto', crypto: 'USDT' });
+                                  }
+                                }}
                               />
                             </div>
                           )}
@@ -1096,7 +1110,11 @@ export default function OrdersPage() {
                               </div>
                               <Checkbox 
                                 checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'XRP'}
-                                onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'XRP' })}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleSelectPaymentMethod({ type: 'crypto', crypto: 'XRP' });
+                                  }
+                                }}
                               />
                             </div>
                           )}
@@ -1118,7 +1136,11 @@ export default function OrdersPage() {
                               </div>
                               <Checkbox 
                                 checked={selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod.crypto === 'ADA'}
-                                onCheckedChange={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'ADA' })}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    handleSelectPaymentMethod({ type: 'crypto', crypto: 'ADA' });
+                                  }
+                                }}
                               />
                             </div>
                           )}
@@ -1186,28 +1208,23 @@ export default function OrdersPage() {
                         </div>
                         <Checkbox 
                           checked={selectedPaymentMethod?.type === 'card'}
-                          onCheckedChange={() => handleSelectPaymentMethod({ type: 'card' })}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              handleSelectPaymentMethod({ type: 'card' });
+                            }
+                          }}
                         />
                       </div>
                     </CardContent>
                   </Card>
                 </div>
+                </>
               ) : (
                 /* Step 2: Payment Details */
                 <div className="space-y-4">
                   {selectedPaymentMethod?.type === 'crypto' ? (
                     /* Crypto Payment Details */
                     <div className="space-y-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleBackToMethodSelection}
-                        className="mb-2"
-                      >
-                        <ArrowRight className="w-4 h-4 ml-1" />
-                        بازگشت
-                      </Button>
-
                       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
                         <CardContent className="p-6">
                           <div className="flex items-center gap-4 mb-6">
@@ -1288,16 +1305,6 @@ export default function OrdersPage() {
                   ) : (
                     /* Bank Card Payment Details - Manual Transaction Form */
                     <div className="space-y-4">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleBackToMethodSelection}
-                        className="mb-2"
-                      >
-                        <ArrowRight className="w-4 h-4 ml-1" />
-                        بازگشت
-                      </Button>
-
                       <Card>
                         <CardHeader>
                           <CardTitle className="text-base">ثبت اطلاعات تراکنش کارت به کارت</CardTitle>
@@ -1439,12 +1446,23 @@ export default function OrdersPage() {
 
               {/* Action Buttons */}
               {paymentStep === 1 && (
-                <div className="flex justify-end gap-3 pt-4 border-t">
+                <div className="flex justify-start gap-3 pt-4 border-t">
                   <Button
                     variant="outline"
                     onClick={() => setPaymentDialogOpen(false)}
+                    className="min-w-[120px]"
+                    size="default"
                   >
                     بستن
+                  </Button>
+                  <Button
+                    onClick={handleProceedToPayment}
+                    disabled={!selectedPaymentMethod}
+                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed min-w-[120px]"
+                    size="default"
+                  >
+                    <CreditCard className="w-4 h-4 ml-2" />
+                    پرداخت
                   </Button>
                 </div>
               )}
