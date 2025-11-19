@@ -105,6 +105,7 @@ export default function OrdersPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [formattedAmount, setFormattedAmount] = useState('');
+  const [paymentTimer, setPaymentTimer] = useState<number>(0); // زمان باقی‌مانده به ثانیه
 
   // Fetch crypto prices
   const { data: cryptoPricesData } = useQuery<{
@@ -235,8 +236,16 @@ export default function OrdersPage() {
     setSelectedPaymentMethod(method);
   };
 
-  const handleProceedToPayment = () => {
-    if (selectedPaymentMethod) {
+  const handleProceedToPayment = async () => {
+    if (selectedPaymentMethod && selectedPaymentOrderId) {
+      // برای ارز دیجیتال، تایمر رو شروع کن
+      if (selectedPaymentMethod.type === 'crypto') {
+        try {
+          await apiRequest('POST', `/api/orders/${selectedPaymentOrderId}/start-payment-timer`);
+        } catch (error) {
+          console.error('Error starting payment timer:', error);
+        }
+      }
       setPaymentStep(2);
     }
   };
@@ -244,6 +253,43 @@ export default function OrdersPage() {
   const handleBackToMethodSelection = () => {
     setPaymentStep(1);
     setSelectedPaymentMethod(null);
+  };
+
+  // دریافت زمان تایمر برای پرداخت ارز دیجیتال
+  useEffect(() => {
+    if (paymentStep === 2 && selectedPaymentMethod?.type === 'crypto' && selectedPaymentOrderId) {
+      // دریافت اولیه
+      const fetchTimer = async () => {
+        try {
+          const response = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/payment-timer`);
+          const data = await response.json();
+          console.log('Timer data:', data);
+          if (data.hasTimer && data.remainingSeconds !== undefined) {
+            setPaymentTimer(data.remainingSeconds);
+            console.log('Set timer to:', data.remainingSeconds);
+          }
+        } catch (error) {
+          console.error('Error fetching payment timer:', error);
+        }
+      };
+
+      fetchTimer();
+
+      // دریافت هر ثانیه
+      const interval = setInterval(fetchTimer, 1000);
+
+      return () => clearInterval(interval);
+    } else {
+      // اگر در step 2 نیستیم یا crypto نیست، تایمر رو صفر کن
+      setPaymentTimer(0);
+    }
+  }, [paymentStep, selectedPaymentMethod, selectedPaymentOrderId]);
+
+  // تبدیل ثانیه به فرمت mm:ss
+  const formatTimer = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -1002,10 +1048,10 @@ export default function OrdersPage() {
           form.reset();
         }
       }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
           <DialogHeader>
             <DialogTitle className="text-right text-xl">
-              {paymentStep === 1 ? 'انتخاب روش پرداخت' : 'جزئیات پرداخت'}
+              {paymentStep === 2 && 'جزئیات پرداخت'}
             </DialogTitle>
           </DialogHeader>
           
@@ -1051,9 +1097,6 @@ export default function OrdersPage() {
                                 <img src="/images/tron-logo.jpg" alt="TRX" className="w-8 h-8 rounded-full" />
                                 <div>
                                   <div className="font-semibold">TRX (Tron)</div>
-                                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                                    {new Intl.NumberFormat('fa-IR').format(cryptoPrices.TRX)} تومان
-                                  </div>
                                 </div>
                               </div>
                               <Checkbox 
@@ -1077,9 +1120,6 @@ export default function OrdersPage() {
                                 <img src="/images/usdt-logo.jpg" alt="USDT" className="w-8 h-8 rounded-full" />
                                 <div>
                                   <div className="font-semibold">USDT (Tether)</div>
-                                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                                    {new Intl.NumberFormat('fa-IR').format(cryptoPrices.USDT)} تومان
-                                  </div>
                                 </div>
                               </div>
                               <Checkbox 
@@ -1103,9 +1143,6 @@ export default function OrdersPage() {
                                 <img src="/images/xrp-logo.jpg" alt="XRP" className="w-8 h-8 rounded-full" />
                                 <div>
                                   <div className="font-semibold">XRP (Ripple)</div>
-                                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                                    {new Intl.NumberFormat('fa-IR').format(cryptoPrices.XRP)} تومان
-                                  </div>
                                 </div>
                               </div>
                               <Checkbox 
@@ -1129,9 +1166,6 @@ export default function OrdersPage() {
                                 <img src="/images/ada-logo.png" alt="ADA" className="w-8 h-8 rounded-full" />
                                 <div>
                                   <div className="font-semibold">ADA (Cardano)</div>
-                                  <div className="text-xs text-gray-600 dark:text-gray-400">
-                                    {new Intl.NumberFormat('fa-IR').format(cryptoPrices.ADA)} تومان
-                                  </div>
                                 </div>
                               </div>
                               <Checkbox 
@@ -1190,17 +1224,10 @@ export default function OrdersPage() {
                                   <span className="font-semibold">{sellerInfo.bankCardHolderName}</span>
                                 </div>
                               )}
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                                مبلغ: {formatPrice(selectedPaymentOrder.totalAmount)}
-                              </div>
                             </div>
                           ) : (
                             <div className="text-center">
-                              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">مبلغ قابل پرداخت</div>
-                              <div className="text-xl font-bold text-green-600">
-                                {formatPrice(selectedPaymentOrder.totalAmount)}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 اطلاعات کارت از فروشنده دریافت شود
                               </div>
                             </div>
@@ -1281,6 +1308,24 @@ export default function OrdersPage() {
                                   </div>
                                 );
                               })()}
+
+                              {/* Payment Timer */}
+                              {paymentTimer > 0 && (
+                                <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                                      <span className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">زمان باقی‌مانده برای پرداخت:</span>
+                                    </div>
+                                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 font-mono">
+                                      {formatTimer(paymentTimer)}
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                                    لطفاً قبل از اتمام زمان، تراکنش خود را ثبت کنید
+                                  </p>
+                                </div>
+                              )}
 
                               {/* Amount Details */}
                               <div className="space-y-2">
@@ -1446,7 +1491,7 @@ export default function OrdersPage() {
 
               {/* Action Buttons */}
               {paymentStep === 1 && (
-                <div className="flex justify-start gap-3 pt-4 border-t">
+                <div className="flex justify-end gap-3 pt-4 border-t">
                   <Button
                     variant="outline"
                     onClick={() => setPaymentDialogOpen(false)}
