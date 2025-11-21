@@ -98,10 +98,10 @@ export default function OrdersPage() {
     return new Intl.NumberFormat('fa-IR').format(Number(price)) + ' تومان';
   };
 
-  // Payment dialog states
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  // Payment dialog states - دو dialog جداگانه
+  const [step1DialogOpen, setStep1DialogOpen] = useState(false); // Dialog انتخاب روش پرداخت
+  const [step2DialogOpen, setStep2DialogOpen] = useState(false); // Dialog جزئیات ارز دیجیتال
   const [selectedPaymentOrderId, setSelectedPaymentOrderId] = useState<string | null>(null);
-  const [paymentStep, setPaymentStep] = useState<1 | 2>(1); // Step 1: Select method, Step 2: Details
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [formattedAmount, setFormattedAmount] = useState('');
@@ -140,14 +140,31 @@ export default function OrdersPage() {
       const response = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/seller-info`);
       return response.json();
     },
-    enabled: !!selectedPaymentOrderId && paymentDialogOpen,
+    enabled: !!selectedPaymentOrderId && (step1DialogOpen || step2DialogOpen),
   });
 
-  const handlePayment = (orderId: string) => {
+  const handlePayment = async (orderId: string) => {
     setSelectedPaymentOrderId(orderId);
-    setPaymentStep(1);
-    setSelectedPaymentMethod(null);
-    setPaymentDialogOpen(true);
+    
+    // چک کردن timer برای تصمیم‌گیری بین Step 1 یا Step 2
+    try {
+      const timerResponse = await apiRequest('GET', `/api/orders/${orderId}/payment-timer`);
+      const timerData = await timerResponse.json();
+      
+      // اگر تایمر فعال است، مستقیماً Step 2 را باز کن
+      if (timerData.hasTimer && timerData.remainingSeconds > 0) {
+        setSelectedPaymentMethod({ type: 'crypto', crypto: 'TRX' });
+        setStep2DialogOpen(true);
+      } else {
+        // اگر تایمر نیست، Step 1 را باز کن
+        setSelectedPaymentMethod(null);
+        setStep1DialogOpen(true);
+      }
+    } catch (error) {
+      // در صورت خطا، Step 1 را باز کن
+      setSelectedPaymentMethod(null);
+      setStep1DialogOpen(true);
+    }
   };
 
   const copyToClipboard = async (text: string, label: string) => {
@@ -191,8 +208,8 @@ export default function OrdersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-      setPaymentDialogOpen(false);
-      setPaymentStep(1);
+      setStep1DialogOpen(false);
+      setStep2DialogOpen(false);
       setSelectedPaymentMethod(null);
       form.reset();
       toast({
@@ -238,52 +255,119 @@ export default function OrdersPage() {
 
   const handleProceedToPayment = async () => {
     if (selectedPaymentMethod && selectedPaymentOrderId) {
-      // برای ارز دیجیتال، تایمر رو شروع کن
+      // برای ارز دیجیتال، تایمر رو بررسی کن
       if (selectedPaymentMethod.type === 'crypto') {
         try {
-          await apiRequest('POST', `/api/orders/${selectedPaymentOrderId}/start-payment-timer`);
+          // اول چک کن که آیا timer قبلا شروع شده و هنوز معتبره
+          const timerResponse = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/payment-timer`);
+          const timerData = await timerResponse.json();
+          
+          console.log('🔍 timer check:', timerData);
+          
+          // اگر timer موجود و معتبر است، دوباره شروع نکن
+          if (timerData.hasTimer && timerData.remainingSeconds > 0 && !timerData.isExpired) {
+            console.log('✅ Timer قبلاً موجود است، دوباره start نمی‌کنیم');
+            // بستن Step 1 و باز کردن Step 2
+            setStep1DialogOpen(false);
+            setStep2DialogOpen(true);
+            return;
+          }
+          
+          // اگر timer نیست یا expire شده، timer جدید شروع کن
+          console.log('⏱️ Timer جدید شروع می‌شود...');
+          const startResponse = await apiRequest('POST', `/api/orders/${selectedPaymentOrderId}/start-payment-timer`);
+          console.log('✅ Timer جدید شروع شد:', startResponse);
+          
+          // بستن Step 1 و باز کردن Step 2
+          setStep1DialogOpen(false);
+          setStep2DialogOpen(true);
         } catch (error) {
-          console.error('Error starting payment timer:', error);
+          console.error('❌ خطا در مدیریت timer:', error);
+          toast({
+            title: 'خطا',
+            description: 'خطا در شروع تایمر پرداخت',
+            variant: 'destructive'
+          });
+          return;
         }
+      } else {
+        // برای کارت بانکی
+        setStep1DialogOpen(false);
+        setStep2DialogOpen(true);
       }
-      setPaymentStep(2);
     }
   };
 
   const handleBackToMethodSelection = () => {
-    setPaymentStep(1);
+    // بستن Step 2 و باز کردن Step 1
+    setStep2DialogOpen(false);
+    setStep1DialogOpen(true);
     setSelectedPaymentMethod(null);
   };
 
   // دریافت زمان تایمر برای پرداخت ارز دیجیتال
   useEffect(() => {
-    if (paymentStep === 2 && selectedPaymentMethod?.type === 'crypto' && selectedPaymentOrderId) {
-      // دریافت اولیه
+    if (step2DialogOpen && selectedPaymentMethod?.type === 'crypto' && selectedPaymentOrderId) {
+      // دریافت اولیه از سرور - این مطمئن می‌کند باقی وقت درست باز یابی شود
       const fetchTimer = async () => {
         try {
           const response = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/payment-timer`);
           const data = await response.json();
-          console.log('Timer data:', data);
-          if (data.hasTimer && data.remainingSeconds !== undefined) {
+          console.log('✅ داده تایمر:', data);
+          // اگر timer موجود و باقی وقت دارد
+          if (data.hasTimer && data.remainingSeconds !== undefined && data.remainingSeconds > 0) {
             setPaymentTimer(data.remainingSeconds);
-            console.log('Set timer to:', data.remainingSeconds);
+            console.log('✅ تایمر بروزرسانی شد:', data.remainingSeconds, 'ثانیه');
+          } else if (data.remainingSeconds === 0) {
+            // تایمر تمام شده - صفر باقی بمان (دوباره شروع نشود)
+            console.log('⏱️ تایمر تمام شده - منتظر انتخاب روش جدید');
+            setPaymentTimer(0);
+          } else {
+            // اگر timer موجود نیست، 600 سے شروع کن
+            setPaymentTimer(600);
+            console.log('⏱️ نیا timer: 10:00');
           }
         } catch (error) {
-          console.error('Error fetching payment timer:', error);
+          console.error('❌ خطا در دریافت تایمر:', error);
+          // در صورت خطا، صفر باقی بمان (دوباره شروع نشود)
+          setPaymentTimer(0);
         }
       };
 
+      // فوری فراخوانی
       fetchTimer();
 
-      // دریافت هر ثانیه
-      const interval = setInterval(fetchTimer, 1000);
+      // Countdown timer - هر ثانیه 1 کم کن
+      const countdownInterval = setInterval(() => {
+        setPaymentTimer(prev => {
+          if (prev > 0) {
+            return prev - 1;
+          }
+          return 0;
+        });
+      }, 1000);
 
-      return () => clearInterval(interval);
+      // Sync با سرور هر 5 ثانیه برای accuracy
+      const syncInterval = setInterval(fetchTimer, 5000);
+
+      return () => {
+        clearInterval(countdownInterval);
+        clearInterval(syncInterval);
+      };
     } else {
-      // اگر در step 2 نیستیم یا crypto نیست، تایمر رو صفر کن
+      // اگر در Step 2 نیستیم یا crypto نیست، تایمر رو صفر کن
       setPaymentTimer(0);
     }
-  }, [paymentStep, selectedPaymentMethod, selectedPaymentOrderId]);
+  }, [step2DialogOpen, selectedPaymentMethod, selectedPaymentOrderId]);
+
+  // وقتی تایمر 0 شود، برگرد به Step 1 و منتظر انتخاب روش جدید باش
+  useEffect(() => {
+    if (paymentTimer === 0 && step2DialogOpen) {
+      setStep2DialogOpen(false);
+      setStep1DialogOpen(true);
+      setSelectedPaymentMethod(null);
+    }
+  }, [paymentTimer, step2DialogOpen]);
 
   // تبدیل ثانیه به فرمت mm:ss
   const formatTimer = (seconds: number): string => {
@@ -533,23 +617,19 @@ export default function OrdersPage() {
               
               return (
                 <Card key={order.id} className="overflow-hidden hover:shadow-lg transition-shadow" data-testid={`card-order-${order.id}`}>
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-3 sm:p-6">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <Package className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-2 sm:p-3">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <Package className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
                         <div>
-                          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                          <CardTitle className="text-sm sm:text-base">
                             سفارش #{order.orderNumber || order.id.slice(0, 8)}
-                            <StatusIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                           </CardTitle>
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                            {new Date(order.createdAt!).toLocaleDateString('fa-IR')}
-                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 self-end sm:self-auto">
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
                         <Badge 
-                          className={`${statusColors[order.status as keyof typeof statusColors]} text-xs`}
+                          className={`${statusColors[order.status as keyof typeof statusColors]} text-xs py-1 px-2`}
                           data-testid={`status-${order.id}`}
                         >
                           {statusLabels[order.status as keyof typeof statusLabels]}
@@ -628,9 +708,6 @@ export default function OrdersPage() {
                           </DialogTrigger>
                           <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
-                              <DialogTitle className="text-right">
-                                فاکتور سفارش #{selectedOrderData?.orderNumber || order.id.slice(0, 8)}
-                              </DialogTitle>
                             </DialogHeader>
                             {isLoadingOrderData ? (
                               <div className="flex items-center justify-center py-12">
@@ -642,29 +719,29 @@ export default function OrdersPage() {
                             ) : selectedOrderData ? (
                               <div className="mt-6 space-y-6" dir="rtl">
                                 {/* Invoice Header */}
-                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-6 rounded-lg">
-                                  <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-3 rounded-lg">
+                                  <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                      <p className="text-sm text-gray-600 dark:text-gray-400">شماره سفارش</p>
-                                      <p className="font-bold text-lg">{selectedOrderData.orderNumber || selectedOrderData.id.slice(0, 8)}</p>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">شماره سفارش</p>
+                                      <p className="font-bold text-sm">{selectedOrderData.orderNumber || selectedOrderData.id.slice(0, 8)}</p>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-gray-600 dark:text-gray-400">تاریخ سفارش</p>
-                                      <p className="font-medium">{new Date(selectedOrderData.createdAt!).toLocaleDateString('fa-IR')}</p>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">تاریخ سفارش</p>
+                                      <p className="font-medium text-xs">{new Date(selectedOrderData.createdAt!).toLocaleDateString('fa-IR')}</p>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-gray-600 dark:text-gray-400">وضعیت</p>
-                                      <Badge className={statusColors[selectedOrderData.status as keyof typeof statusColors]}>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">وضعیت</p>
+                                      <Badge className={`${statusColors[selectedOrderData.status as keyof typeof statusColors]} text-xs py-0.5 px-1`}>
                                         {statusLabels[selectedOrderData.status as keyof typeof statusLabels]}
                                       </Badge>
                                     </div>
                                     <div>
-                                      <p className="text-sm text-gray-600 dark:text-gray-400">آدرس تحویل</p>
-                                      <p className="font-medium">
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">آدرس تحویل</p>
+                                      <p className="font-medium text-xs line-clamp-1">
                                         {selectedOrderData.fullAddress ? (
                                           <>
                                             {selectedOrderData.addressTitle && (
-                                              <span className="text-blue-600 font-semibold ml-2">{selectedOrderData.addressTitle}:</span>
+                                              <span className="text-blue-600 font-semibold ml-1">{selectedOrderData.addressTitle}:</span>
                                             )}
                                             {selectedOrderData.fullAddress}
                                           </>
@@ -1039,11 +1116,10 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Payment Dialog */}
-      <Dialog open={paymentDialogOpen} onOpenChange={(open) => {
-        setPaymentDialogOpen(open);
+      {/* Step 1 Dialog - انتخاب روش پرداخت */}
+      <Dialog open={step1DialogOpen} onOpenChange={(open) => {
+        setStep1DialogOpen(open);
         if (!open) {
-          setPaymentStep(1);
           setSelectedPaymentMethod(null);
           form.reset();
         }
@@ -1051,7 +1127,7 @@ export default function OrdersPage() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
           <DialogHeader>
             <DialogTitle className="text-right text-xl">
-              {paymentStep === 2 && 'جزئیات پرداخت'}
+              انتخاب روش پرداخت
             </DialogTitle>
           </DialogHeader>
           
@@ -1088,9 +1164,9 @@ export default function OrdersPage() {
                       {cryptoPrices ? (
                         <div className="space-y-2">
                           {/* TRX */}
-                          {activeWallets.includes('tron') && (
+                          {(!activeWallets.length || activeWallets.includes('tron')) && (
                             <div 
-                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                               onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'TRX' })}
                             >
                               <div className="flex items-center gap-3 flex-1">
@@ -1111,9 +1187,9 @@ export default function OrdersPage() {
                           )}
 
                           {/* USDT */}
-                          {activeWallets.includes('usdt') && (
+                          {(!activeWallets.length || activeWallets.includes('usdt')) && (
                             <div 
-                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                               onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'USDT' })}
                             >
                               <div className="flex items-center gap-3 flex-1">
@@ -1134,9 +1210,9 @@ export default function OrdersPage() {
                           )}
 
                           {/* XRP */}
-                          {activeWallets.includes('ripple') && (
+                          {(!activeWallets.length || activeWallets.includes('ripple')) && (
                             <div 
-                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                               onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'XRP' })}
                             >
                               <div className="flex items-center gap-3 flex-1">
@@ -1157,9 +1233,9 @@ export default function OrdersPage() {
                           )}
 
                           {/* ADA */}
-                          {activeWallets.includes('cardano') && (
+                          {(!activeWallets.length || activeWallets.includes('cardano')) && (
                             <div 
-                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+                              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                               onClick={() => handleSelectPaymentMethod({ type: 'crypto', crypto: 'ADA' })}
                             >
                               <div className="flex items-center gap-3 flex-1">
@@ -1246,8 +1322,8 @@ export default function OrdersPage() {
                   </Card>
                 </div>
                 </>
-              ) : (
-                /* Step 2: Payment Details */
+              ) : paymentStep === 2 ? (
+                /* Step 2: Payment Details - Always Crypto When Timer Active */
                 <div className="space-y-4">
                   {selectedPaymentMethod?.type === 'crypto' ? (
                     /* Crypto Payment Details */
@@ -1255,19 +1331,19 @@ export default function OrdersPage() {
                       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
                         <CardContent className="p-6">
                           <div className="flex items-center gap-4 mb-6">
-                            {selectedPaymentMethod.crypto === 'TRX' && <img src="/images/tron-logo.jpg" alt="TRX" className="w-12 h-12 rounded-full" />}
-                            {selectedPaymentMethod.crypto === 'USDT' && <img src="/images/usdt-logo.jpg" alt="USDT" className="w-12 h-12 rounded-full" />}
-                            {selectedPaymentMethod.crypto === 'XRP' && <img src="/images/xrp-logo.jpg" alt="XRP" className="w-12 h-12 rounded-full" />}
-                            {selectedPaymentMethod.crypto === 'ADA' && <img src="/images/ada-logo.png" alt="ADA" className="w-12 h-12 rounded-full" />}
+                            {selectedPaymentMethod?.crypto === 'TRX' && <img src="/images/tron-logo.jpg" alt="TRX" className="w-12 h-12 rounded-full" />}
+                            {selectedPaymentMethod?.crypto === 'USDT' && <img src="/images/usdt-logo.jpg" alt="USDT" className="w-12 h-12 rounded-full" />}
+                            {selectedPaymentMethod?.crypto === 'XRP' && <img src="/images/xrp-logo.jpg" alt="XRP" className="w-12 h-12 rounded-full" />}
+                            {selectedPaymentMethod?.crypto === 'ADA' && <img src="/images/ada-logo.png" alt="ADA" className="w-12 h-12 rounded-full" />}
                             <div>
                               <h3 className="text-xl font-bold">
-                                {selectedPaymentMethod.crypto === 'TRX' && 'TRX (Tron)'}
-                                {selectedPaymentMethod.crypto === 'USDT' && 'USDT (Tether)'}
-                                {selectedPaymentMethod.crypto === 'XRP' && 'XRP (Ripple)'}
-                                {selectedPaymentMethod.crypto === 'ADA' && 'ADA (Cardano)'}
+                                {selectedPaymentMethod?.crypto === 'TRX' && 'TRX (Tron)'}
+                                {selectedPaymentMethod?.crypto === 'USDT' && 'USDT (Tether)'}
+                                {selectedPaymentMethod?.crypto === 'XRP' && 'XRP (Ripple)'}
+                                {selectedPaymentMethod?.crypto === 'ADA' && 'ADA (Cardano)'}
                               </h3>
                               <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {cryptoPrices && new Intl.NumberFormat('fa-IR').format(cryptoPrices[selectedPaymentMethod.crypto])} تومان
+                                {cryptoPrices && selectedPaymentMethod?.crypto && new Intl.NumberFormat('fa-IR').format(cryptoPrices[selectedPaymentMethod.crypto])} تومان
                               </p>
                             </div>
                           </div>
@@ -1277,19 +1353,22 @@ export default function OrdersPage() {
                             <div className="space-y-4">
                               {(() => {
                                 let walletAddress = '';
-                                if (selectedPaymentMethod.crypto === 'TRX') walletAddress = sellerInfo.tronWalletAddress || '';
-                                if (selectedPaymentMethod.crypto === 'USDT') walletAddress = sellerInfo.usdtTrc20WalletAddress || '';
-                                if (selectedPaymentMethod.crypto === 'XRP') walletAddress = sellerInfo.rippleWalletAddress || '';
-                                if (selectedPaymentMethod.crypto === 'ADA') walletAddress = sellerInfo.cardanoWalletAddress || '';
+                                if (selectedPaymentMethod?.crypto === 'TRX') walletAddress = sellerInfo.tronWalletAddress || '';
+                                if (selectedPaymentMethod?.crypto === 'USDT') walletAddress = sellerInfo.usdtTrc20WalletAddress || '';
+                                if (selectedPaymentMethod?.crypto === 'XRP') walletAddress = sellerInfo.rippleWalletAddress || '';
+                                if (selectedPaymentMethod?.crypto === 'ADA') walletAddress = sellerInfo.cardanoWalletAddress || '';
 
                                 return walletAddress ? (
                                   <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
-                                    <div className="flex items-center justify-between mb-2">
+                                    <div className="mb-3">
                                       <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">آدرس ولت:</span>
+                                    </div>
+                                    <div className="flex flex-row-reverse items-center gap-2 bg-gray-50 dark:bg-gray-900 p-3 rounded">
                                       <Button
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => copyToClipboard(walletAddress, 'آدرس ولت')}
+                                        className="flex-shrink-0"
                                       >
                                         {copiedAddress === 'آدرس ولت' ? (
                                           <Check className="w-4 h-4 text-green-600" />
@@ -1297,10 +1376,10 @@ export default function OrdersPage() {
                                           <Copy className="w-4 h-4" />
                                         )}
                                       </Button>
+                                      <p className="font-mono text-lg font-bold break-all text-center flex-1">
+                                        {walletAddress}
+                                      </p>
                                     </div>
-                                    <p className="font-mono text-sm break-all bg-gray-50 dark:bg-gray-900 p-2 rounded">
-                                      {walletAddress}
-                                    </p>
                                   </div>
                                 ) : (
                                   <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
@@ -1332,7 +1411,7 @@ export default function OrdersPage() {
                                 <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded">
                                   <span className="text-sm text-gray-600 dark:text-gray-400">مقدار واریزی:</span>
                                   <span className="font-bold text-lg">
-                                    {cryptoPrices && (Number(selectedPaymentOrder.totalAmount) / cryptoPrices[selectedPaymentMethod.crypto]).toFixed(6)} {selectedPaymentMethod.crypto}
+                                    {cryptoPrices && selectedPaymentMethod?.crypto && (Number(selectedPaymentOrder.totalAmount) / cryptoPrices[selectedPaymentMethod.crypto]).toFixed(6)} {selectedPaymentMethod?.crypto}
                                   </span>
                                 </div>
                                 <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded">
@@ -1348,7 +1427,7 @@ export default function OrdersPage() {
                       </Card>
                     </div>
                   ) : (
-                    /* Bank Card Payment Details - Manual Transaction Form */
+                    /* Bank Card Payment Details - Manual Transaction Form - Only when Timer = 0 */
                     <div className="space-y-4">
                       <Card>
                         <CardHeader>
@@ -1487,7 +1566,7 @@ export default function OrdersPage() {
                     </div>
                   )}
                 </div>
-              )}
+              ) : null}
 
               {/* Action Buttons */}
               {paymentStep === 1 && (

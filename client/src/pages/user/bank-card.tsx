@@ -21,9 +21,20 @@ export default function BankCardPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: user, isLoading } = useQuery<User>({
+  const { data: user, isLoading, error } = useQuery<User>({
     queryKey: ["/api/auth/me"],
   });
+
+  // اگر خطای دسترسی باشد
+  if (error) {
+    return (
+      <DashboardLayout title="کارت بانکی">
+        <div className="text-center py-8">
+          <p className="text-red-600">خطا در بارگذاری اطلاعات</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   useEffect(() => {
     if (user) {
@@ -47,12 +58,20 @@ export default function BankCardPage() {
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "موفق",
         description: "اطلاعات کارت بانکی با موفقیت ذخیره شد",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      // بروزرسانی cache بدون refetch
+      queryClient.setQueryData(["/api/auth/me"], (oldData: any) => ({
+        ...oldData,
+        user: {
+          ...oldData?.user,
+          bankCardNumber: data.bankCardNumber,
+          bankCardHolderName: data.bankCardHolderName,
+        }
+      }));
     },
     onError: (error: Error) => {
       toast({

@@ -124,7 +124,6 @@ export default function BankCardsManagement() {
                         <TableHead className="text-right">کاربر</TableHead>
                         <TableHead className="text-right">شماره کارت</TableHead>
                         <TableHead className="text-right">نام صاحب کارت</TableHead>
-                        <TableHead className="text-right">شماره تماس</TableHead>
                         <TableHead className="text-right">وضعیت</TableHead>
                         <TableHead className="text-right">عملیات</TableHead>
                       </TableRow>
@@ -144,7 +143,6 @@ export default function BankCardsManagement() {
                             </code>
                           </TableCell>
                           <TableCell>{card.bankCardHolderName}</TableCell>
-                          <TableCell dir="ltr" className="text-right">{card.phone}</TableCell>
                           <TableCell>{getStatusBadge(card.bankCardApprovalStatus)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

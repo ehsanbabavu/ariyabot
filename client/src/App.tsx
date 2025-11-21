@@ -242,7 +242,7 @@ function Router() {
       <Route path="/customer-chats" component={() => <Level1Route component={WithLayout(CustomerChats, "مدیریت چت با مشتریان")} />} />
       <Route path="/shipping-settings" component={() => <AdminOrLevel1Route component={ShippingSettings} />} />
       <Route path="/vat-settings" component={() => <AdminOrLevel1Route component={VatSettings} />} />
-      <Route path="/bank-card" component={() => <Level1Route component={BankCard} />} />
+      <Route path="/bank-card" component={() => <AdminOrLevel1Route component={BankCard} />} />
       <Route path="/chat-with-seller" component={() => <Level2Route component={ChatWithSeller} />} />
       <Route path="/faqs" component={() => <ProtectedRoute component={FaqsPage} />} />
       <Route path="/manage-faqs" component={() => <AdminOrLevel1Route component={ManageFaqsPage} />} />
