@@ -2396,15 +2396,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "شما مجاز به دسترسی به این سفارش نیستید" });
       }
 
-      // Set payment started time
+      // چک کردن اینکه آیا timer قبلاً شروع شده و هنوز معتبر است
+      if (order.paymentStartedAt) {
+        const startTime = new Date(order.paymentStartedAt).getTime();
+        const currentTime = new Date().getTime();
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+        const totalSeconds = 10 * 60; // 10 minutes
+        const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+        
+        // اگر timer هنوز معتبر است (expire نشده)، دوباره set نکن
+        if (remainingSeconds > 0) {
+          console.log(`⏱️ Timer قبلاً موجود است برای سفارش ${req.params.orderId} - باقیمانده: ${remainingSeconds}s`);
+          return res.json({
+            success: true,
+            paymentStartedAt: order.paymentStartedAt,
+            alreadyStarted: true,
+            remainingSeconds
+          });
+        }
+        
+        console.log(`⌛ Timer قبلی expire شده برای سفارش ${req.params.orderId} - ایجاد timer جدید`);
+      }
+
+      // Set payment started time - فقط اگر timer نیست یا expire شده
       const now = new Date();
       await db.update(orders).set({
         paymentStartedAt: now
       }).where(eq(orders.id, req.params.orderId));
 
+      console.log(`✅ Timer جدید شروع شد برای سفارش ${req.params.orderId}`);
+      
       res.json({
         success: true,
-        paymentStartedAt: now.toISOString()
+        paymentStartedAt: now.toISOString(),
+        alreadyStarted: false
       });
     } catch (error) {
       console.error("Start payment timer error:", error);
@@ -2415,6 +2440,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get payment timer status for an order
   app.get("/api/orders/:orderId/payment-timer", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
     try {
+      // بدون cache برای تایمر - هر بار جواب جدید
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+      
       const order = await storage.getOrder(req.params.orderId);
       
       if (!order) {

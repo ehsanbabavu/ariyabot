@@ -91,7 +91,7 @@ Preferred communication style: Simple, everyday language.
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)
-- **Date**: November 19, 2025 (Fresh GitHub Clone Import)
+- **Date**: November 21, 2025 (Fresh GitHub Clone Import)
 - **Status**: ✅ Successfully imported and configured in Replit environment
 - **Setup Actions**:
   - ✅ Installed all npm dependencies (640 packages)
@@ -106,7 +106,7 @@ Preferred communication style: Simple, everyday language.
   - ✅ All services started successfully (WhatsApp, AI, cleanup, crypto price caching)
   - ✅ Application is fully functional and accessible on port 5000
   - ✅ Persian landing page displaying correctly with RTL support
-  - ✅ Created required directories (stamppic for stamp images)
+  - ✅ Created required directories (stamppic, public/invoices, uploads, invoice)
 
 ## Environment Configuration
 1. **Database**: PostgreSQL database is provisioned and connected via `DATABASE_URL`

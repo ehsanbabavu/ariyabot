@@ -13,19 +13,24 @@ var schema_exports = {};
 __export(schema_exports, {
   addresses: () => addresses,
   aiTokenSettings: () => aiTokenSettings,
+  blockchainSettings: () => blockchainSettings,
   cartItems: () => cartItems,
   carts: () => carts,
   categories: () => categories,
   contentSections: () => contentSections,
+  cryptoPrices: () => cryptoPrices,
   faqs: () => faqs,
   insertAddressSchema: () => insertAddressSchema,
   insertAiTokenSettingsSchema: () => insertAiTokenSettingsSchema,
+  insertBlockchainSettingsSchema: () => insertBlockchainSettingsSchema,
   insertCartItemSchema: () => insertCartItemSchema,
   insertCartSchema: () => insertCartSchema,
   insertCategorySchema: () => insertCategorySchema,
   insertContentSectionSchema: () => insertContentSectionSchema,
+  insertCryptoPriceSchema: () => insertCryptoPriceSchema,
   insertFaqSchema: () => insertFaqSchema,
   insertInternalChatSchema: () => insertInternalChatSchema,
+  insertLoginLogSchema: () => insertLoginLogSchema,
   insertOrderItemSchema: () => insertOrderItemSchema,
   insertOrderSchema: () => insertOrderSchema,
   insertPasswordResetOtpSchema: () => insertPasswordResetOtpSchema,
@@ -42,6 +47,7 @@ __export(schema_exports, {
   insertVatSettingsSchema: () => insertVatSettingsSchema,
   insertWhatsappSettingsSchema: () => insertWhatsappSettingsSchema,
   internalChats: () => internalChats,
+  loginLogs: () => loginLogs,
   maintenanceMode: () => maintenanceMode,
   orderItems: () => orderItems,
   orders: () => orders,
@@ -70,7 +76,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, boolean, decimal, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, shippingSettings, passwordResetOtps, vatSettings, maintenanceMode, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, insertShippingSettingsSchema, updateShippingSettingsSchema, insertPasswordResetOtpSchema, insertVatSettingsSchema, updateVatSettingsSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema, contentSections, insertContentSectionSchema, updateContentSectionSchema;
+var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, shippingSettings, passwordResetOtps, vatSettings, maintenanceMode, cryptoPrices, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, insertShippingSettingsSchema, updateShippingSettingsSchema, insertPasswordResetOtpSchema, insertVatSettingsSchema, updateVatSettingsSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema, contentSections, insertContentSectionSchema, updateContentSectionSchema, loginLogs, insertLoginLogSchema, insertCryptoPriceSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -85,6 +91,20 @@ var init_schema = __esm({
       // WhatsApp number for automatic registration
       whatsappToken: text("whatsapp_token"),
       // Individual WhatsApp token for level 1 users
+      tronWalletAddress: text("tron_wallet_address"),
+      // TRON wallet address for crypto transactions
+      usdtTrc20WalletAddress: text("usdt_trc20_wallet_address"),
+      // USDT (TRC20) wallet address
+      rippleWalletAddress: text("ripple_wallet_address"),
+      // Ripple (XRP) wallet address
+      cardanoWalletAddress: text("cardano_wallet_address"),
+      // Cardano (ADA) wallet address
+      bankCardNumber: text("bank_card_number"),
+      // شماره کارت بانکی (برای کاربران سطح 1)
+      bankCardHolderName: text("bank_card_holder_name"),
+      // نام صاحب کارت (برای کاربران سطح 1)
+      bankCardApprovalStatus: text("bank_card_approval_status").default("pending"),
+      // pending, approved, rejected
       password: text("password"),
       googleId: text("google_id"),
       role: text("role").notNull().default("user_level_1"),
@@ -190,6 +210,19 @@ var init_schema = __esm({
     }, (table) => ({
       providerUnique: unique("ai_token_settings_provider_unique").on(table.provider)
     }));
+    blockchainSettings = pgTable("blockchain_settings", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      provider: text("provider").notNull(),
+      // cardano, tron, ripple, etc.
+      apiKey: text("api_key").notNull(),
+      isActive: boolean("is_active").notNull().default(false),
+      metadata: text("metadata"),
+      // JSON string for additional provider-specific settings
+      createdAt: timestamp("created_at").defaultNow(),
+      updatedAt: timestamp("updated_at").defaultNow()
+    }, (table) => ({
+      providerUnique: unique("blockchain_settings_provider_unique").on(table.provider)
+    }));
     internalChats = pgTable("internal_chats", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       senderId: varchar("sender_id").notNull().references(() => users.id),
@@ -275,6 +308,8 @@ var init_schema = __esm({
       // روش ارسال: post_pishtaz, post_normal, piyk, free
       notes: text("notes"),
       // یادداشت‌های کاربر
+      paymentStartedAt: timestamp("payment_started_at"),
+      // زمان شروع پرداخت برای تایمر 10 دقیقه‌ای
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
@@ -333,8 +368,8 @@ var init_schema = __esm({
       userId: varchar("user_id").notNull().references(() => users.id),
       // کاربر سطح 1 فروشنده
       postPishtazEnabled: boolean("post_pishtaz_enabled").notNull().default(false),
-      postNormalEnabled: boolean("post_normal_enabled").notNull().default(false),
-      piykEnabled: boolean("piyk_enabled").notNull().default(false),
+      postNormalEnabled: boolean("post_normal_enabled").notNull().default(true),
+      piykEnabled: boolean("piyk_enabled").notNull().default(true),
       freeShippingEnabled: boolean("free_shipping_enabled").notNull().default(false),
       freeShippingMinAmount: decimal("free_shipping_min_amount", { precision: 15, scale: 2 }),
       // مبلغ حداقل برای ارسال رایگان
@@ -383,6 +418,20 @@ var init_schema = __esm({
       // فعال/غیرفعال
       updatedAt: timestamp("updated_at").defaultNow()
     });
+    cryptoPrices = pgTable("crypto_prices", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      symbol: text("symbol").notNull(),
+      // TRX, USDT, XRP, ADA
+      priceInRial: decimal("price_in_rial", { precision: 20, scale: 2 }).notNull(),
+      // قیمت به ریال
+      priceInToman: decimal("price_in_toman", { precision: 20, scale: 2 }).notNull(),
+      // قیمت به تومان
+      fetchedAt: timestamp("fetched_at").notNull(),
+      // زمان دریافت قیمت
+      createdAt: timestamp("created_at").defaultNow()
+    }, (table) => ({
+      symbolUnique: unique("crypto_prices_symbol_unique").on(table.symbol)
+    }));
     insertUserSchema = createInsertSchema(users).omit({
       id: true,
       createdAt: true
@@ -433,6 +482,11 @@ var init_schema = __esm({
       timestamp: true
     });
     insertAiTokenSettingsSchema = createInsertSchema(aiTokenSettings).omit({
+      id: true,
+      createdAt: true,
+      updatedAt: true
+    });
+    insertBlockchainSettingsSchema = createInsertSchema(blockchainSettings).omit({
       id: true,
       createdAt: true,
       updatedAt: true
@@ -605,6 +659,22 @@ var init_schema = __esm({
     });
     insertContentSectionSchema = createInsertSchema(contentSections);
     updateContentSectionSchema = createInsertSchema(contentSections).partial().required({ id: true });
+    loginLogs = pgTable("login_logs", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      userId: varchar("user_id").notNull().references(() => users.id),
+      username: text("username").notNull(),
+      ipAddress: text("ip_address"),
+      userAgent: text("user_agent"),
+      loginAt: timestamp("login_at").defaultNow()
+    });
+    insertLoginLogSchema = createInsertSchema(loginLogs);
+    insertCryptoPriceSchema = createInsertSchema(cryptoPrices).omit({
+      id: true,
+      createdAt: true
+    }).extend({
+      priceInRial: z.union([z.string(), z.number()]).transform((val) => String(val)),
+      priceInToman: z.union([z.string(), z.number()]).transform((val) => String(val))
+    });
   }
 });
 
@@ -626,7 +696,9 @@ var init_db_storage = __esm({
       connectionString: process.env.DATABASE_URL,
       ssl: false
     });
-    db = drizzle(pool);
+    db = drizzle(pool, {
+      schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices }
+    });
     DbStorage = class {
       constructor() {
         this.initializeAdminUser();
@@ -1205,6 +1277,29 @@ var init_db_storage = __esm({
           return result[0];
         } else {
           const result = await db.insert(aiTokenSettings).values(settings).returning();
+          return result[0];
+        }
+      }
+      // Blockchain Settings
+      async getBlockchainSettings(provider) {
+        if (provider) {
+          const result2 = await db.select().from(blockchainSettings).where(eq(blockchainSettings.provider, provider)).limit(1);
+          return result2[0];
+        }
+        const result = await db.select().from(blockchainSettings).limit(1);
+        return result[0];
+      }
+      async getAllBlockchainSettings() {
+        const result = await db.select().from(blockchainSettings);
+        return result;
+      }
+      async updateBlockchainSettings(settings) {
+        const existing = await this.getBlockchainSettings(settings.provider);
+        if (existing) {
+          const result = await db.update(blockchainSettings).set({ ...settings, updatedAt: /* @__PURE__ */ new Date() }).where(eq(blockchainSettings.id, existing.id)).returning();
+          return result[0];
+        } else {
+          const result = await db.insert(blockchainSettings).values(settings).returning();
           return result[0];
         }
       }
@@ -2036,11 +2131,54 @@ var init_db_storage = __esm({
           throw error;
         }
       }
+      // Login Logs
+      async createLoginLog(log2) {
+        try {
+          const result = await db.insert(loginLogs).values(log2).returning();
+          return result[0];
+        } catch (error) {
+          console.error("Error creating login log:", error);
+          throw error;
+        }
+      }
+      async getLoginLogs(page = 1, limit = 50) {
+        try {
+          const countResult = await db.select({ count: sql2`cast(count(*) as integer)` }).from(loginLogs);
+          const total = countResult[0].count;
+          const totalPages = Math.ceil(total / limit);
+          const logs = await db.select({
+            id: loginLogs.id,
+            userId: loginLogs.userId,
+            username: loginLogs.username,
+            ipAddress: loginLogs.ipAddress,
+            userAgent: loginLogs.userAgent,
+            loginAt: loginLogs.loginAt,
+            role: users.role
+          }).from(loginLogs).leftJoin(users, eq(loginLogs.userId, users.id)).orderBy(desc(loginLogs.loginAt)).limit(limit).offset((page - 1) * limit);
+          return { logs, total, totalPages };
+        } catch (error) {
+          console.error("Error getting login logs:", error);
+          return { logs: [], total: 0, totalPages: 0 };
+        }
+      }
+      async getLoginLogsByUser(userId) {
+        try {
+          return await db.select().from(loginLogs).where(eq(loginLogs.userId, userId)).orderBy(desc(loginLogs.loginAt));
+        } catch (error) {
+          console.error("Error getting login logs by user:", error);
+          return [];
+        }
+      }
     };
   }
 });
 
 // server/storage.ts
+var storage_exports = {};
+__export(storage_exports, {
+  MemStorage: () => MemStorage,
+  storage: () => storage
+});
 import { randomUUID } from "crypto";
 import bcrypt2 from "bcryptjs";
 var MemStorage, storage;
@@ -2057,6 +2195,7 @@ var init_storage = __esm({
       sentMessages;
       receivedMessages;
       aiTokenSettings;
+      blockchainSettings;
       userSubscriptions;
       categories;
       carts;
@@ -2070,6 +2209,7 @@ var init_storage = __esm({
       shippingSettings;
       passwordResetOtps;
       vatSettings;
+      loginLogs;
       constructor() {
         this.users = /* @__PURE__ */ new Map();
         this.tickets = /* @__PURE__ */ new Map();
@@ -2079,6 +2219,7 @@ var init_storage = __esm({
         this.sentMessages = /* @__PURE__ */ new Map();
         this.receivedMessages = /* @__PURE__ */ new Map();
         this.aiTokenSettings = /* @__PURE__ */ new Map();
+        this.blockchainSettings = /* @__PURE__ */ new Map();
         this.userSubscriptions = /* @__PURE__ */ new Map();
         this.categories = /* @__PURE__ */ new Map();
         this.carts = /* @__PURE__ */ new Map();
@@ -2092,6 +2233,7 @@ var init_storage = __esm({
         this.shippingSettings = /* @__PURE__ */ new Map();
         this.passwordResetOtps = /* @__PURE__ */ new Map();
         this.vatSettings = /* @__PURE__ */ new Map();
+        this.loginLogs = /* @__PURE__ */ new Map();
         this.initializeAdminUser();
         this.initializeDefaultSubscription();
         this.initializeTestData().catch(console.error);
@@ -2113,6 +2255,10 @@ var init_storage = __esm({
           phone: "09123456789",
           whatsappNumber: null,
           whatsappToken: null,
+          tronWalletAddress: null,
+          usdtTrc20WalletAddress: null,
+          rippleWalletAddress: null,
+          cardanoWalletAddress: null,
           password: hashedPassword,
           googleId: null,
           role: "admin",
@@ -2164,6 +2310,10 @@ var init_storage = __esm({
           phone: "09111234567",
           whatsappNumber: "09111234567",
           whatsappToken: null,
+          tronWalletAddress: null,
+          usdtTrc20WalletAddress: null,
+          rippleWalletAddress: null,
+          cardanoWalletAddress: null,
           password: testUserPassword,
           googleId: null,
           role: "user_level_1",
@@ -2312,6 +2462,10 @@ var init_storage = __esm({
           profilePicture: insertUser.profilePicture || null,
           whatsappNumber: insertUser.whatsappNumber || null,
           whatsappToken: insertUser.whatsappToken || null,
+          tronWalletAddress: insertUser.tronWalletAddress || null,
+          usdtTrc20WalletAddress: insertUser.usdtTrc20WalletAddress || null,
+          rippleWalletAddress: insertUser.rippleWalletAddress || null,
+          cardanoWalletAddress: insertUser.cardanoWalletAddress || null,
           parentUserId: insertUser.parentUserId || null,
           isWhatsappRegistered: insertUser.isWhatsappRegistered || false,
           welcomeMessage: insertUser.welcomeMessage || null,
@@ -2594,11 +2748,36 @@ var init_storage = __esm({
           id: existing?.id || randomUUID(),
           provider: settings.provider,
           isActive: settings.isActive !== void 0 ? settings.isActive : false,
+          workspaceId: settings.workspaceId || null,
           createdAt: existing?.createdAt || /* @__PURE__ */ new Date(),
           updatedAt: /* @__PURE__ */ new Date()
         };
         this.aiTokenSettings.set(aiTokenSettings2.id, aiTokenSettings2);
         return aiTokenSettings2;
+      }
+      // Blockchain Settings
+      async getBlockchainSettings(provider) {
+        if (provider) {
+          return Array.from(this.blockchainSettings.values()).find((s) => s.provider === provider);
+        }
+        return Array.from(this.blockchainSettings.values())[0];
+      }
+      async getAllBlockchainSettings() {
+        return Array.from(this.blockchainSettings.values());
+      }
+      async updateBlockchainSettings(settings) {
+        const existing = Array.from(this.blockchainSettings.values()).find((s) => s.provider === settings.provider);
+        const blockchainSettings2 = {
+          ...settings,
+          id: existing?.id || randomUUID(),
+          provider: settings.provider,
+          isActive: settings.isActive !== void 0 ? settings.isActive : false,
+          metadata: settings.metadata || null,
+          createdAt: existing?.createdAt || /* @__PURE__ */ new Date(),
+          updatedAt: /* @__PURE__ */ new Date()
+        };
+        this.blockchainSettings.set(blockchainSettings2.id, blockchainSettings2);
+        return blockchainSettings2;
       }
       // User Subscriptions
       async getUserSubscription(userId) {
@@ -3375,6 +3554,33 @@ var init_storage = __esm({
           }
         }
       }
+      // Login Logs
+      async createLoginLog(log2) {
+        const id = randomUUID();
+        const newLog = {
+          id,
+          userId: log2.userId,
+          username: log2.username,
+          ipAddress: log2.ipAddress || null,
+          userAgent: log2.userAgent || null,
+          loginAt: /* @__PURE__ */ new Date()
+        };
+        this.loginLogs.set(id, newLog);
+        return newLog;
+      }
+      async getLoginLogs(page = 1, limit = 50) {
+        const allLogs = Array.from(this.loginLogs.values()).sort(
+          (a, b) => (b.loginAt?.getTime() || 0) - (a.loginAt?.getTime() || 0)
+        );
+        const total = allLogs.length;
+        const totalPages = Math.ceil(total / limit);
+        const startIndex = (page - 1) * limit;
+        const logs = allLogs.slice(startIndex, startIndex + limit);
+        return { logs, total, totalPages };
+      }
+      async getLoginLogsByUser(userId) {
+        return Array.from(this.loginLogs.values()).filter((log2) => log2.userId === userId).sort((a, b) => (b.loginAt?.getTime() || 0) - (a.loginAt?.getTime() || 0));
+      }
     };
     storage = process.env.NODE_ENV === "test" ? new MemStorage() : new DbStorage();
   }
@@ -4021,6 +4227,238 @@ var init_whatsapp_sender = __esm({
       }
     };
     whatsAppSender = new WhatsAppSender();
+  }
+});
+
+// server/cardano-service.ts
+var cardano_service_exports = {};
+__export(cardano_service_exports, {
+  CardanoService: () => CardanoService,
+  cardanoService: () => cardanoService
+});
+import { bech32 } from "bech32";
+var CardanoService, cardanoService;
+var init_cardano_service = __esm({
+  "server/cardano-service.ts"() {
+    "use strict";
+    CardanoService = class {
+      CARDANOSCAN_API_URL = "https://api.cardanoscan.io/api/v1";
+      CARDANOSCAN_API_KEY = process.env.CARDANOSCAN_API_KEY || "";
+      USD_TO_IRR_RATE = 7e4;
+      adaPriceUSD = 0;
+      lastPriceFetch = 0;
+      PRICE_CACHE_DURATION = 6e4;
+      constructor() {
+        this.loadApiKeyFromDatabase();
+      }
+      async loadApiKeyFromDatabase() {
+        try {
+          const { storage: storage2 } = await Promise.resolve().then(() => (init_storage(), storage_exports));
+          const settings = await storage2.getBlockchainSettings("cardano");
+          if (settings && settings.apiKey) {
+            this.CARDANOSCAN_API_KEY = settings.apiKey;
+            console.log("\u2705 \u062A\u0648\u06A9\u0646 \u06A9\u0627\u0631\u062F\u0627\u0646\u0648 \u0627\u0632 \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633 \u0628\u0627\u0631\u06AF\u0630\u0627\u0631\u06CC \u0634\u062F");
+          } else if (!this.CARDANOSCAN_API_KEY) {
+            console.warn("\u26A0\uFE0F CARDANOSCAN_API_KEY \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A");
+          }
+        } catch (error) {
+          console.error("\u062E\u0637\u0627 \u062F\u0631 \u0628\u0627\u0631\u06AF\u0630\u0627\u0631\u06CC \u062A\u0648\u06A9\u0646 \u06A9\u0627\u0631\u062F\u0627\u0646\u0648 \u0627\u0632 \u062F\u06CC\u062A\u0627\u0628\u06CC\u0633:", error);
+        }
+      }
+      async reloadApiKey() {
+        await this.loadApiKeyFromDatabase();
+      }
+      formatAmount(lovelace) {
+        const adaAmount = parseInt(lovelace) / 1e6;
+        return adaAmount.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 6
+        });
+      }
+      async getADAPrice() {
+        const now = Date.now();
+        if (this.adaPriceUSD > 0 && now - this.lastPriceFetch < this.PRICE_CACHE_DURATION) {
+          return this.adaPriceUSD;
+        }
+        try {
+          const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=cardano&vs_currencies=usd&include_24hr_change=true");
+          if (!response.ok) {
+            console.warn("\u26A0\uFE0F \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A ADA \u0627\u0632 CoinGecko");
+            return this.adaPriceUSD || 0.54;
+          }
+          const data = await response.json();
+          this.adaPriceUSD = data.cardano?.usd || 0.54;
+          this.lastPriceFetch = now;
+          console.log(`\u{1F4B0} \u0642\u06CC\u0645\u062A \u0641\u0639\u0644\u06CC ADA: $${this.adaPriceUSD}`);
+          return this.adaPriceUSD;
+        } catch (error) {
+          console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A ADA:", error);
+          return this.adaPriceUSD || 0.54;
+        }
+      }
+      formatUSD(ada, priceUSD) {
+        const usdValue = ada * priceUSD;
+        return usdValue.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      }
+      formatIRR(ada, priceUSD) {
+        const irrValue = ada * priceUSD * this.USD_TO_IRR_RATE;
+        return irrValue.toLocaleString("fa-IR", {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0
+        });
+      }
+      bech32ToHex(address) {
+        try {
+          if (!address.startsWith("addr")) {
+            return address;
+          }
+          const decoded = bech32.decode(address, 1e3);
+          const words = decoded.words;
+          const bytes = bech32.fromWords(words);
+          return Buffer.from(bytes).toString("hex");
+        } catch (error) {
+          console.error("\u062E\u0637\u0627 \u062F\u0631 \u062A\u0628\u062F\u06CC\u0644 Bech32 \u0628\u0647 Hex:", error);
+          throw new Error("\u0641\u0631\u0645\u062A \u0622\u062F\u0631\u0633 \u06A9\u0627\u0631\u062F\u0627\u0646\u0648 \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A");
+        }
+      }
+      async getTransactions(walletAddress, limit = 20, page = 1) {
+        try {
+          if (!walletAddress || walletAddress.trim() === "") {
+            throw new Error("\u0622\u062F\u0631\u0633 \u0648\u0644\u062A \u0645\u0639\u062A\u0628\u0631 \u0646\u06CC\u0633\u062A");
+          }
+          if (!this.CARDANOSCAN_API_KEY) {
+            console.warn("\u26A0\uFE0F CARDANOSCAN_API_KEY \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A");
+            throw new Error("\u0633\u0631\u0648\u06CC\u0633 Cardano \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A. \u0644\u0637\u0641\u0627\u064B \u0628\u0627 \u0645\u062F\u06CC\u0631 \u062A\u0645\u0627\u0633 \u0628\u06AF\u06CC\u0631\u06CC\u062F \u062A\u0627 CARDANOSCAN_API_KEY \u0631\u0627 \u062A\u0646\u0638\u06CC\u0645 \u06A9\u0646\u062F.");
+          }
+          const adaPrice = await this.getADAPrice();
+          const requestLimit = Math.min(limit, 50);
+          const hexAddress = this.bech32ToHex(walletAddress);
+          const url = `${this.CARDANOSCAN_API_URL}/transaction/list?address=${encodeURIComponent(hexAddress)}&pageNo=${page}&limit=${requestLimit}&order=desc`;
+          console.log(`\u{1F4E1} \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC Cardano \u0628\u0631\u0627\u06CC \u0622\u062F\u0631\u0633: ${walletAddress.substring(0, 20)}...`);
+          console.log(`\u{1F504} \u0622\u062F\u0631\u0633 Hex: ${hexAddress.substring(0, 20)}...`);
+          const response = await fetch(url, {
+            headers: {
+              "Accept": "application/json",
+              "apiKey": this.CARDANOSCAN_API_KEY
+            }
+          });
+          if (!response.ok) {
+            if (response.status === 404) {
+              console.log("\u2139\uFE0F \u0647\u06CC\u0686 \u062A\u0631\u0627\u06A9\u0646\u0634\u06CC \u0628\u0631\u0627\u06CC \u0627\u06CC\u0646 \u0622\u062F\u0631\u0633 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
+              return [];
+            }
+            const errorText = await response.text();
+            console.error(`\u062E\u0637\u0627 ${response.status}: ${errorText}`);
+            throw new Error(`\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627: ${response.status}`);
+          }
+          const data = await response.json();
+          if (!data.transactions || !Array.isArray(data.transactions) || data.transactions.length === 0) {
+            console.log("\u2139\uFE0F \u0644\u06CC\u0633\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627 \u062E\u0627\u0644\u06CC \u0627\u0633\u062A");
+            return [];
+          }
+          if (data.transactions.length > 0) {
+            console.log("\u{1F50D} \u0633\u0627\u062E\u062A\u0627\u0631 \u0627\u0648\u0644\u06CC\u0646 \u062A\u0631\u0627\u06A9\u0646\u0634:", JSON.stringify(data.transactions[0], null, 2));
+          }
+          const transactions2 = [];
+          for (const tx of data.transactions) {
+            try {
+              const txHash = tx.hash || tx.tx_hash;
+              let isIncoming = false;
+              let totalAmount = 0;
+              let fromAddress = "";
+              let toAddress = "";
+              const checkAddress = (addr) => {
+                return addr === hexAddress || addr === walletAddress;
+              };
+              if (tx.outputs && Array.isArray(tx.outputs)) {
+                for (const output of tx.outputs) {
+                  if (checkAddress(output.address)) {
+                    isIncoming = true;
+                    toAddress = output.address;
+                    if (output.value) {
+                      totalAmount += parseInt(output.value);
+                    } else if (output.amount && Array.isArray(output.amount)) {
+                      const adaItem = output.amount.find((a) => a.unit === "lovelace");
+                      if (adaItem) {
+                        totalAmount += parseInt(adaItem.quantity || "0");
+                      }
+                    }
+                  }
+                }
+              }
+              if (!isIncoming && tx.inputs && Array.isArray(tx.inputs)) {
+                for (const input of tx.inputs) {
+                  if (checkAddress(input.address)) {
+                    fromAddress = input.address;
+                    if (input.value) {
+                      totalAmount += parseInt(input.value);
+                    } else if (input.amount && Array.isArray(input.amount)) {
+                      const adaItem = input.amount.find((a) => a.unit === "lovelace");
+                      if (adaItem) {
+                        totalAmount += parseInt(adaItem.quantity || "0");
+                      }
+                    }
+                  }
+                }
+              }
+              if (isIncoming && tx.inputs && tx.inputs.length > 0) {
+                fromAddress = tx.inputs[0].address || "N/A";
+              } else if (!isIncoming && tx.outputs && tx.outputs.length > 0) {
+                toAddress = tx.outputs[0].address || "N/A";
+              }
+              const timestamp2 = tx.block_time ? tx.block_time * 1e3 : Date.now();
+              const adaAmount = totalAmount / 1e6;
+              if (totalAmount === 0) {
+                console.log(`\u26A0\uFE0F \u062A\u0631\u0627\u06A9\u0646\u0634 ${txHash}: \u0645\u0628\u0644\u063A \u0635\u0641\u0631! incoming=${isIncoming}, inputs=${tx.inputs?.length || 0}, outputs=${tx.outputs?.length || 0}`);
+                if (tx.inputs && tx.inputs.length > 0) {
+                  console.log(`  Input sample:`, JSON.stringify(tx.inputs[0]).substring(0, 300));
+                }
+                if (tx.outputs && tx.outputs.length > 0) {
+                  console.log(`  Output sample:`, JSON.stringify(tx.outputs[0]).substring(0, 300));
+                }
+              }
+              transactions2.push({
+                txId: txHash,
+                type: isIncoming ? "incoming" : "outgoing",
+                amount: totalAmount,
+                amountADA: this.formatAmount(totalAmount.toString()),
+                amountUSD: this.formatUSD(adaAmount, adaPrice),
+                amountIRR: this.formatIRR(adaAmount, adaPrice),
+                from: fromAddress || "N/A",
+                to: toAddress || "N/A",
+                timestamp: timestamp2,
+                date: new Date(timestamp2).toLocaleString("fa-IR", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                }),
+                status: "SUCCESS",
+                explorerUrl: `https://cardanoscan.io/transaction/${txHash}`
+              });
+            } catch (error) {
+              console.error(`\u062E\u0637\u0627 \u062F\u0631 \u067E\u0631\u062F\u0627\u0632\u0634 \u062A\u0631\u0627\u06A9\u0646\u0634 ${tx.hash || tx.tx_hash || "unknown"}:`, error);
+              continue;
+            }
+          }
+          console.log(`\u2705 ${transactions2.length} \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F`);
+          return transactions2;
+        } catch (error) {
+          console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC Cardano:", error);
+          throw error;
+        }
+      }
+      validateCardanoAddress(address) {
+        if (!address) return false;
+        const cardanoRegex = /^addr1[a-z0-9]{58,}$/;
+        return cardanoRegex.test(address.trim());
+      }
+    };
+    cardanoService = new CardanoService();
   }
 });
 
@@ -6638,6 +7076,7 @@ init_schema();
 init_invoice_service();
 init_whatsapp_sender();
 init_db_storage();
+init_schema();
 import express from "express";
 import { createServer } from "http";
 import bcrypt3 from "bcryptjs";
@@ -6647,6 +7086,548 @@ import path2 from "path";
 import { fileURLToPath } from "url";
 import { z as z2 } from "zod";
 import fs2 from "fs";
+
+// server/tron-service.ts
+import { createHash } from "crypto";
+var TronService = class {
+  TRONGRID_API_URL = "https://api.trongrid.io";
+  TRONGRID_API_KEY = process.env.TRONGRID_API_KEY || "";
+  hexToBase58(hexAddress) {
+    if (!hexAddress || hexAddress.length !== 42) {
+      return hexAddress;
+    }
+    try {
+      const hexStr = hexAddress.startsWith("41") ? hexAddress.substring(2) : hexAddress;
+      const base58Chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      const hexBytes = Buffer.from(hexAddress, "hex");
+      const hash1 = createHash("sha256").update(hexBytes).digest();
+      const hash2 = createHash("sha256").update(hash1).digest();
+      const checksum = hash2.slice(0, 4);
+      const combined = Buffer.concat([hexBytes, checksum]);
+      let num = BigInt("0x" + combined.toString("hex"));
+      let result = "";
+      while (num > 0n) {
+        const remainder = Number(num % 58n);
+        result = base58Chars[remainder] + result;
+        num = num / 58n;
+      }
+      for (let i = 0; i < combined.length && combined[i] === 0; i++) {
+        result = "1" + result;
+      }
+      return result;
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062A\u0628\u062F\u06CC\u0644 hex \u0628\u0647 base58:", error);
+      return hexAddress;
+    }
+  }
+  base58ToHex(base58Address) {
+    if (!base58Address || !base58Address.startsWith("T")) {
+      return base58Address;
+    }
+    try {
+      const base58Chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+      let num = 0n;
+      for (const char of base58Address) {
+        const value = base58Chars.indexOf(char);
+        if (value === -1) return base58Address;
+        num = num * 58n + BigInt(value);
+      }
+      let hex = num.toString(16);
+      if (hex.length % 2) hex = "0" + hex;
+      return hex.substring(0, hex.length - 8);
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062A\u0628\u062F\u06CC\u0644 base58 \u0628\u0647 hex:", error);
+      return base58Address;
+    }
+  }
+  formatAmount(amount) {
+    const trxAmount = amount / 1e6;
+    return trxAmount.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6
+    });
+  }
+  async getTransactions(walletAddress, type = "all", limit = 50) {
+    try {
+      if (!walletAddress || walletAddress.trim() === "") {
+        throw new Error("\u0622\u062F\u0631\u0633 \u0648\u0644\u062A \u0645\u0639\u062A\u0628\u0631 \u0646\u06CC\u0633\u062A");
+      }
+      const params = new URLSearchParams({
+        limit: Math.min(limit, 200).toString(),
+        only_confirmed: "true"
+      });
+      if (type === "incoming") {
+        params.append("only_to", "true");
+      } else if (type === "outgoing") {
+        params.append("only_from", "true");
+      }
+      const url = `${this.TRONGRID_API_URL}/v1/accounts/${walletAddress}/transactions?${params}`;
+      const headers = {
+        "Accept": "application/json"
+      };
+      if (this.TRONGRID_API_KEY) {
+        headers["TRON-PRO-API-KEY"] = this.TRONGRID_API_KEY;
+      }
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("\u062E\u0637\u0627\u06CC TronGrid API:", response.status, errorText);
+        if (response.status === 404) {
+          return [];
+        }
+        throw new Error(`\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627: ${response.status}`);
+      }
+      const data = await response.json();
+      if (!data.success || !data.data) {
+        console.log("\u067E\u0627\u0633\u062E API \u0645\u0648\u0641\u0642\u06CC\u062A\u200C\u0622\u0645\u06CC\u0632 \u0646\u0628\u0648\u062F \u06CC\u0627 \u062F\u0627\u062F\u0647\u200C\u0627\u06CC \u0648\u062C\u0648\u062F \u0646\u062F\u0627\u0631\u062F");
+        return [];
+      }
+      const transactions2 = data.data.filter((tx) => {
+        if (!tx.raw_data?.contract?.[0]) return false;
+        const contract = tx.raw_data.contract[0];
+        return contract.type === "TransferContract" && contract.parameter?.value;
+      }).map((tx) => {
+        const contract = tx.raw_data.contract[0];
+        const value = contract.parameter.value;
+        const fromAddressHex = value.owner_address || "";
+        const toAddressHex = value.to_address || "";
+        const amount = value.amount || 0;
+        const fromAddress = this.hexToBase58(fromAddressHex);
+        const toAddress = this.hexToBase58(toAddressHex);
+        const walletAddressLower = walletAddress.toLowerCase();
+        const isIncoming = toAddress.toLowerCase() === walletAddressLower;
+        const isSuccess = tx.ret?.[0]?.contractRet === "SUCCESS" || !tx.ret;
+        return {
+          txId: tx.txID,
+          type: isIncoming ? "incoming" : "outgoing",
+          amount,
+          amountTRX: this.formatAmount(amount),
+          from: fromAddress,
+          to: toAddress,
+          timestamp: tx.block_timestamp,
+          date: new Date(tx.block_timestamp).toLocaleString("fa-IR", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+          }),
+          status: isSuccess ? "SUCCESS" : "FAILED",
+          explorerUrl: `https://tronscan.org/#/transaction/${tx.txID}`
+        };
+      });
+      return transactions2;
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC TRON:", error);
+      throw error;
+    }
+  }
+  async getTRC20Transactions(walletAddress, contractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", limit = 50) {
+    try {
+      const params = new URLSearchParams({
+        limit: Math.min(limit, 200).toString(),
+        contract_address: contractAddress
+      });
+      const url = `${this.TRONGRID_API_URL}/v1/accounts/${walletAddress}/transactions/trc20?${params}`;
+      const headers = {
+        "Accept": "application/json"
+      };
+      if (this.TRONGRID_API_KEY) {
+        headers["TRON-PRO-API-KEY"] = this.TRONGRID_API_KEY;
+      }
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        if (response.status === 404) {
+          return [];
+        }
+        throw new Error(`\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC TRC20: ${response.status}`);
+      }
+      const data = await response.json();
+      if (!data.success || !data.data) {
+        return [];
+      }
+      return data.data.map((tx) => ({
+        txId: tx.transaction_id,
+        type: tx.to === walletAddress ? "incoming" : "outgoing",
+        amount: tx.value,
+        from: tx.from,
+        to: tx.to,
+        timestamp: tx.block_timestamp,
+        date: new Date(tx.block_timestamp).toLocaleString("fa-IR"),
+        tokenName: tx.token_info?.name || "TRC20",
+        tokenSymbol: tx.token_info?.symbol || "TRC20",
+        status: "SUCCESS",
+        explorerUrl: `https://tronscan.org/#/transaction/${tx.transaction_id}`
+      }));
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC TRC20:", error);
+      throw error;
+    }
+  }
+  validateTronAddress(address) {
+    if (!address) return false;
+    const base58Regex = /^T[A-Za-z1-9]{33}$/;
+    return base58Regex.test(address.trim());
+  }
+};
+var tronService = new TronService();
+
+// server/ripple-service.ts
+import crypto from "crypto";
+var RippleService = class {
+  RIPPLE_API_URL = "https://api.xrpscan.com/api/v1";
+  MARKER_SECRET = process.env.JWT_SECRET || "dev-secret-key-change-in-production";
+  MARKER_EXPIRY_MS = 30 * 60 * 1e3;
+  formatAmount(amount) {
+    let xrpAmount;
+    if (typeof amount === "object" && amount.value) {
+      xrpAmount = typeof amount.value === "string" ? parseFloat(amount.value) : amount.value;
+    } else if (typeof amount === "string") {
+      xrpAmount = parseFloat(amount) / 1e6;
+    } else if (typeof amount === "number") {
+      xrpAmount = amount / 1e6;
+    } else {
+      xrpAmount = 0;
+    }
+    return xrpAmount.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 6
+    });
+  }
+  parseAmountValue(amount) {
+    if (typeof amount === "object" && amount.value) {
+      const value = typeof amount.value === "string" ? parseFloat(amount.value) : amount.value;
+      return value * 1e6;
+    } else if (typeof amount === "string") {
+      return parseInt(amount);
+    }
+    return 0;
+  }
+  parseDateString(dateString) {
+    return new Date(dateString).getTime();
+  }
+  signMarker(walletAddress, marker) {
+    const expiresAt = Date.now() + this.MARKER_EXPIRY_MS;
+    const payload = `${walletAddress}:${marker}:${expiresAt}`;
+    const signature = crypto.createHmac("sha256", this.MARKER_SECRET).update(payload).digest("hex");
+    const signedMarker = Buffer.from(
+      JSON.stringify({ marker, expiresAt, signature })
+    ).toString("base64");
+    return signedMarker;
+  }
+  verifyMarker(walletAddress, signedMarker) {
+    try {
+      const decoded = JSON.parse(
+        Buffer.from(signedMarker, "base64").toString("utf8")
+      );
+      const { marker, expiresAt, signature } = decoded;
+      if (!marker || !expiresAt || !signature) {
+        return null;
+      }
+      if (Date.now() > expiresAt) {
+        return null;
+      }
+      const payload = `${walletAddress}:${marker}:${expiresAt}`;
+      const expectedSignature = crypto.createHmac("sha256", this.MARKER_SECRET).update(payload).digest("hex");
+      if (signature !== expectedSignature) {
+        return null;
+      }
+      return marker;
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u0639\u062A\u0628\u0627\u0631\u0633\u0646\u062C\u06CC marker:", error);
+      return null;
+    }
+  }
+  async getTransactions(walletAddress, limit = 50, signedMarker) {
+    try {
+      if (!walletAddress || walletAddress.trim() === "") {
+        throw new Error("\u0622\u062F\u0631\u0633 \u0648\u0644\u062A \u0645\u0639\u062A\u0628\u0631 \u0646\u06CC\u0633\u062A");
+      }
+      let apiMarker;
+      if (signedMarker) {
+        const verifiedMarker = this.verifyMarker(walletAddress, signedMarker);
+        if (!verifiedMarker) {
+          throw new Error("marker \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u06CC\u0627 \u0645\u0646\u0642\u0636\u06CC \u0634\u062F\u0647 \u0627\u0633\u062A");
+        }
+        apiMarker = verifiedMarker;
+      }
+      const params = new URLSearchParams();
+      params.append("limit", Math.min(limit, 100).toString());
+      if (apiMarker) {
+        params.append("marker", apiMarker);
+      }
+      const url = `${this.RIPPLE_API_URL}/account/${walletAddress}/transactions?${params.toString()}`;
+      const response = await fetch(url, {
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+      if (!response.ok) {
+        if (response.status === 404) {
+          return { transactions: [] };
+        }
+        throw new Error(`\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627: ${response.status}`);
+      }
+      const data = await response.json();
+      if (!data.transactions || !Array.isArray(data.transactions)) {
+        return { transactions: [] };
+      }
+      const transactions2 = data.transactions.filter((tx) => {
+        return tx.TransactionType === "Payment" && (typeof tx.Amount === "string" || typeof tx.Amount === "object" && tx.Amount.currency === "XRP");
+      }).map((tx) => {
+        const fromAddress = tx.Account;
+        const toAddress = tx.Destination;
+        const amount = this.parseAmountValue(tx.Amount);
+        const isIncoming = toAddress.toLowerCase() === walletAddress.toLowerCase();
+        const isSuccess = tx.meta?.TransactionResult === "tesSUCCESS";
+        const timestamp2 = this.parseDateString(tx.date);
+        const feeXRP = tx.Fee ? (parseInt(tx.Fee) / 1e6).toFixed(6) : void 0;
+        return {
+          txId: tx.hash,
+          type: isIncoming ? "incoming" : "outgoing",
+          amount,
+          amountXRP: this.formatAmount(tx.Amount),
+          from: fromAddress,
+          to: toAddress,
+          timestamp: timestamp2,
+          date: new Date(timestamp2).toLocaleString("fa-IR", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+          }),
+          status: isSuccess ? "SUCCESS" : "FAILED",
+          explorerUrl: `https://xrpscan.com/tx/${tx.hash}`,
+          fee: feeXRP,
+          destinationTag: tx.DestinationTag,
+          accountName: tx.AccountName?.name,
+          destinationName: tx.DestinationName?.name
+        };
+      });
+      const responseMarker = data.marker && typeof data.marker === "string" ? this.signMarker(walletAddress, data.marker) : void 0;
+      return {
+        transactions: transactions2,
+        marker: responseMarker
+      };
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC Ripple:", error);
+      throw error;
+    }
+  }
+  validateRippleAddress(address) {
+    if (!address) return false;
+    const rippleRegex = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/;
+    return rippleRegex.test(address.trim());
+  }
+};
+var rippleService = new RippleService();
+
+// server/routes.ts
+init_cardano_service();
+
+// server/tgju-service.ts
+var TGJUService = class {
+  async fetchProfilePriceInRial(profilePath, cryptoName, minPrice, maxPrice) {
+    const response = await fetch(`https://www.tgju.org${profilePath}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      }
+    });
+    if (!response.ok) {
+      throw new Error(`\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A ${cryptoName}: ${response.status}`);
+    }
+    const html = await response.text();
+    const priceMatch = html.match(/قیمت\s*ریالی[\s\S]*?<td[^>]*>\s*([\d,]+)\s*<\/td>/i);
+    if (!priceMatch || !priceMatch[1]) {
+      throw new Error(`\u0642\u06CC\u0645\u062A ${cryptoName} \u062F\u0631 \u0635\u0641\u062D\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F`);
+    }
+    const priceStr = priceMatch[1].replace(/,/g, "");
+    const priceInRial = parseInt(priceStr, 10);
+    if (priceInRial < minPrice || priceInRial > maxPrice) {
+      throw new Error(`\u0642\u06CC\u0645\u062A ${cryptoName} \u062E\u0627\u0631\u062C \u0627\u0632 \u0645\u062D\u062F\u0648\u062F\u0647 \u0645\u062C\u0627\u0632 \u0627\u0633\u062A: ${priceInRial.toLocaleString("fa-IR")} \u0631\u06CC\u0627\u0644`);
+    }
+    console.log(`\u2705 \u0642\u06CC\u0645\u062A ${cryptoName} \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F: ${priceInRial.toLocaleString("fa-IR")} \u0631\u06CC\u0627\u0644`);
+    return priceInRial;
+  }
+  async getTetherPriceInRial() {
+    return await this.fetchProfilePriceInRial(
+      "/profile/crypto-tether",
+      "\u062A\u062A\u0631",
+      8e5,
+      2e6
+    );
+  }
+  async getTronPriceInRial() {
+    return await this.fetchProfilePriceInRial(
+      "/profile/crypto-tron",
+      "\u062A\u0631\u0648\u0646",
+      1e5,
+      1e6
+    );
+  }
+  async getRipplePriceInRial() {
+    return await this.fetchProfilePriceInRial(
+      "/profile/crypto-ripple",
+      "\u0631\u06CC\u067E\u0644",
+      1e6,
+      1e7
+    );
+  }
+  async getCardanoPriceInRial() {
+    return await this.fetchProfilePriceInRial(
+      "/profile/crypto-cardano",
+      "\u06A9\u0627\u0631\u062F\u0627\u0646\u0648",
+      1e5,
+      2e6
+    );
+  }
+  async getTetherPriceInToman() {
+    const priceInRial = await this.getTetherPriceInRial();
+    return Math.floor(priceInRial / 10);
+  }
+  async getTronPriceInToman() {
+    const priceInRial = await this.getTronPriceInRial();
+    return Math.floor(priceInRial / 10);
+  }
+  async getAllCryptoPrices() {
+    const [usdtPrice, trxPrice, xrpPrice, adaPrice] = await Promise.all([
+      this.getTetherPriceInRial(),
+      this.getTronPriceInRial(),
+      this.getRipplePriceInRial(),
+      this.getCardanoPriceInRial()
+    ]);
+    return {
+      USDT: usdtPrice,
+      TRX: trxPrice,
+      XRP: xrpPrice,
+      ADA: adaPrice
+    };
+  }
+};
+var tgjuService = new TGJUService();
+
+// server/crypto-price-cache-service.ts
+init_db_storage();
+init_schema();
+import { eq as eq2 } from "drizzle-orm";
+var CryptoPriceCacheService = class {
+  updateInterval = null;
+  UPDATE_INTERVAL_MS = 5 * 60 * 1e3;
+  // 5 minutes
+  isUpdating = false;
+  async initialize() {
+    console.log("\u{1F4B0} \u0634\u0631\u0648\u0639 initialize \u0633\u0631\u0648\u06CC\u0633 \u06A9\u0634 \u0642\u06CC\u0645\u062A \u0627\u0631\u0632\u0647\u0627\u06CC \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644...");
+    await this.updatePrices();
+    this.updateInterval = setInterval(() => {
+      this.updatePrices();
+    }, this.UPDATE_INTERVAL_MS);
+    console.log("\u2705 \u0633\u0631\u0648\u06CC\u0633 \u06A9\u0634 \u0642\u06CC\u0645\u062A \u0627\u0631\u0632\u0647\u0627\u06CC \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0631\u0627\u0647\u200C\u0627\u0646\u062F\u0627\u0632\u06CC \u0634\u062F (\u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0647\u0631 5 \u062F\u0642\u06CC\u0642\u0647)");
+  }
+  async updatePrices() {
+    if (this.isUpdating) {
+      console.log("\u23F3 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0642\u06CC\u0645\u062A\u200C\u0647\u0627 \u062F\u0631 \u062D\u0627\u0644 \u0627\u0646\u062C\u0627\u0645 \u0627\u0633\u062A...");
+      return;
+    }
+    this.isUpdating = true;
+    console.log("\u{1F504} \u0634\u0631\u0648\u0639 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644...");
+    try {
+      const prices = await tgjuService.getAllCryptoPrices();
+      const now = /* @__PURE__ */ new Date();
+      const updates = [
+        {
+          symbol: "TRX",
+          priceInRial: prices.TRX,
+          priceInToman: Math.floor(prices.TRX / 10)
+        },
+        {
+          symbol: "USDT",
+          priceInRial: prices.USDT,
+          priceInToman: Math.floor(prices.USDT / 10)
+        },
+        {
+          symbol: "XRP",
+          priceInRial: prices.XRP,
+          priceInToman: Math.floor(prices.XRP / 10)
+        },
+        {
+          symbol: "ADA",
+          priceInRial: prices.ADA,
+          priceInToman: Math.floor(prices.ADA / 10)
+        }
+      ];
+      for (const update of updates) {
+        const existing = await db.query.cryptoPrices.findFirst({
+          where: eq2(cryptoPrices.symbol, update.symbol)
+        });
+        if (existing) {
+          await db.update(cryptoPrices).set({
+            priceInRial: String(update.priceInRial),
+            priceInToman: String(update.priceInToman),
+            fetchedAt: now
+          }).where(eq2(cryptoPrices.symbol, update.symbol));
+        } else {
+          await db.insert(cryptoPrices).values({
+            symbol: update.symbol,
+            priceInRial: String(update.priceInRial),
+            priceInToman: String(update.priceInToman),
+            fetchedAt: now
+          });
+        }
+        console.log(
+          `\u2705 \u0642\u06CC\u0645\u062A ${update.symbol} \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F: ${update.priceInToman.toLocaleString("fa-IR")} \u062A\u0648\u0645\u0627\u0646`
+        );
+      }
+      console.log("\u2705 \u062A\u0645\u0627\u0645 \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F\u0646\u062F");
+    } catch (error) {
+      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644:", error);
+    } finally {
+      this.isUpdating = false;
+    }
+  }
+  async getCachedPrices() {
+    try {
+      const allPrices = await db.query.cryptoPrices.findMany();
+      if (allPrices.length === 0) {
+        console.log("\u26A0\uFE0F \u0647\u06CC\u0686 \u0642\u06CC\u0645\u062A\u06CC \u062F\u0631 \u06A9\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F");
+        return null;
+      }
+      const pricesMap = allPrices.reduce((acc, price) => {
+        acc[price.symbol] = {
+          priceInToman: Number(price.priceInToman),
+          fetchedAt: price.fetchedAt
+        };
+        return acc;
+      }, {});
+      const lastUpdate = allPrices.reduce((latest, price) => {
+        if (!price.fetchedAt) return latest;
+        if (!latest) return price.fetchedAt;
+        return price.fetchedAt > latest ? price.fetchedAt : latest;
+      }, null);
+      return {
+        TRX: pricesMap["TRX"]?.priceInToman || 0,
+        USDT: pricesMap["USDT"]?.priceInToman || 0,
+        XRP: pricesMap["XRP"]?.priceInToman || 0,
+        ADA: pricesMap["ADA"]?.priceInToman || 0,
+        lastUpdate: lastUpdate || void 0
+      };
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u06A9\u0634 \u0634\u062F\u0647:", error);
+      return null;
+    }
+  }
+  stop() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+      console.log("\u{1F6D1} \u0633\u0631\u0648\u06CC\u0633 \u06A9\u0634 \u0642\u06CC\u0645\u062A \u0627\u0631\u0632\u0647\u0627\u06CC \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0645\u062A\u0648\u0642\u0641 \u0634\u062F");
+    }
+  }
+};
+var cryptoPriceCacheService = new CryptoPriceCacheService();
+
+// server/routes.ts
 var __filename = fileURLToPath(import.meta.url);
 var __dirname = path2.dirname(__filename);
 var jwtSecret;
@@ -6909,6 +7890,19 @@ async function registerRoutes(app2) {
         return res.status(401).json({ message: "\u0646\u0627\u0645 \u06A9\u0627\u0631\u0628\u0631\u06CC/\u0627\u06CC\u0645\u06CC\u0644 \u06CC\u0627 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0627\u0634\u062A\u0628\u0627\u0647 \u0627\u0633\u062A" });
       }
       const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: "7d" });
+      try {
+        const forwardedFor = req.headers["x-forwarded-for"];
+        const ipAddress = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.split(",")[0]?.trim()) || req.headers["x-real-ip"] || req.ip || req.socket.remoteAddress || "unknown";
+        const userAgent = req.headers["user-agent"] || "unknown";
+        await storage.createLoginLog({
+          userId: user.id,
+          username: user.username,
+          ipAddress: ipAddress.toString(),
+          userAgent
+        });
+      } catch (logError) {
+        console.error("Error creating login log:", logError);
+      }
       res.json({
         user: { ...user, password: void 0 },
         token
@@ -6947,8 +7941,8 @@ async function registerRoutes(app2) {
       if (!user.whatsappNumber) {
         return res.status(400).json({ message: "\u0634\u0645\u0627\u0631\u0647 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0631\u0627\u06CC \u0627\u06CC\u0646 \u06A9\u0627\u0631\u0628\u0631 \u062B\u0628\u062A \u0646\u0634\u062F\u0647 \u0627\u0633\u062A" });
       }
-      const crypto = await import("crypto");
-      const otp = crypto.randomInt(1e5, 1e6).toString();
+      const crypto2 = await import("crypto");
+      const otp = crypto2.randomInt(1e5, 1e6).toString();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1e3);
       await storage.createPasswordResetOtp(user.id, otp, expiresAt);
       const whatsAppSender2 = (await Promise.resolve().then(() => (init_whatsapp_sender(), whatsapp_sender_exports))).whatsAppSender;
@@ -7080,6 +8074,34 @@ async function registerRoutes(app2) {
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u06A9\u0627\u0631\u0628\u0631" });
     }
   });
+  app2.put("/api/users/bank-card", authenticateToken, requireAdminOrLevel1, async (req, res) => {
+    try {
+      const { bankCardNumber, bankCardHolderName } = req.body;
+      if (!bankCardNumber || !bankCardHolderName) {
+        return res.status(400).json({ message: "\u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A \u0648 \u0646\u0627\u0645 \u0635\u0627\u062D\u0628 \u06A9\u0627\u0631\u062A \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A" });
+      }
+      const cardNumberRegex = /^\d{16}$/;
+      if (!cardNumberRegex.test(bankCardNumber.replace(/\s/g, ""))) {
+        return res.status(400).json({ message: "\u0634\u0645\u0627\u0631\u0647 \u06A9\u0627\u0631\u062A \u0628\u0627\u06CC\u062F 16 \u0631\u0642\u0645 \u0628\u0627\u0634\u062F" });
+      }
+      const updatedUser = await storage.updateUser(req.user.id, {
+        bankCardNumber: bankCardNumber.replace(/\s/g, ""),
+        bankCardHolderName,
+        bankCardApprovalStatus: "pending"
+      });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC" });
+      }
+      res.json({
+        message: "\u0627\u0637\u0644\u0627\u0639\u0627\u062A \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F",
+        bankCardNumber: updatedUser.bankCardNumber,
+        bankCardHolderName: updatedUser.bankCardHolderName
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC" });
+    }
+  });
   app2.put("/api/users/:id", authenticateToken, requireAdmin, async (req, res) => {
     try {
       const { id } = req.params;
@@ -7091,6 +8113,106 @@ async function registerRoutes(app2) {
       res.json({ ...user, password: void 0 });
     } catch (error) {
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u06A9\u0627\u0631\u0628\u0631" });
+    }
+  });
+  app2.get("/api/admin/bank-cards", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const users2 = await storage.getAllUsers();
+      const level1UsersWithCards = users2.filter((user) => user.role === "user_level_1" && user.bankCardNumber).map((user) => ({
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phone: user.phone,
+        bankCardNumber: user.bankCardNumber,
+        bankCardHolderName: user.bankCardHolderName,
+        bankCardApprovalStatus: user.bankCardApprovalStatus || "pending",
+        createdAt: user.createdAt
+      }));
+      res.json(level1UsersWithCards);
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u06A9\u0627\u0631\u062A\u200C\u0647\u0627\u06CC \u0628\u0627\u0646\u06A9\u06CC:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u06A9\u0627\u0631\u062A\u200C\u0647\u0627\u06CC \u0628\u0627\u0646\u06A9\u06CC" });
+    }
+  });
+  app2.put("/api/admin/bank-cards/:userId/approval", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { status } = req.body;
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "\u0648\u0636\u0639\u06CC\u062A \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      if (user.role !== "user_level_1") {
+        return res.status(400).json({ message: "\u0641\u0642\u0637 \u06A9\u0627\u0631\u0628\u0631\u0627\u0646 \u0633\u0637\u062D 1 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u0646\u062F \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC \u062F\u0627\u0634\u062A\u0647 \u0628\u0627\u0634\u0646\u062F" });
+      }
+      const updatedUser = await storage.updateUser(userId, {
+        bankCardApprovalStatus: status
+      });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0648\u0636\u0639\u06CC\u062A \u062A\u0627\u06CC\u06CC\u062F" });
+      }
+      console.log(`\u2705 \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC \u06A9\u0627\u0631\u0628\u0631 ${user.username} \u062A\u0648\u0633\u0637 \u0645\u062F\u06CC\u0631 ${status === "approved" ? "\u062A\u0627\u06CC\u06CC\u062F" : "\u0631\u062F"} \u0634\u062F`);
+      res.json({
+        message: `\u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A ${status === "approved" ? "\u062A\u0627\u06CC\u06CC\u062F" : "\u0631\u062F"} \u0634\u062F`,
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          bankCardApprovalStatus: updatedUser.bankCardApprovalStatus
+        }
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0648\u0636\u0639\u06CC\u062A \u062A\u0627\u06CC\u06CC\u062F:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0648\u0636\u0639\u06CC\u062A \u062A\u0627\u06CC\u06CC\u062F" });
+    }
+  });
+  app2.get("/api/parent-user-bank-card", authenticateToken, async (req, res) => {
+    try {
+      const currentUser = req.user;
+      if (currentUser.role !== "user_level_2") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632. \u0627\u06CC\u0646 \u0627\u0646\u062F\u067E\u0648\u06CC\u0646\u062A \u0641\u0642\u0637 \u0628\u0631\u0627\u06CC \u06A9\u0627\u0631\u0628\u0631\u0627\u0646 \u0633\u0637\u062D 2 \u0627\u0633\u062A." });
+      }
+      if (!currentUser.parentUserId) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u0644\u062F \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const parentUser = await storage.getUser(currentUser.parentUserId);
+      if (!parentUser) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u0648\u0627\u0644\u062F \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json({
+        bankCardNumber: parentUser.bankCardNumber || null,
+        bankCardHolderName: parentUser.bankCardHolderName || null,
+        sellerId: parentUser.id,
+        sellerName: `${parentUser.firstName} ${parentUser.lastName}`
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC \u0648\u0627\u0644\u062F:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u06A9\u0627\u0631\u062A \u0628\u0627\u0646\u06A9\u06CC" });
+    }
+  });
+  app2.put("/api/admin/users/:userId/whatsapp-token", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { whatsappToken } = req.body;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const updatedUser = await storage.updateUser(userId, { whatsappToken });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0648\u06A9\u0646" });
+      }
+      console.log(`\u2705 \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u06A9\u0627\u0631\u0628\u0631 ${user.username} \u062A\u0648\u0633\u0637 \u0645\u062F\u06CC\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F`);
+      res.json({
+        message: "\u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u200C\u0627\u067E \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F",
+        user: { ...updatedUser, password: void 0 }
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u200C\u0627\u067E:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0648\u06A9\u0646 \u0648\u0627\u062A\u0633\u200C\u0627\u067E" });
     }
   });
   app2.delete("/api/users/:id", authenticateToken, requireAdmin, async (req, res) => {
@@ -7124,6 +8246,17 @@ async function registerRoutes(app2) {
     } catch (error) {
       console.error("\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u06A9\u0627\u0631\u0628\u0631:", error);
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u06A9\u0627\u0631\u0628\u0631" });
+    }
+  });
+  app2.get("/api/admin/login-logs", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 50;
+      const result = await storage.getLoginLogs(page, limit);
+      res.json(result);
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0644\u0627\u06AF\u200C\u0647\u0627\u06CC \u0648\u0631\u0648\u062F:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0644\u0627\u06AF\u200C\u0647\u0627\u06CC \u0648\u0631\u0648\u062F" });
     }
   });
   app2.get("/api/sub-users", authenticateToken, async (req, res) => {
@@ -7344,10 +8477,22 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0627\u0632\u0646\u0634\u0627\u0646\u06CC \u0631\u0645\u0632 \u0639\u0628\u0648\u0631" });
     }
   });
+  app2.get("/api/profile", authenticateToken, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.user.id);
+      res.json({ ...user, password: void 0 });
+    } catch (error) {
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u0631\u0648\u0641\u0627\u06CC\u0644" });
+    }
+  });
   app2.put("/api/profile", authenticateToken, async (req, res) => {
     try {
-      const { firstName, lastName } = req.body;
-      const user = await storage.updateUser(req.user.id, { firstName, lastName });
+      const { firstName, lastName, phone } = req.body;
+      const updateData = { firstName, lastName };
+      if (req.user.role === "admin" && phone) {
+        updateData.phone = phone;
+      }
+      const user = await storage.updateUser(req.user.id, updateData);
       res.json({ ...user, password: void 0 });
     } catch (error) {
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u067E\u0631\u0648\u0641\u0627\u06CC\u0644" });
@@ -7599,6 +8744,39 @@ ${newPassword}
         return res.status(400).json({ message: "\u062F\u0627\u062F\u0647 \u0647\u0627\u06CC \u0648\u0631\u0648\u062F\u06CC \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A", errors: error.errors });
       }
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u062A\u0648\u06A9\u0646 \u0647\u0648\u0634 \u0645\u0635\u0646\u0648\u0639\u06CC" });
+    }
+  });
+  app2.get("/api/blockchain-settings", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllBlockchainSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0628\u0644\u0627\u06A9\u0686\u06CC\u0646" });
+    }
+  });
+  app2.get("/api/blockchain-settings/:provider", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      const settings = await storage.getBlockchainSettings(provider);
+      res.json(settings || {});
+    } catch (error) {
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0628\u0644\u0627\u06A9\u0686\u06CC\u0646" });
+    }
+  });
+  app2.post("/api/blockchain-settings", authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const validatedData = insertBlockchainSettingsSchema.parse(req.body);
+      const settings = await storage.updateBlockchainSettings(validatedData);
+      if (validatedData.provider === "cardano") {
+        const { cardanoService: cardanoService2 } = await Promise.resolve().then(() => (init_cardano_service(), cardano_service_exports));
+        await cardanoService2.reloadApiKey();
+      }
+      res.json(settings);
+    } catch (error) {
+      if (error instanceof z2.ZodError) {
+        return res.status(400).json({ message: "\u062F\u0627\u062F\u0647 \u0647\u0627\u06CC \u0648\u0631\u0648\u062F\u06CC \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A", errors: error.errors });
+      }
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0628\u0644\u0627\u06A9\u0686\u06CC\u0646" });
     }
   });
   app2.get("/api/products", authenticateToken, async (req, res) => {
@@ -8211,6 +9389,87 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0633\u0641\u0627\u0631\u0634\u0627\u062A" });
     }
   });
+  app2.get("/api/orders/:orderId/seller-info", authenticateToken, requireLevel2, async (req, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      if (!order) {
+        return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      if (order.userId !== req.user.id) {
+        return res.status(403).json({ message: "\u0634\u0645\u0627 \u0645\u062C\u0627\u0632 \u0628\u0647 \u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0627\u06CC\u0646 \u0633\u0641\u0627\u0631\u0634 \u0646\u06CC\u0633\u062A\u06CC\u062F" });
+      }
+      const seller = await storage.getUser(order.sellerId);
+      if (!seller) {
+        return res.status(404).json({ message: "\u0641\u0631\u0648\u0634\u0646\u062F\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json({
+        sellerId: seller.id,
+        sellerName: `${seller.firstName} ${seller.lastName}`,
+        bankCardNumber: seller.bankCardNumber,
+        bankCardHolderName: seller.bankCardHolderName,
+        tronWalletAddress: seller.tronWalletAddress,
+        usdtTrc20WalletAddress: seller.usdtTrc20WalletAddress,
+        rippleWalletAddress: seller.rippleWalletAddress,
+        cardanoWalletAddress: seller.cardanoWalletAddress
+      });
+    } catch (error) {
+      console.error("Get seller info error:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0641\u0631\u0648\u0634\u0646\u062F\u0647" });
+    }
+  });
+  app2.post("/api/orders/:orderId/start-payment-timer", authenticateToken, requireLevel2, async (req, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      if (!order) {
+        return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      if (order.userId !== req.user.id) {
+        return res.status(403).json({ message: "\u0634\u0645\u0627 \u0645\u062C\u0627\u0632 \u0628\u0647 \u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0627\u06CC\u0646 \u0633\u0641\u0627\u0631\u0634 \u0646\u06CC\u0633\u062A\u06CC\u062F" });
+      }
+      const now = /* @__PURE__ */ new Date();
+      await db.update(orders).set({
+        paymentStartedAt: now
+      }).where(eq(orders.id, req.params.orderId));
+      res.json({
+        success: true,
+        paymentStartedAt: now.toISOString()
+      });
+    } catch (error) {
+      console.error("Start payment timer error:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0634\u0631\u0648\u0639 \u062A\u0627\u06CC\u0645\u0631 \u067E\u0631\u062F\u0627\u062E\u062A" });
+    }
+  });
+  app2.get("/api/orders/:orderId/payment-timer", authenticateToken, requireLevel2, async (req, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      if (!order) {
+        return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      if (order.userId !== req.user.id) {
+        return res.status(403).json({ message: "\u0634\u0645\u0627 \u0645\u062C\u0627\u0632 \u0628\u0647 \u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0627\u06CC\u0646 \u0633\u0641\u0627\u0631\u0634 \u0646\u06CC\u0633\u062A\u06CC\u062F" });
+      }
+      if (!order.paymentStartedAt) {
+        return res.json({
+          hasTimer: false,
+          remainingSeconds: 0
+        });
+      }
+      const startTime = new Date(order.paymentStartedAt).getTime();
+      const currentTime = (/* @__PURE__ */ new Date()).getTime();
+      const elapsedSeconds = Math.floor((currentTime - startTime) / 1e3);
+      const totalSeconds = 10 * 60;
+      const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+      res.json({
+        hasTimer: true,
+        paymentStartedAt: order.paymentStartedAt,
+        remainingSeconds,
+        isExpired: remainingSeconds === 0
+      });
+    } catch (error) {
+      console.error("Get payment timer error:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0648\u0636\u0639\u06CC\u062A \u062A\u0627\u06CC\u0645\u0631 \u067E\u0631\u062F\u0627\u062E\u062A" });
+    }
+  });
   app2.get("/api/orders/seller", authenticateToken, requireAdminOrLevel1, async (req, res) => {
     try {
       const orders2 = await storage.getOrdersBySeller(req.user.id);
@@ -8601,7 +9860,7 @@ ${newPassword}
             for (const order of awaitingOrders) {
               const orderAmount = parseFloat(order.totalAmount);
               if (currentBalance >= orderAmount) {
-                await storage.updateOrderStatus(order.id, "confirmed", order.sellerId);
+                await storage.updateOrderStatus(order.id, "pending", order.sellerId);
                 const { nanoid: nanoid2 } = await import("nanoid");
                 await storage.createTransaction({
                   userId: transaction.userId,
@@ -9485,6 +10744,259 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u0645\u062D\u062A\u0648\u0627" });
     }
   });
+  app2.get("/api/tron/wallet", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json({
+        walletAddress: user.tronWalletAddress || null,
+        usdtWalletAddress: user.usdtTrc20WalletAddress || null,
+        rippleWalletAddress: user.rippleWalletAddress || null,
+        cardanoWalletAddress: user.cardanoWalletAddress || null
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0622\u062F\u0631\u0633 \u0648\u0644\u062A:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0622\u062F\u0631\u0633 \u0648\u0644\u062A" });
+    }
+  });
+  app2.put("/api/tron/wallet", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const { walletAddress, usdtWalletAddress, rippleWalletAddress, cardanoWalletAddress } = req.body;
+      if (!walletAddress?.trim() && !usdtWalletAddress?.trim() && !rippleWalletAddress?.trim() && !cardanoWalletAddress?.trim()) {
+        return res.status(400).json({ message: "\u062D\u062F\u0627\u0642\u0644 \u06CC\u06A9 \u0622\u062F\u0631\u0633 \u0648\u0644\u062A \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F" });
+      }
+      if (walletAddress && walletAddress.trim() && !tronService.validateTronAddress(walletAddress)) {
+        return res.status(400).json({ message: "\u0622\u062F\u0631\u0633 \u0648\u0644\u062A TRON \u0645\u0639\u062A\u0628\u0631 \u0646\u06CC\u0633\u062A" });
+      }
+      if (usdtWalletAddress && usdtWalletAddress.trim() && !tronService.validateTronAddress(usdtWalletAddress)) {
+        return res.status(400).json({ message: "\u0622\u062F\u0631\u0633 \u0648\u0644\u062A USDT TRC20 \u0645\u0639\u062A\u0628\u0631 \u0646\u06CC\u0633\u062A" });
+      }
+      const updateData = {};
+      if (walletAddress !== void 0) updateData.tronWalletAddress = walletAddress.trim() || null;
+      if (usdtWalletAddress !== void 0) updateData.usdtTrc20WalletAddress = usdtWalletAddress.trim() || null;
+      if (rippleWalletAddress !== void 0) updateData.rippleWalletAddress = rippleWalletAddress.trim() || null;
+      if (cardanoWalletAddress !== void 0) updateData.cardanoWalletAddress = cardanoWalletAddress.trim() || null;
+      const updatedUser = await storage.updateUser(req.user.id, updateData);
+      if (!updatedUser) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json({
+        message: "\u0622\u062F\u0631\u0633 \u0648\u0644\u062A \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0630\u062E\u06CC\u0631\u0647 \u0634\u062F",
+        walletAddress: updatedUser.tronWalletAddress
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0622\u062F\u0631\u0633 \u0648\u0644\u062A:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0630\u062E\u06CC\u0631\u0647 \u0622\u062F\u0631\u0633 \u0648\u0644\u062A" });
+    }
+  });
+  app2.get("/api/tron/transactions", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.tronWalletAddress) {
+        return res.status(400).json({
+          message: "\u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u0622\u062F\u0631\u0633 \u0648\u0644\u062A \u062E\u0648\u062F \u0631\u0627 \u062B\u0628\u062A \u06A9\u0646\u06CC\u062F"
+        });
+      }
+      const type = req.query.type || "all";
+      const limit = parseInt(req.query.limit) || 50;
+      const transactions2 = await tronService.getTransactions(
+        user.tronWalletAddress,
+        type,
+        limit
+      );
+      const trxPriceInRial = await tgjuService.getTronPriceInRial();
+      res.json({
+        success: true,
+        walletAddress: user.tronWalletAddress,
+        transactions: transactions2,
+        count: transactions2.length,
+        trxPriceInRial
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627",
+        success: false
+      });
+    }
+  });
+  app2.get("/api/tron/price", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const priceInRial = await tgjuService.getTronPriceInRial();
+      res.json({
+        success: true,
+        priceInRial,
+        lastUpdate: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A \u062A\u0631\u0648\u0646:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A \u062A\u0631\u0648\u0646",
+        success: false
+      });
+    }
+  });
+  app2.get("/api/crypto/prices/test", async (req, res) => {
+    try {
+      console.log("\u{1F9EA} [TEST] \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u062A\u0633\u062A\u06CC...");
+      const prices = await tgjuService.getAllCryptoPrices();
+      console.log("\u{1F9EA} [TEST] \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u062F\u0631\u06CC\u0627\u0641\u062A \u0634\u062F\u0647:", JSON.stringify(prices, null, 2));
+      res.json({
+        success: true,
+        prices,
+        lastUpdate: (/* @__PURE__ */ new Date()).toISOString(),
+        message: "\u0627\u06CC\u0646 \u06CC\u06A9 endpoint \u062A\u0633\u062A\u06CC \u0627\u0633\u062A \u0628\u0631\u0627\u06CC \u0628\u0631\u0631\u0633\u06CC \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0632\u0646\u062F\u0647"
+      });
+    } catch (error) {
+      console.error("\u274C [TEST] \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0627\u0631\u0632:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0627\u0631\u0632",
+        success: false,
+        error: error.stack
+      });
+    }
+  });
+  app2.get("/api/crypto/prices", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1" && req.user.role !== "user_level_2") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const cachedPrices = await cryptoPriceCacheService.getCachedPrices();
+      if (!cachedPrices) {
+        return res.status(503).json({
+          message: "\u0642\u06CC\u0645\u062A\u200C\u0647\u0627 \u0647\u0646\u0648\u0632 \u0622\u0645\u0627\u062F\u0647 \u0646\u06CC\u0633\u062A\u0646\u062F. \u0644\u0637\u0641\u0627\u064B \u0686\u0646\u062F \u0644\u062D\u0638\u0647 \u0635\u0628\u0631 \u06A9\u0646\u06CC\u062F.",
+          success: false
+        });
+      }
+      res.json({
+        success: true,
+        prices: {
+          TRX: cachedPrices.TRX,
+          USDT: cachedPrices.USDT,
+          XRP: cachedPrices.XRP,
+          ADA: cachedPrices.ADA
+        },
+        lastUpdate: cachedPrices.lastUpdate?.toISOString() || (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0627\u0631\u0632:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0642\u06CC\u0645\u062A\u200C\u0647\u0627\u06CC \u0627\u0631\u0632",
+        success: false
+      });
+    }
+  });
+  app2.get("/api/tron/transactions/trc20", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.usdtTrc20WalletAddress) {
+        return res.status(400).json({
+          message: "\u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u0622\u062F\u0631\u0633 \u0648\u0644\u062A USDT TRC20 \u062E\u0648\u062F \u0631\u0627 \u062B\u0628\u062A \u06A9\u0646\u06CC\u062F"
+        });
+      }
+      const contractAddress = req.query.contract || "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+      const limit = parseInt(req.query.limit) || 50;
+      const transactions2 = await tronService.getTRC20Transactions(
+        user.usdtTrc20WalletAddress,
+        contractAddress,
+        limit
+      );
+      res.json({
+        success: true,
+        walletAddress: user.usdtTrc20WalletAddress,
+        transactions: transactions2,
+        count: transactions2.length
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC USDT TRC20:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC USDT TRC20",
+        success: false
+      });
+    }
+  });
+  app2.get("/api/ripple/transactions", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.rippleWalletAddress) {
+        return res.status(400).json({
+          message: "\u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u0622\u062F\u0631\u0633 \u0648\u0644\u062A Ripple \u062E\u0648\u062F \u0631\u0627 \u062B\u0628\u062A \u06A9\u0646\u06CC\u062F"
+        });
+      }
+      const limit = parseInt(req.query.limit) || 50;
+      const signedMarker = req.query.marker;
+      const result = await rippleService.getTransactions(
+        user.rippleWalletAddress,
+        limit,
+        signedMarker
+      );
+      res.json({
+        success: true,
+        walletAddress: user.rippleWalletAddress,
+        transactions: result.transactions,
+        count: result.transactions.length,
+        ...result.marker && { marker: result.marker }
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC Ripple:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC Ripple",
+        success: false
+      });
+    }
+  });
+  app2.get("/api/cardano/transactions", authenticateToken, async (req, res) => {
+    try {
+      if (req.user.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const user = await storage.getUser(req.user.id);
+      if (!user || !user.cardanoWalletAddress) {
+        return res.status(400).json({
+          message: "\u0644\u0637\u0641\u0627\u064B \u0627\u0628\u062A\u062F\u0627 \u0622\u062F\u0631\u0633 \u0648\u0644\u062A Cardano \u062E\u0648\u062F \u0631\u0627 \u062B\u0628\u062A \u06A9\u0646\u06CC\u062F"
+        });
+      }
+      const limit = parseInt(req.query.limit) || 50;
+      const page = parseInt(req.query.page) || 1;
+      const transactions2 = await cardanoService.getTransactions(
+        user.cardanoWalletAddress,
+        limit,
+        page
+      );
+      res.json({
+        success: true,
+        walletAddress: user.cardanoWalletAddress,
+        transactions: transactions2,
+        count: transactions2.length
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC Cardano:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC Cardano",
+        success: false
+      });
+    }
+  });
   const httpServer = createServer(app2);
   return httpServer;
 }
@@ -9499,7 +11011,9 @@ import { createServer as createViteServer, createLogger } from "vite";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path3 from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+var __dirname2 = path3.dirname(fileURLToPath2(import.meta.url));
 var vite_config_default = defineConfig({
   plugins: [
     react(),
@@ -9512,14 +11026,14 @@ var vite_config_default = defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path3.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path3.resolve(import.meta.dirname, "shared"),
-      "@assets": path3.resolve(import.meta.dirname, "attached_assets")
+      "@": path3.resolve(__dirname2, "client", "src"),
+      "@shared": path3.resolve(__dirname2, "shared"),
+      "@assets": path3.resolve(__dirname2, "attached_assets")
     }
   },
-  root: path3.resolve(import.meta.dirname, "client"),
+  root: path3.resolve(__dirname2, "client"),
   build: {
-    outDir: path3.resolve(import.meta.dirname, "dist/public"),
+    outDir: path3.resolve(__dirname2, "dist/public"),
     emptyOutDir: true
   },
   server: {
@@ -9668,6 +11182,7 @@ var cleanupService = new CleanupService();
 // server/index.ts
 import path6 from "path";
 var app = express3();
+app.set("trust proxy", true);
 app.use((req, res, next) => {
   if (req.headers["content-type"]?.startsWith("multipart/form-data")) {
     return next();
@@ -9725,6 +11240,7 @@ app.use((req, res, next) => {
     log("[AI] \u0634\u0631\u0648\u0639 initialize \u0633\u0631\u0648\u06CC\u0633 AI...");
     await aiService.initialize();
     log(`[AI] AI Service initialized \u0628\u0627 provider: ${aiService.getCurrentProvider() || "\u0647\u06CC\u0686\u06A9\u062F\u0627\u0645"}`);
+    await cryptoPriceCacheService.initialize();
     whatsAppMessageService.start();
     cleanupService.start();
   });
