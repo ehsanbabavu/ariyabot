@@ -34,7 +34,6 @@ import {
   Truck,
   Receipt,
   Database,
-  FileText,
   History
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -81,6 +80,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
     { path: "/user-whatsapp-tokens", label: "توکن واتس‌اپ کاربران", icon: MessageCircle },
     { path: "/bank-cards-management", label: "تایید کارت‌های بانکی", icon: CreditCard },
     { path: "/tickets", label: "مدیریت تیکت‌ها", icon: Ticket },
+    { path: "/guest-chats", label: "چت مهمانان", icon: MessageSquare },
     { path: "/subscriptions", label: "اشتراک‌ها", icon: Crown },
     { path: "/login-logs", label: "لاگ‌های ورود", icon: History },
     { path: "/database-backup", label: "پشتیبان‌گیری", icon: Database },
@@ -109,7 +109,6 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   ];
 
   const settingsItems = [
-    { path: "/content-management", label: "مدیریت محتوای سایت", icon: FileText, adminOnly: true },
     { path: "/whatsapp-settings", label: "تنظیمات واتس‌اپ", icon: MessageSquare, adminOnly: true },
     { path: "/ai-token", label: "توکن هوش مصنوعی", icon: Bot, adminOnly: true },
     { path: "/cardano-settings", label: "توکن API کاردانو", icon: Wallet, adminOnly: true },
