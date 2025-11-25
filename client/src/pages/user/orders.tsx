@@ -1148,10 +1148,8 @@ export default function OrdersPage() {
                 </div>
               </div>
 
-              {paymentStep === 1 ? (
-                /* Step 1: Select Payment Method */
-                <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Step 1: Select Payment Method */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Crypto Payment Card */}
                   <Card className="border-2 border-blue-200 cursor-pointer hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
@@ -1321,11 +1319,66 @@ export default function OrdersPage() {
                     </CardContent>
                   </Card>
                 </div>
-                </>
-              ) : paymentStep === 2 ? (
-                /* Step 2: Payment Details - Always Crypto When Timer Active */
-                <div className="space-y-4">
-                  {selectedPaymentMethod?.type === 'crypto' ? (
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => setStep1DialogOpen(false)}
+                  className="min-w-[120px]"
+                  size="default"
+                >
+                  بستن
+                </Button>
+                <Button
+                  onClick={handleProceedToPayment}
+                  disabled={!selectedPaymentMethod}
+                  className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed min-w-[120px]"
+                  size="default"
+                >
+                  <CreditCard className="w-4 h-4 ml-2" />
+                  پرداخت
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Step 2 Dialog - جزئیات پرداخت ارز دیجیتال یا کارت بانکی */}
+      <Dialog open={step2DialogOpen} onOpenChange={(open) => {
+        setStep2DialogOpen(open);
+        if (!open) {
+          form.reset();
+        }
+      }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
+          <DialogHeader>
+            <DialogTitle className="text-right text-xl">
+              جزئیات پرداخت
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedPaymentOrder && (
+            <div className="space-y-4" dir="rtl">
+              {/* Order Summary */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg">
+                <h3 className="font-semibold mb-2">اطلاعات سفارش</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">شماره سفارش: </span>
+                    <span className="font-bold">#{selectedPaymentOrder.orderNumber || selectedPaymentOrder.id.slice(0, 8)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-600 dark:text-gray-400">مبلغ قابل پرداخت: </span>
+                    <span className="font-bold text-green-600">{formatPrice(selectedPaymentOrder.totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Details */}
+              <div className="space-y-4">
+                {selectedPaymentMethod?.type === 'crypto' ? (
                     /* Crypto Payment Details */
                     <div className="space-y-4">
                       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
@@ -1565,31 +1618,28 @@ export default function OrdersPage() {
                       </Card>
                     </div>
                   )}
-                </div>
-              ) : null}
+              </div>
 
-              {/* Action Buttons */}
-              {paymentStep === 1 && (
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={() => setPaymentDialogOpen(false)}
-                    className="min-w-[120px]"
-                    size="default"
-                  >
-                    بستن
-                  </Button>
-                  <Button
-                    onClick={handleProceedToPayment}
-                    disabled={!selectedPaymentMethod}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed min-w-[120px]"
-                    size="default"
-                  >
-                    <CreditCard className="w-4 h-4 ml-2" />
-                    پرداخت
-                  </Button>
-                </div>
-              )}
+              {/* Action Buttons for Step 2 */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={handleBackToMethodSelection}
+                  className="min-w-[120px]"
+                  size="default"
+                >
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                  بازگشت
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setStep2DialogOpen(false)}
+                  className="min-w-[120px]"
+                  size="default"
+                >
+                  بستن
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
