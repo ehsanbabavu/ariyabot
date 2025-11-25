@@ -91,22 +91,23 @@ Preferred communication style: Simple, everyday language.
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)
-- **Date**: November 21, 2025 (Fresh GitHub Clone Import)
+- **Date**: November 21, 2025 (Fresh GitHub Clone Import - Setup Completed)
 - **Status**: ✅ Successfully imported and configured in Replit environment
 - **Setup Actions**:
   - ✅ Installed all npm dependencies (640 packages)
-  - ✅ Connected to PostgreSQL database (DATABASE_URL configured)
+  - ✅ Connected to PostgreSQL database (DATABASE_URL already configured)
   - ✅ Pushed database schema using Drizzle Kit (`npm run db:push`)
-  - ✅ Created admin and test user accounts automatically
+  - ✅ Created admin and test user accounts automatically (via db-storage.ts initialization)
   - ✅ Initialized test data (3 categories, 6 products, landing page content)
   - ✅ Configured development workflow (npm run dev on port 5000 with webview)
-  - ✅ Set up VM deployment configuration (build + start commands)
+  - ✅ Set up VM deployment configuration (build: npm run build, run: npm start)
   - ✅ Created .gitignore file for proper version control
-  - ✅ Frontend configured with allowedHosts: true for Replit proxy support
+  - ✅ Frontend configured with allowedHosts: true for Replit proxy support (vite.config.ts)
   - ✅ All services started successfully (WhatsApp, AI, cleanup, crypto price caching)
   - ✅ Application is fully functional and accessible on port 5000
   - ✅ Persian landing page displaying correctly with RTL support
   - ✅ Created required directories (stamppic, public/invoices, uploads, invoice)
+  - ✅ Server running on 0.0.0.0:5000 (frontend) with backend APIs on same port
 
 ## Environment Configuration
 1. **Database**: PostgreSQL database is provisioned and connected via `DATABASE_URL`
