@@ -21,6 +21,7 @@ import Categories from "@/pages/admin/categories";
 import UserWhatsappTokens from "@/pages/admin/user-whatsapp-tokens";
 import CardanoSettings from "@/pages/admin/cardano-settings";
 import BankCardsManagement from "@/pages/admin/bank-cards";
+import GuestChats from "@/pages/admin/guest-chats";
 import Profile from "@/pages/user/profile";
 import SendTicket from "@/pages/user/send-ticket";
 import MyTickets from "@/pages/user/my-tickets";
@@ -48,8 +49,7 @@ import AddFaqPage from "@/pages/user/add-faq";
 import ManageFaqsPage from "@/pages/user/manage-faqs";
 import MaintenancePage from "@/pages/maintenance";
 import NotFound from "@/pages/not-found";
-import LandingPage from "@/pages/landing";
-import ContentManagement from "@/pages/admin/content-management";
+import Home from "@/pages/home";
 
 interface MaintenanceStatus {
   isEnabled: boolean;
@@ -204,7 +204,7 @@ function Router() {
         user.role === "admin" 
           ? <ProtectedRoute component={Dashboard} /> 
           : <ProtectedRoute component={UserDashboard} />
-      ) : <LandingPage />} />
+      ) : <Home />} />
       <Route path="/dashboard" component={() => user ? (
         user.role === "admin" 
           ? <ProtectedRoute component={Dashboard} /> 
@@ -212,13 +212,13 @@ function Router() {
       ) : <Login />} />
       <Route path="/users" component={() => <AdminRoute component={UserManagement} />} />
       <Route path="/tickets" component={() => <AdminRoute component={TicketManagement} />} />
+      <Route path="/guest-chats" component={() => <AdminRoute component={GuestChats} />} />
       <Route path="/subscriptions" component={() => <AdminRoute component={Subscriptions} />} />
       <Route path="/categories" component={() => <AdminOrLevel1Route component={Categories} />} />
       <Route path="/ai-token" component={() => <AdminRoute component={AITokenSettings} />} />
       <Route path="/cardano-settings" component={() => <AdminRoute component={CardanoSettings} />} />
       <Route path="/login-logs" component={() => <AdminRoute component={LoginLogs} />} />
       <Route path="/database-backup" component={() => <AdminRoute component={DatabaseBackup} />} />
-      <Route path="/content-management" component={() => <AdminRoute component={ContentManagement} />} />
       <Route path="/bank-cards-management" component={() => <AdminRoute component={BankCardsManagement} />} />
       <Route path="/admin/welcome-message" component={() => <AdminOrLevel1Route component={WelcomeMessage} />} />
       <Route path="/user-whatsapp-tokens" component={() => <AdminRoute component={UserWhatsappTokens} />} />
