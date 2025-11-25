@@ -3277,6 +3277,201 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GUEST CHAT ROUTES
+  // =================
+  
+  // Create or get guest chat session (no auth required)
+  app.post("/api/guest-chat/session", async (req, res) => {
+    try {
+      const { sessionToken, guestName, guestPhone } = req.body;
+      
+      if (!sessionToken) {
+        return res.status(400).json({ message: "توکن جلسه الزامی است" });
+      }
+      
+      // Check if session already exists
+      let session = await storage.getGuestChatSessionByToken(sessionToken);
+      
+      if (!session) {
+        // Create new session
+        session = await storage.createGuestChatSession(sessionToken, guestName, guestPhone);
+        
+        // Send welcome message from admin
+        await storage.createGuestChatMessage(session.id, "سلام! چطور می‌تونم کمکتون کنم؟", "admin");
+      }
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Error creating guest chat session:", error);
+      res.status(500).json({ message: "خطا در ایجاد جلسه چت" });
+    }
+  });
+  
+  // Get guest chat messages (no auth required)
+  app.get("/api/guest-chat/:sessionToken/messages", async (req, res) => {
+    try {
+      const { sessionToken } = req.params;
+      
+      const session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        return res.status(404).json({ message: "جلسه چت یافت نشد" });
+      }
+      
+      const messages = await storage.getGuestChatMessages(session.id);
+      
+      // Mark admin messages as read (guest is viewing)
+      await storage.markGuestChatMessagesAsRead(session.id, "guest");
+      
+      res.json({ session, messages });
+    } catch (error) {
+      console.error("Error getting guest chat messages:", error);
+      res.status(500).json({ message: "خطا در دریافت پیام‌ها" });
+    }
+  });
+  
+  // Send guest message (no auth required)
+  app.post("/api/guest-chat/:sessionToken/messages", async (req, res) => {
+    try {
+      const { sessionToken } = req.params;
+      const { message } = req.body;
+      
+      if (!message || !message.trim()) {
+        return res.status(400).json({ message: "پیام نمی‌تواند خالی باشد" });
+      }
+      
+      const session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        return res.status(404).json({ message: "جلسه چت یافت نشد" });
+      }
+      
+      if (!session.isActive) {
+        return res.status(400).json({ message: "این جلسه چت بسته شده است" });
+      }
+      
+      const newMessage = await storage.createGuestChatMessage(session.id, message.trim(), "guest");
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error sending guest message:", error);
+      res.status(500).json({ message: "خطا در ارسال پیام" });
+    }
+  });
+  
+  // ADMIN GUEST CHAT ROUTES (requires authentication)
+  
+  // Get all guest chat sessions (admin only)
+  app.get("/api/admin/guest-chats", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند چت‌های مهمانان را مشاهده کند" });
+      }
+      
+      const sessions = await storage.getAllGuestChatSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error getting guest chat sessions:", error);
+      res.status(500).json({ message: "خطا در دریافت جلسات چت" });
+    }
+  });
+  
+  // Get active guest chat sessions (admin only)
+  app.get("/api/admin/guest-chats/active", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند چت‌های مهمانان را مشاهده کند" });
+      }
+      
+      const sessions = await storage.getActiveGuestChatSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error getting active guest chat sessions:", error);
+      res.status(500).json({ message: "خطا در دریافت جلسات چت فعال" });
+    }
+  });
+  
+  // Get total unread guest chats count (admin only)
+  app.get("/api/admin/guest-chats/unread-count", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی محدود" });
+      }
+      
+      const unreadCount = await storage.getTotalUnreadGuestChats();
+      res.json({ unreadCount });
+    } catch (error) {
+      console.error("Error getting unread guest chats count:", error);
+      res.status(500).json({ message: "خطا در دریافت تعداد پیام‌های خوانده نشده" });
+    }
+  });
+  
+  // Get guest chat messages for admin
+  app.get("/api/admin/guest-chats/:sessionId/messages", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      const { sessionId } = req.params;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند پیام‌ها را مشاهده کند" });
+      }
+      
+      const messages = await storage.getGuestChatMessages(sessionId);
+      
+      // Mark guest messages as read (admin is viewing)
+      await storage.markGuestChatMessagesAsRead(sessionId, "admin");
+      
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting guest chat messages for admin:", error);
+      res.status(500).json({ message: "خطا در دریافت پیام‌ها" });
+    }
+  });
+  
+  // Send admin reply to guest chat
+  app.post("/api/admin/guest-chats/:sessionId/messages", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      const { sessionId } = req.params;
+      const { message } = req.body;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند پاسخ ارسال کند" });
+      }
+      
+      if (!message || !message.trim()) {
+        return res.status(400).json({ message: "پیام نمی‌تواند خالی باشد" });
+      }
+      
+      const newMessage = await storage.createGuestChatMessage(sessionId, message.trim(), "admin");
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error sending admin reply:", error);
+      res.status(500).json({ message: "خطا در ارسال پاسخ" });
+    }
+  });
+  
+  // Close guest chat session (admin only)
+  app.patch("/api/admin/guest-chats/:sessionId/close", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      const { sessionId } = req.params;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند جلسه را ببندد" });
+      }
+      
+      await storage.closeGuestChatSession(sessionId);
+      res.json({ message: "جلسه چت با موفقیت بسته شد" });
+    } catch (error) {
+      console.error("Error closing guest chat session:", error);
+      res.status(500).json({ message: "خطا در بستن جلسه چت" });
+    }
+  });
+
   // Get user by ID (for getting parent info)
   app.get("/api/users/:userId", authenticateToken, async (req: AuthRequest, res) => {
     try {

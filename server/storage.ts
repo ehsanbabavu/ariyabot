@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog, type GuestChatSession, type GuestChatMessage } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -176,6 +176,20 @@ export interface IStorage {
   createLoginLog(log: InsertLoginLog): Promise<LoginLog>;
   getLoginLogs(page?: number, limit?: number): Promise<{ logs: LoginLog[], total: number, totalPages: number }>;
   getLoginLogsByUser(userId: string): Promise<LoginLog[]>;
+  
+  // Guest Chat Sessions
+  createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string): Promise<GuestChatSession>;
+  getGuestChatSessionByToken(sessionToken: string): Promise<GuestChatSession | undefined>;
+  getAllGuestChatSessions(): Promise<GuestChatSession[]>;
+  getActiveGuestChatSessions(): Promise<GuestChatSession[]>;
+  updateGuestChatSession(sessionId: string, updates: Partial<GuestChatSession>): Promise<GuestChatSession | undefined>;
+  closeGuestChatSession(sessionId: string): Promise<void>;
+  
+  // Guest Chat Messages
+  createGuestChatMessage(sessionId: string, message: string, sender: 'guest' | 'admin'): Promise<GuestChatMessage>;
+  getGuestChatMessages(sessionId: string): Promise<GuestChatMessage[]>;
+  markGuestChatMessagesAsRead(sessionId: string, sender: 'guest' | 'admin'): Promise<void>;
+  getTotalUnreadGuestChats(): Promise<number>;
 }
 
 export class MemStorage implements IStorage {
@@ -1918,6 +1932,117 @@ export class MemStorage implements IStorage {
     return Array.from(this.loginLogs.values())
       .filter(log => log.userId === userId)
       .sort((a, b) => (b.loginAt?.getTime() || 0) - (a.loginAt?.getTime() || 0));
+  }
+
+  // Guest Chat Methods (stub implementation for MemStorage)
+  private guestChatSessions: Map<string, GuestChatSession> = new Map();
+  private guestChatMessages: Map<string, GuestChatMessage> = new Map();
+
+  async createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string): Promise<GuestChatSession> {
+    const session: GuestChatSession = {
+      id: randomUUID(),
+      sessionToken,
+      guestName: guestName || null,
+      guestPhone: guestPhone || null,
+      isActive: true,
+      lastMessageAt: new Date(),
+      unreadByAdmin: 0,
+      unreadByGuest: 0,
+      createdAt: new Date(),
+    };
+    this.guestChatSessions.set(session.id, session);
+    return session;
+  }
+
+  async getGuestChatSessionByToken(sessionToken: string): Promise<GuestChatSession | undefined> {
+    return Array.from(this.guestChatSessions.values()).find(s => s.sessionToken === sessionToken);
+  }
+
+  async getAllGuestChatSessions(): Promise<GuestChatSession[]> {
+    return Array.from(this.guestChatSessions.values()).sort((a, b) => 
+      (b.lastMessageAt?.getTime() || 0) - (a.lastMessageAt?.getTime() || 0)
+    );
+  }
+
+  async getActiveGuestChatSessions(): Promise<GuestChatSession[]> {
+    return Array.from(this.guestChatSessions.values())
+      .filter(s => s.isActive)
+      .sort((a, b) => (b.lastMessageAt?.getTime() || 0) - (a.lastMessageAt?.getTime() || 0));
+  }
+
+  async updateGuestChatSession(sessionId: string, updates: Partial<GuestChatSession>): Promise<GuestChatSession | undefined> {
+    const session = this.guestChatSessions.get(sessionId);
+    if (!session) return undefined;
+    const updated = { ...session, ...updates };
+    this.guestChatSessions.set(sessionId, updated);
+    return updated;
+  }
+
+  async closeGuestChatSession(sessionId: string): Promise<void> {
+    const session = this.guestChatSessions.get(sessionId);
+    if (session) {
+      session.isActive = false;
+      this.guestChatSessions.set(sessionId, session);
+    }
+  }
+
+  async createGuestChatMessage(sessionId: string, message: string, sender: 'guest' | 'admin'): Promise<GuestChatMessage> {
+    const msg: GuestChatMessage = {
+      id: randomUUID(),
+      sessionId,
+      message,
+      sender,
+      isRead: false,
+      createdAt: new Date(),
+    };
+    this.guestChatMessages.set(msg.id, msg);
+    
+    const session = this.guestChatSessions.get(sessionId);
+    if (session) {
+      session.lastMessageAt = new Date();
+      if (sender === 'guest') {
+        session.unreadByAdmin = (session.unreadByAdmin || 0) + 1;
+      } else {
+        session.unreadByGuest = (session.unreadByGuest || 0) + 1;
+      }
+      this.guestChatSessions.set(sessionId, session);
+    }
+    return msg;
+  }
+
+  async getGuestChatMessages(sessionId: string): Promise<GuestChatMessage[]> {
+    return Array.from(this.guestChatMessages.values())
+      .filter(m => m.sessionId === sessionId)
+      .sort((a, b) => (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
+  }
+
+  async markGuestChatMessagesAsRead(sessionId: string, sender: 'guest' | 'admin'): Promise<void> {
+    const messageSender = sender === 'admin' ? 'guest' : 'admin';
+    for (const [id, msg] of this.guestChatMessages.entries()) {
+      if (msg.sessionId === sessionId && msg.sender === messageSender && !msg.isRead) {
+        msg.isRead = true;
+        this.guestChatMessages.set(id, msg);
+      }
+    }
+    const session = this.guestChatSessions.get(sessionId);
+    if (session) {
+      if (sender === 'admin') {
+        session.unreadByAdmin = 0;
+      } else {
+        session.unreadByGuest = 0;
+      }
+      this.guestChatSessions.set(sessionId, session);
+    }
+  }
+
+  async getTotalUnreadGuestChats(): Promise<number> {
+    let total = 0;
+    for (const session of this.guestChatSessions.values()) {
+      if (session.isActive) {
+        total += session.unreadByAdmin || 0;
+      }
+    }
+    return total;
   }
 }
 

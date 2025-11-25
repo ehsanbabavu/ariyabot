@@ -88,6 +88,24 @@ Preferred communication style: Simple, everyday language.
 ## Blockchain Services
 - **Cardanoscan API**: For Cardano blockchain transaction retrieval and wallet monitoring.
 
+# Recent Changes
+
+## November 25, 2025
+- **سیستم چت مهمانان**: سیستم چت برای بازدیدکنندگان غیرعضو صفحه اصلی
+  - جداول `guestChatSessions` و `guestChatMessages` در دیتابیس
+  - API endpoints عمومی برای ایجاد جلسه و ارسال/دریافت پیام
+  - API endpoints محافظت شده برای مدیر جهت پاسخگویی
+  - صفحه مدیریت چت مهمانان در پنل ادمین (`/guest-chats`)
+  - اتصال پنجره چت صفحه Home به backend با localStorage session
+  - نمایش پیام‌های خوانده نشده و polling خودکار
+- **صفحه اصلی جدید**: صفحه لندینگ قدیمی با صفحه جدید از پوشه `site` جایگزین شد
+  - حذف `client/src/pages/landing.tsx` و پوشه `client/src/pages/landing/`
+  - استفاده از `client/src/pages/home.tsx` جدید با طراحی مدرن
+  - شامل انیمیشن‌های Framer Motion و کاروسل اخبار
+- **حذف مدیریت محتوا**: صفحه مدیریت محتوای سایت حذف شد
+  - حذف `client/src/pages/admin/content-management.tsx`
+  - حذف لینک از sidebar و روتینگ
+
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)

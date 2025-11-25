@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql, desc, and, gte, or, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices } from "@shared/schema";
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type ContentSection, type InsertContentSection, type LoginLog, type InsertLoginLog, type CryptoPrice, type InsertCryptoPrice } from "@shared/schema";
+import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type ContentSection, type InsertContentSection, type LoginLog, type InsertLoginLog, type CryptoPrice, type InsertCryptoPrice, type GuestChatSession, type InsertGuestChatSession, type GuestChatMessage, type InsertGuestChatMessage } from "@shared/schema";
 import { type IStorage } from "./storage";
 import bcrypt from "bcryptjs";
 
@@ -16,7 +16,7 @@ const pool = new Pool({
   ssl: false
 });
 const db = drizzle(pool, {
-  schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices }
+  schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages }
 });
 
 // Export db instance for use in routes
@@ -2086,6 +2086,191 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error getting login logs by user:", error);
       return [];
+    }
+  }
+
+  // Guest Chat Session Methods
+  async createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string): Promise<GuestChatSession> {
+    try {
+      const result = await db.insert(guestChatSessions)
+        .values({
+          sessionToken,
+          guestName,
+          guestPhone,
+          isActive: true,
+          unreadByAdmin: 0,
+          unreadByGuest: 0,
+        })
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating guest chat session:", error);
+      throw error;
+    }
+  }
+
+  async getGuestChatSessionByToken(sessionToken: string): Promise<GuestChatSession | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(guestChatSessions)
+        .where(eq(guestChatSessions.sessionToken, sessionToken))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error getting guest chat session:", error);
+      throw error;
+    }
+  }
+
+  async getAllGuestChatSessions(): Promise<GuestChatSession[]> {
+    try {
+      return await db
+        .select()
+        .from(guestChatSessions)
+        .orderBy(desc(guestChatSessions.lastMessageAt));
+    } catch (error) {
+      console.error("Error getting all guest chat sessions:", error);
+      return [];
+    }
+  }
+
+  async getActiveGuestChatSessions(): Promise<GuestChatSession[]> {
+    try {
+      return await db
+        .select()
+        .from(guestChatSessions)
+        .where(eq(guestChatSessions.isActive, true))
+        .orderBy(desc(guestChatSessions.lastMessageAt));
+    } catch (error) {
+      console.error("Error getting active guest chat sessions:", error);
+      return [];
+    }
+  }
+
+  async updateGuestChatSession(sessionId: string, updates: Partial<GuestChatSession>): Promise<GuestChatSession | undefined> {
+    try {
+      const result = await db
+        .update(guestChatSessions)
+        .set(updates)
+        .where(eq(guestChatSessions.id, sessionId))
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error updating guest chat session:", error);
+      throw error;
+    }
+  }
+
+  // Guest Chat Message Methods
+  async createGuestChatMessage(sessionId: string, message: string, sender: 'guest' | 'admin'): Promise<GuestChatMessage> {
+    try {
+      const result = await db.insert(guestChatMessages)
+        .values({
+          sessionId,
+          message,
+          sender,
+          isRead: false,
+        })
+        .returning();
+      
+      // Update session's lastMessageAt and unread count
+      if (sender === 'guest') {
+        await db
+          .update(guestChatSessions)
+          .set({
+            lastMessageAt: new Date(),
+            unreadByAdmin: sql`${guestChatSessions.unreadByAdmin} + 1`,
+          })
+          .where(eq(guestChatSessions.id, sessionId));
+      } else {
+        await db
+          .update(guestChatSessions)
+          .set({
+            lastMessageAt: new Date(),
+            unreadByGuest: sql`${guestChatSessions.unreadByGuest} + 1`,
+          })
+          .where(eq(guestChatSessions.id, sessionId));
+      }
+      
+      return result[0];
+    } catch (error) {
+      console.error("Error creating guest chat message:", error);
+      throw error;
+    }
+  }
+
+  async getGuestChatMessages(sessionId: string): Promise<GuestChatMessage[]> {
+    try {
+      return await db
+        .select()
+        .from(guestChatMessages)
+        .where(eq(guestChatMessages.sessionId, sessionId))
+        .orderBy(guestChatMessages.createdAt);
+    } catch (error) {
+      console.error("Error getting guest chat messages:", error);
+      return [];
+    }
+  }
+
+  async markGuestChatMessagesAsRead(sessionId: string, sender: 'guest' | 'admin'): Promise<void> {
+    try {
+      // Mark messages as read where sender is the opposite (admin reads guest messages, guest reads admin messages)
+      const messageSender = sender === 'admin' ? 'guest' : 'admin';
+      
+      await db
+        .update(guestChatMessages)
+        .set({ isRead: true })
+        .where(and(
+          eq(guestChatMessages.sessionId, sessionId),
+          eq(guestChatMessages.sender, messageSender),
+          eq(guestChatMessages.isRead, false)
+        ));
+      
+      // Reset unread count
+      if (sender === 'admin') {
+        await db
+          .update(guestChatSessions)
+          .set({ unreadByAdmin: 0 })
+          .where(eq(guestChatSessions.id, sessionId));
+      } else {
+        await db
+          .update(guestChatSessions)
+          .set({ unreadByGuest: 0 })
+          .where(eq(guestChatSessions.id, sessionId));
+      }
+    } catch (error) {
+      console.error("Error marking guest chat messages as read:", error);
+      throw error;
+    }
+  }
+
+  async getTotalUnreadGuestChats(): Promise<number> {
+    try {
+      const result = await db
+        .select({ total: sql<number>`cast(sum(${guestChatSessions.unreadByAdmin}) as integer)` })
+        .from(guestChatSessions)
+        .where(eq(guestChatSessions.isActive, true));
+      
+      return result[0]?.total || 0;
+    } catch (error) {
+      console.error("Error getting total unread guest chats:", error);
+      return 0;
+    }
+  }
+
+  async closeGuestChatSession(sessionId: string): Promise<void> {
+    try {
+      await db
+        .update(guestChatSessions)
+        .set({ isActive: false })
+        .where(eq(guestChatSessions.id, sessionId));
+    } catch (error) {
+      console.error("Error closing guest chat session:", error);
+      throw error;
     }
   }
 

@@ -308,6 +308,29 @@ export const cryptoPrices = pgTable("crypto_prices", {
   symbolUnique: unique("crypto_prices_symbol_unique").on(table.symbol),
 }));
 
+// Guest Chat Sessions - برای چت کاربران مهمان با ادمین
+export const guestChatSessions = pgTable("guest_chat_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionToken: text("session_token").notNull().unique(), // توکن منحصر به فرد برای session مهمان
+  guestName: text("guest_name"), // نام مهمان (اختیاری)
+  guestPhone: text("guest_phone"), // شماره تلفن مهمان (اختیاری)
+  isActive: boolean("is_active").notNull().default(true), // آیا session فعال است
+  lastMessageAt: timestamp("last_message_at").defaultNow(), // آخرین پیام
+  unreadByAdmin: integer("unread_by_admin").notNull().default(0), // تعداد پیام‌های خوانده نشده توسط ادمین
+  unreadByGuest: integer("unread_by_guest").notNull().default(0), // تعداد پیام‌های خوانده نشده توسط مهمان
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Guest Chat Messages - پیام‌های چت مهمانان
+export const guestChatMessages = pgTable("guest_chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => guestChatSessions.id),
+  message: text("message").notNull(),
+  sender: text("sender").notNull(), // 'guest' | 'admin'
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -542,6 +565,18 @@ export const resetPasswordSchema = z.object({
   password: z.string().min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد"),
 });
 
+// Guest Chat schemas
+export const insertGuestChatSessionSchema = createInsertSchema(guestChatSessions).omit({
+  id: true,
+  createdAt: true,
+  lastMessageAt: true,
+});
+
+export const insertGuestChatMessageSchema = createInsertSchema(guestChatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -658,3 +693,10 @@ export const insertCryptoPriceSchema = createInsertSchema(cryptoPrices).omit({
 
 export type CryptoPrice = typeof cryptoPrices.$inferSelect;
 export type InsertCryptoPrice = z.infer<typeof insertCryptoPriceSchema>;
+
+// Guest Chat Types
+export type GuestChatSession = typeof guestChatSessions.$inferSelect;
+export type InsertGuestChatSession = z.infer<typeof insertGuestChatSessionSchema>;
+
+export type GuestChatMessage = typeof guestChatMessages.$inferSelect;
+export type InsertGuestChatMessage = z.infer<typeof insertGuestChatMessageSchema>;
