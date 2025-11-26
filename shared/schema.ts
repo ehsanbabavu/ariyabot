@@ -314,6 +314,7 @@ export const guestChatSessions = pgTable("guest_chat_sessions", {
   sessionToken: text("session_token").notNull().unique(), // توکن منحصر به فرد برای session مهمان
   guestName: text("guest_name"), // نام مهمان (اختیاری)
   guestPhone: text("guest_phone"), // شماره تلفن مهمان (اختیاری)
+  guestIpAddress: text("guest_ip_address"), // آدرس IP مهمان
   isActive: boolean("is_active").notNull().default(true), // آیا session فعال است
   lastMessageAt: timestamp("last_message_at").defaultNow(), // آخرین پیام
   unreadByAdmin: integer("unread_by_admin").notNull().default(0), // تعداد پیام‌های خوانده نشده توسط ادمین

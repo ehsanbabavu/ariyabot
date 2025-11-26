@@ -3289,12 +3289,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "توکن جلسه الزامی است" });
       }
       
+      // دریافت IP آدرس مهمان
+      const rawIpAddress = req.headers['x-forwarded-for'] as string || req.ip || 'Unknown';
+      const guestIpAddress = typeof rawIpAddress === 'string' ? rawIpAddress.replace(/,\s*/g, '---') : rawIpAddress;
+      
       // Check if session already exists
       let session = await storage.getGuestChatSessionByToken(sessionToken);
       
       if (!session) {
-        // Create new session
-        session = await storage.createGuestChatSession(sessionToken, guestName, guestPhone);
+        // Create new session with IP address
+        session = await storage.createGuestChatSession(sessionToken, guestName, guestPhone, guestIpAddress);
         
         // Send welcome message from admin
         await storage.createGuestChatMessage(session.id, "سلام! چطور می‌تونم کمکتون کنم؟", "admin");

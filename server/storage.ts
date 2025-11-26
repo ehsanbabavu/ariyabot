@@ -178,7 +178,7 @@ export interface IStorage {
   getLoginLogsByUser(userId: string): Promise<LoginLog[]>;
   
   // Guest Chat Sessions
-  createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string): Promise<GuestChatSession>;
+  createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string, guestIpAddress?: string): Promise<GuestChatSession>;
   getGuestChatSessionByToken(sessionToken: string): Promise<GuestChatSession | undefined>;
   getAllGuestChatSessions(): Promise<GuestChatSession[]>;
   getActiveGuestChatSessions(): Promise<GuestChatSession[]>;
@@ -1938,12 +1938,13 @@ export class MemStorage implements IStorage {
   private guestChatSessions: Map<string, GuestChatSession> = new Map();
   private guestChatMessages: Map<string, GuestChatMessage> = new Map();
 
-  async createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string): Promise<GuestChatSession> {
+  async createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string, guestIpAddress?: string): Promise<GuestChatSession> {
     const session: GuestChatSession = {
       id: randomUUID(),
       sessionToken,
       guestName: guestName || null,
       guestPhone: guestPhone || null,
+      guestIpAddress: guestIpAddress || null,
       isActive: true,
       lastMessageAt: new Date(),
       unreadByAdmin: 0,

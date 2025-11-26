@@ -2090,13 +2090,14 @@ export class DbStorage implements IStorage {
   }
 
   // Guest Chat Session Methods
-  async createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string): Promise<GuestChatSession> {
+  async createGuestChatSession(sessionToken: string, guestName?: string, guestPhone?: string, guestIpAddress?: string): Promise<GuestChatSession> {
     try {
       const result = await db.insert(guestChatSessions)
         .values({
           sessionToken,
           guestName,
           guestPhone,
+          guestIpAddress,
           isActive: true,
           unreadByAdmin: 0,
           unreadByGuest: 0,
