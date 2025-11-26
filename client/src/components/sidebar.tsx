@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,6 +39,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMenuCountersSimple } from "@/hooks/use-menu-counters";
+import { createAuthenticatedRequest } from "@/lib/auth";
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -74,6 +76,19 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
     internalChatsUnreadCount: unreadCount,
     cartItemsCount,
   } = useMenuCountersSimple();
+
+  // شمارنده پیام‌های خوانده نشده چت مهمانان (فقط برای ادمین)
+  const { data: guestChatsUnreadData } = useQuery<{ unreadCount: number }>({
+    queryKey: ['/api/admin/guest-chats/unread-count'],
+    queryFn: async () => {
+      const response = await createAuthenticatedRequest('/api/admin/guest-chats/unread-count');
+      if (!response.ok) return { unreadCount: 0 };
+      return response.json();
+    },
+    enabled: !!user && user.role === "admin",
+    refetchInterval: 5000,
+  });
+  const guestChatsUnreadCount = guestChatsUnreadData?.unreadCount || 0;
 
   const adminMenuItems = [
     { path: "/users", label: "مدیریت کاربران", icon: Users },
@@ -163,6 +178,14 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                 >
                   <item.icon className="w-5 h-5 ml-2" />
                   {item.label}
+                  {item.path === "/guest-chats" && guestChatsUnreadCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="mr-auto text-xs px-2 py-0.5 min-w-[1.5rem] h-5 flex items-center justify-center animate-pulse"
+                    >
+                      {guestChatsUnreadCount}
+                    </Badge>
+                  )}
                 </Button>
               </Link>
             </li>
