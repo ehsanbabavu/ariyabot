@@ -125,6 +125,16 @@ export default function OrdersPage() {
   
   const cryptoPrices = cryptoPricesData?.prices;
 
+  // Fetch specific order when payment dialog opens
+  const { data: specificOrder } = useQuery<Order>({
+    queryKey: ['/api/orders', selectedPaymentOrderId],
+    queryFn: async () => {
+      const response = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}`);
+      return response.json();
+    },
+    enabled: !!selectedPaymentOrderId,
+  });
+
   // Fetch seller info when payment dialog opens
   const { data: sellerInfo } = useQuery<{
     sellerId: string;
@@ -144,7 +154,13 @@ export default function OrdersPage() {
     enabled: !!selectedPaymentOrderId && (step1DialogOpen || step2CryptoDialogOpen || step2CardDialogOpen),
   });
 
+  // استفاده از specific order اگر موجود باشد، وگرنه از orders array استفاده کن
+  const selectedPaymentOrder = specificOrder || orders.find(o => o.id === selectedPaymentOrderId);
+
   const handlePayment = async (orderId: string) => {
+    console.log('🔘 کلیک پرداخت برای سفارش:', orderId);
+    
+    // فوری set کردن تا queries enable شوند
     setSelectedPaymentOrderId(orderId);
     
     // چک کردن timer برای تصمیم‌گیری بین Step 1 یا Step 2 ارز دیجیتال
@@ -152,19 +168,53 @@ export default function OrdersPage() {
       const timerResponse = await apiRequest('GET', `/api/orders/${orderId}/payment-timer`);
       const timerData = await timerResponse.json();
       
+      console.log('🔍 handlePayment timer check:', timerData);
+      
       // اگر تایمر فعال است، مستقیماً Step 2 ارز دیجیتال را باز کن
-      if (timerData.hasTimer && timerData.remainingSeconds > 0) {
+      if (timerData.hasTimer && timerData.remainingSeconds > 0 && !timerData.isExpired) {
         // تایمر فعال است - مستقیماً به صفحه ارز دیجیتال برو
-        setSelectedPaymentMethod({ type: 'crypto', crypto: timerData.cryptoType || 'TRX' });
+        const cryptoType = timerData.cryptoType || 'TRX';
+        console.log('✅ Timer فعال - مستقیم به Step 2 با ارز:', cryptoType);
+        
+        // Close all other dialogs first
+        setStep1DialogOpen(false);
+        setStep2CardDialogOpen(false);
+        
+        // Set payment method BEFORE opening dialog - this is important!
+        setSelectedPaymentMethod({ type: 'crypto', crypto: cryptoType as CryptoType });
+        
+        // Small delay to ensure state updates are batched
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // NOW open the dialog
+        console.log('🟢 Opening Step 2 Crypto Dialog...');
         setStep2CryptoDialogOpen(true);
       } else {
-        // اگر تایمر نیست، Step 1 را باز کن
+        // اگر تایمر نیست یا منقضی شده، Step 1 را باز کن
+        console.log('⏱️ Timer نیست یا منقضی - Step 1 باز می‌شود');
+        
+        // Close other dialogs
+        setStep2CryptoDialogOpen(false);
+        setStep2CardDialogOpen(false);
         setSelectedPaymentMethod(null);
+        
+        // Small delay to ensure state updates are batched
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // NOW open the dialog
+        console.log('🟢 Opening Step 1 Dialog...');
         setStep1DialogOpen(true);
       }
     } catch (error) {
+      console.error('❌ خطا در چک تایمر:', error);
       // در صورت خطا، Step 1 را باز کن
+      setStep2CryptoDialogOpen(false);
+      setStep2CardDialogOpen(false);
       setSelectedPaymentMethod(null);
+      
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      console.log('🟢 Opening Step 1 Dialog (Error)...');
       setStep1DialogOpen(true);
     }
   };
@@ -186,8 +236,6 @@ export default function OrdersPage() {
       });
     }
   };
-
-  const selectedPaymentOrder = orders.find(o => o.id === selectedPaymentOrderId);
 
   // Transaction form
   const form = useForm({
@@ -258,28 +306,22 @@ export default function OrdersPage() {
 
   const handleProceedToPayment = async () => {
     if (selectedPaymentMethod && selectedPaymentOrderId) {
-      // برای ارز دیجیتال، تایمر رو بررسی کن
+      // برای ارز دیجیتال
       if (selectedPaymentMethod.type === 'crypto') {
         try {
-          // اول چک کن که آیا timer قبلا شروع شده و هنوز معتبره
-          const timerResponse = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/payment-timer`);
-          const timerData = await timerResponse.json();
+          // همیشه timer جدید شروع کن با ارسال نوع ارز انتخاب شده
+          // سرور خودش چک می‌کند اگر timer قبلی موجود باشد
+          console.log('⏱️ شروع/ادامه timer با ارز:', selectedPaymentMethod.crypto);
+          const startResponse = await apiRequest('POST', `/api/orders/${selectedPaymentOrderId}/start-payment-timer`, {
+            cryptoType: selectedPaymentMethod.crypto
+          });
+          const startData = await startResponse.json();
+          console.log('✅ Timer response:', startData);
           
-          console.log('🔍 timer check:', timerData);
-          
-          // اگر timer موجود و معتبر است، دوباره شروع نکن
-          if (timerData.hasTimer && timerData.remainingSeconds > 0 && !timerData.isExpired) {
-            console.log('✅ Timer قبلاً موجود است، دوباره start نمی‌کنیم');
-            // بستن Step 1 و باز کردن Step 2 ارز دیجیتال
-            setStep1DialogOpen(false);
-            setStep2CryptoDialogOpen(true);
-            return;
+          // اگر سرور cryptoType برگرداند و متفاوت است، استفاده کن
+          if (startData.cryptoType && startData.cryptoType !== selectedPaymentMethod.crypto) {
+            setSelectedPaymentMethod({ type: 'crypto', crypto: startData.cryptoType as CryptoType });
           }
-          
-          // اگر timer نیست یا expire شده، timer جدید شروع کن
-          console.log('⏱️ Timer جدید شروع می‌شود...');
-          const startResponse = await apiRequest('POST', `/api/orders/${selectedPaymentOrderId}/start-payment-timer`);
-          console.log('✅ Timer جدید شروع شد:', startResponse);
           
           // بستن Step 1 و باز کردن Step 2 ارز دیجیتال
           setStep1DialogOpen(false);
@@ -305,7 +347,16 @@ export default function OrdersPage() {
     // بستن Step 2 (هر دو نوع) و باز کردن Step 1
     setStep2CryptoDialogOpen(false);
     setStep2CardDialogOpen(false);
+    setSelectedPaymentMethod(null);
     setStep1DialogOpen(true);
+  };
+
+  const handleClosePaymentDialog = () => {
+    // بستن تمام dialog ها و reset کردن state
+    setStep1DialogOpen(false);
+    setStep2CryptoDialogOpen(false);
+    setStep2CardDialogOpen(false);
+    setSelectedPaymentOrderId(null);
     setSelectedPaymentMethod(null);
   };
 
@@ -1122,10 +1173,10 @@ export default function OrdersPage() {
 
       {/* Step 1 Dialog - انتخاب روش پرداخت */}
       <Dialog open={step1DialogOpen} onOpenChange={(open) => {
-        setStep1DialogOpen(open);
         if (!open) {
-          setSelectedPaymentMethod(null);
-          form.reset();
+          handleClosePaymentDialog();
+        } else {
+          setStep1DialogOpen(true);
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
@@ -1135,7 +1186,14 @@ export default function OrdersPage() {
             </DialogTitle>
           </DialogHeader>
           
-          {selectedPaymentOrder && (
+          {!selectedPaymentOrder ? (
+            <div className="flex items-center justify-center p-8" dir="rtl">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">در حال بارگذاری...</p>
+              </div>
+            </div>
+          ) : (
             <div className="space-y-4" dir="rtl">
               {/* Order Summary */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg">
@@ -1328,7 +1386,7 @@ export default function OrdersPage() {
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button
                   variant="outline"
-                  onClick={() => setStep1DialogOpen(false)}
+                  onClick={handleClosePaymentDialog}
                   className="min-w-[120px]"
                   size="default"
                 >
@@ -1351,10 +1409,10 @@ export default function OrdersPage() {
 
       {/* Step 2 Dialog - ارز دیجیتال */}
       <Dialog open={step2CryptoDialogOpen} onOpenChange={(open) => {
-        setStep2CryptoDialogOpen(open);
         if (!open) {
-          form.reset();
+          handleClosePaymentDialog();
         }
+        // Don't set true here - it's already handled by handlePayment
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
           <DialogHeader>
@@ -1363,7 +1421,14 @@ export default function OrdersPage() {
             </DialogTitle>
           </DialogHeader>
           
-          {selectedPaymentOrder && selectedPaymentMethod?.type === 'crypto' && (
+          {!selectedPaymentOrder ? (
+            <div className="flex items-center justify-center p-8" dir="rtl">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">در حال بارگذاری...</p>
+              </div>
+            </div>
+          ) : selectedPaymentMethod?.type === 'crypto' ? (
             <div className="space-y-4" dir="rtl">
               {/* Order Summary */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg">
@@ -1494,7 +1559,7 @@ export default function OrdersPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setStep2CryptoDialogOpen(false)}
+                  onClick={handleClosePaymentDialog}
                   className="min-w-[120px]"
                   size="default"
                 >
@@ -1502,15 +1567,16 @@ export default function OrdersPage() {
                 </Button>
               </div>
             </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
 
       {/* Step 2 Dialog - کارت بانکی */}
       <Dialog open={step2CardDialogOpen} onOpenChange={(open) => {
-        setStep2CardDialogOpen(open);
         if (!open) {
-          form.reset();
+          handleClosePaymentDialog();
+        } else {
+          setStep2CardDialogOpen(true);
         }
       }}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
@@ -1688,7 +1754,7 @@ export default function OrdersPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setStep2CardDialogOpen(false)}
+                  onClick={handleClosePaymentDialog}
                   className="min-w-[120px]"
                   size="default"
                 >
