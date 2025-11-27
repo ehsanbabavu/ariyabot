@@ -35,7 +35,8 @@ import {
   Truck,
   Receipt,
   Database,
-  History
+  History,
+  FileText
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useMenuCountersSimple } from "@/hooks/use-menu-counters";
@@ -90,12 +91,26 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   });
   const guestChatsUnreadCount = guestChatsUnreadData?.unreadCount || 0;
 
+  // شمارنده سفارشات پروژه در انتظار (فقط برای ادمین)
+  const { data: projectOrdersData } = useQuery<{ pendingCount: number }>({
+    queryKey: ['/api/admin/project-orders/pending-count'],
+    queryFn: async () => {
+      const response = await createAuthenticatedRequest('/api/admin/project-orders/pending-count');
+      if (!response.ok) return { pendingCount: 0 };
+      return response.json();
+    },
+    enabled: !!user && user.role === "admin",
+    refetchInterval: 5000,
+  });
+  const pendingProjectOrdersCount = projectOrdersData?.pendingCount || 0;
+
   const adminMenuItems = [
     { path: "/users", label: "مدیریت کاربران", icon: Users },
     { path: "/user-whatsapp-tokens", label: "توکن واتس‌اپ کاربران", icon: MessageCircle },
     { path: "/bank-cards-management", label: "تایید کارت‌های بانکی", icon: CreditCard },
     { path: "/tickets", label: "مدیریت تیکت‌ها", icon: Ticket },
     { path: "/guest-chats", label: "چت مهمانان", icon: MessageSquare },
+    { path: "/project-orders", label: "پیشنهاد سفارش", icon: FileText },
     { path: "/subscriptions", label: "اشتراک‌ها", icon: Crown },
     { path: "/login-logs", label: "لاگ‌های ورود", icon: History },
     { path: "/database-backup", label: "پشتیبان‌گیری", icon: Database },
@@ -184,6 +199,14 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                       className="mr-auto text-xs px-2 py-0.5 min-w-[1.5rem] h-5 flex items-center justify-center animate-pulse"
                     >
                       {guestChatsUnreadCount}
+                    </Badge>
+                  )}
+                  {item.path === "/project-orders" && pendingProjectOrdersCount > 0 && (
+                    <Badge 
+                      variant="default" 
+                      className="mr-auto text-xs px-2 py-0.5 min-w-[1.5rem] h-5 flex items-center justify-center bg-yellow-500 text-white animate-pulse"
+                    >
+                      {pendingProjectOrdersCount}
                     </Badge>
                   )}
                 </Button>
