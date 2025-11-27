@@ -2344,6 +2344,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get specific order by ID (for level 2 users to fetch a single order)
+  app.get("/api/orders/:orderId", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      
+      if (!order) {
+        return res.status(404).json({ message: "سفارش یافت نشد" });
+      }
+
+      // Verify that the order belongs to the current user
+      if (order.userId !== req.user!.id) {
+        return res.status(403).json({ message: "شما مجاز به دسترسی به این سفارش نیستید" });
+      }
+
+      res.json(order);
+    } catch (error) {
+      console.error("Get order error:", error);
+      res.status(500).json({ message: "خطا در دریافت سفارش" });
+    }
+  });
+
   // Get seller info by order ID (for level 2 users to see payment details)
   app.get("/api/orders/:orderId/seller-info", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
     try {
@@ -2385,6 +2406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Start payment timer for an order
   app.post("/api/orders/:orderId/start-payment-timer", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
     try {
+      const { cryptoType } = req.body; // دریافت نوع ارز دیجیتال از body
       const order = await storage.getOrder(req.params.orderId);
       
       if (!order) {
@@ -2410,6 +2432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json({
             success: true,
             paymentStartedAt: order.paymentStartedAt,
+            cryptoType: (order as any).selectedCryptoType,
             alreadyStarted: true,
             remainingSeconds
           });
@@ -2418,17 +2441,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`⌛ Timer قبلی expire شده برای سفارش ${req.params.orderId} - ایجاد timer جدید`);
       }
 
-      // Set payment started time - فقط اگر timer نیست یا expire شده
+      // Set payment started time and crypto type - فقط اگر timer نیست یا expire شده
       const now = new Date();
       await db.update(orders).set({
-        paymentStartedAt: now
+        paymentStartedAt: now,
+        selectedCryptoType: cryptoType || null
       }).where(eq(orders.id, req.params.orderId));
 
-      console.log(`✅ Timer جدید شروع شد برای سفارش ${req.params.orderId}`);
+      console.log(`✅ Timer جدید شروع شد برای سفارش ${req.params.orderId} با ارز ${cryptoType || 'نامشخص'}`);
       
       res.json({
         success: true,
         paymentStartedAt: now.toISOString(),
+        cryptoType: cryptoType || null,
         alreadyStarted: false
       });
     } catch (error) {
@@ -2459,7 +2484,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!order.paymentStartedAt) {
         return res.json({
           hasTimer: false,
-          remainingSeconds: 0
+          remainingSeconds: 0,
+          cryptoType: null
         });
       }
 
@@ -2472,6 +2498,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         hasTimer: true,
         paymentStartedAt: order.paymentStartedAt,
+        cryptoType: (order as any).selectedCryptoType || null,
         remainingSeconds,
         isExpired: remainingSeconds === 0
       });

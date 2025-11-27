@@ -209,6 +209,7 @@ export const orders = pgTable("orders", {
   shippingMethod: text("shipping_method"), // روش ارسال: post_pishtaz, post_normal, piyk, free
   notes: text("notes"), // یادداشت‌های کاربر
   paymentStartedAt: timestamp("payment_started_at"), // زمان شروع پرداخت برای تایمر 10 دقیقه‌ای
+  selectedCryptoType: text("selected_crypto_type"), // نوع ارز دیجیتال انتخاب شده: TRX, USDT, XRP, ADA
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
