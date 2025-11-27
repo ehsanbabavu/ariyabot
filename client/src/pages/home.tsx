@@ -12,6 +12,8 @@ import ariyaBotImage from "@assets/generated_images/colorful_ai_ariya_bot_assist
 import robotCharacterImage from "@assets/generated_images/robot_character.jpg";
 import robotCharacterVideosImage from "@assets/generated_images/robot_character_videos.jpg";
 import robotCharacterFaqImage from "@assets/generated_images/robot_character_faq.jpg";
+import instaLogo from "@assets/insta-logo.png";
+import whatsappLogo from "@assets/whatsapp-logo.png";
 
 function generateSessionToken(): string {
   const stored = localStorage.getItem('guest_chat_token');
@@ -537,7 +539,7 @@ function AnimatedTablet() {
             {/* Footer */}
             <div className="bg-gray-100 rounded p-2 mt-2 text-center text-xs text-gray-700">
               <p className="font-semibold">۲۴/۷ تماس پشتیبانی</p>
-              <p className="text-gray-600">۰۹۱۰۱۲۳۴۵۶۷</p>
+              <p className="text-gray-600">۰۹۱۳۴۳۳۶۶۲۷</p>
             </div>
           </motion.div>
         </div>
@@ -891,7 +893,7 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Signup Button */}
+            {/* Signup Button - Desktop */}
             <div className="hidden md:block">
               <Link href="/login">
                 <Button className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2.5 rounded-lg shadow-md shadow-green-500/20 transition-all hover:shadow-green-500/40 hover:-translate-y-0.5 font-bold text-sm cursor-pointer">
@@ -900,13 +902,20 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Mobile Menu Toggle */}
-            <button
-              className="md:hidden p-2 text-gray-600"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X /> : <Menu />}
-            </button>
+            {/* Mobile Menu - Signup Icon + Toggle */}
+            <div className="md:hidden flex items-center gap-3">
+              <Link href="/login" className="block">
+                <button className="p-2 text-gray-600 hover:text-green-600 transition-colors">
+                  <User className="w-6 h-6" />
+                </button>
+              </Link>
+              <button
+                className="p-2 text-gray-600"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {isMenuOpen ? <X /> : <Menu />}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -927,11 +936,6 @@ export default function Home() {
                   {item.name}
                 </button>
               ))}
-              <Link href="/login">
-                <Button className="bg-gradient-to-r from-green-600 to-emerald-600 text-white w-full rounded-lg py-3 font-bold text-base shadow-md shadow-green-500/20 cursor-pointer">
-                  ورود و ثبت نام
-                </Button>
-              </Link>
             </div>
           </div>
         )}
@@ -1726,7 +1730,7 @@ export default function Home() {
       </section>
 
       {/* Footer Section */}
-      <footer className="relative bg-black text-white pt-20 md:pt-32 pb-8 px-4 mt-32 overflow-hidden">
+      <footer className="relative bg-black text-white pt-10 md:pt-16 pb-4 px-4 mt-16 overflow-hidden">
         {/* Background Gradient */}
         <div className="absolute inset-0 opacity-40">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-600 rounded-full blur-3xl opacity-20"></div>
@@ -1735,7 +1739,7 @@ export default function Home() {
 
         <div className="container mx-auto relative z-10">
           {/* Top Section */}
-          <div className="grid md:grid-cols-3 gap-16 mb-20 pb-20 border-b border-white/10">
+          <div className="grid md:grid-cols-3 gap-8 mb-10 pb-10 border-b border-white/10">
             {/* Brand & Description */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -1759,37 +1763,11 @@ export default function Home() {
               </p>
             </motion.div>
 
-            {/* Quick Links */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              viewport={{ once: true }}
-              className="grid grid-cols-2 gap-12"
-            >
-              <div>
-                <h5 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">محصول</h5>
-                <ul className="space-y-4">
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-all duration-300 text-sm group flex items-center gap-2"><span className="group-hover:translate-x-1 transition-transform">→</span> ویژگی ها</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-all duration-300 text-sm group flex items-center gap-2"><span className="group-hover:translate-x-1 transition-transform">→</span> قیمت</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-all duration-300 text-sm group flex items-center gap-2"><span className="group-hover:translate-x-1 transition-transform">→</span> امنیت</a></li>
-                </ul>
-              </div>
-              <div>
-                <h5 className="text-white font-bold mb-6 text-sm uppercase tracking-widest">شرکت</h5>
-                <ul className="space-y-4">
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-all duration-300 text-sm group flex items-center gap-2"><span className="group-hover:translate-x-1 transition-transform">→</span> درباره</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-all duration-300 text-sm group flex items-center gap-2"><span className="group-hover:translate-x-1 transition-transform">→</span> بلاگ</a></li>
-                  <li><a href="#" className="text-gray-400 hover:text-white transition-all duration-300 text-sm group flex items-center gap-2"><span className="group-hover:translate-x-1 transition-transform">→</span> تماس</a></li>
-                </ul>
-              </div>
-            </motion.div>
-
             {/* Contact & Social */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
               viewport={{ once: true }}
               className="text-right"
             >
@@ -1801,55 +1779,40 @@ export default function Home() {
                   </a>
                 </div>
                 <div>
-                  <a href="tel:+989123456789" className="text-gray-400 hover:text-white transition-colors text-sm">
-                    ۰۹۱۲ ۳۴۵ ۶۷۸۹
+                  <a href="tel:+989134336627" className="text-gray-400 hover:text-white transition-colors text-sm">
+                    ۰۹۱۳۴۳۳۶۶۲۷
                   </a>
                 </div>
               </div>
 
               {/* Social Icons */}
-              <div className="flex gap-3 justify-end">
-                <motion.a 
+              <div className="flex gap-4 justify-start mt-8 pt-6 border-t border-gray-700">
+                <a 
                   href="#" 
-                  className="w-10 h-10 bg-white/10 hover:bg-purple-600 rounded-full flex items-center justify-center transition-all duration-300 group"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
+                  className="inline-block transition-transform hover:scale-110"
                 >
-                  <svg className="w-5 h-5 group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2s9 5 20 5a9.5 9.5 0 00-9-5.5c4.75 2.25 7-7 7-7" />
-                  </svg>
-                </motion.a>
-                <motion.a 
-                  href="#" 
-                  className="w-10 h-10 bg-white/10 hover:bg-blue-600 rounded-full flex items-center justify-center transition-all duration-300 group"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
+                  <img src={instaLogo} alt="Instagram" className="w-8 h-8 object-cover" />
+                </a>
+                <a 
+                  href="https://wa.me" 
+                  className="inline-block transition-transform hover:scale-110"
                 >
-                  <svg className="w-5 h-5 group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19 3a9 9 0 01-9 9h-1v-1a9 9 0 019-9h1z" />
-                  </svg>
-                </motion.a>
-                <motion.a 
-                  href="#" 
-                  className="w-10 h-10 bg-white/10 hover:bg-pink-600 rounded-full flex items-center justify-center transition-all duration-300 group"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <svg className="w-5 h-5 group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.266.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073z" />
-                  </svg>
-                </motion.a>
-                <motion.a 
-                  href="#" 
-                  className="w-10 h-10 bg-white/10 hover:bg-blue-500 rounded-full flex items-center justify-center transition-all duration-300 group"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <svg className="w-5 h-5 group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                  </svg>
-                </motion.a>
+                  <img src={whatsappLogo} alt="WhatsApp" className="w-8 h-8 object-cover" />
+                </a>
               </div>
+            </motion.div>
+
+            {/* Samandehi Logo */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="flex items-center justify-center"
+            >
+              <a href="https://samandehi.ir" target="_blank" rel="noopener noreferrer" className="inline-block hover:opacity-80 transition-opacity">
+                <img src="/samandehi-logo.jpg" alt="Samandehi" className="w-24 h-24 object-contain" />
+              </a>
             </motion.div>
           </div>
 
@@ -1863,9 +1826,9 @@ export default function Home() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Initial bubble - shows before user sends any message and when scrolled */}
+        {/* Bubble - shows priority: unread message first, then initial greeting */}
         <AnimatePresence>
-          {showInitialBubble && !isContactOpen && isScrolled && (
+          {!isContactOpen && isScrolled && (
             <motion.div
               className="relative bg-white rounded-2xl shadow-xl px-4 py-2 border border-red-50 max-w-xs"
               initial={{ opacity: 0, x: -20, scale: 0.9 }}
@@ -1875,25 +1838,11 @@ export default function Home() {
             >
               <div className="absolute -bottom-1 right-6 w-3 h-3 bg-white border-l border-b border-red-50 rotate-45"></div>
               <p className="text-xs text-gray-800 leading-tight" style={{ fontFamily: 'Estedad, sans-serif' }}>
-                <TypeWriter text={chatMessages[0]?.text ? chatMessages[0].text.substring(0, 40) + '...' : 'سلام! چطور می‌تونم کمکت کنم؟'} speed={30} />
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Notification bubble - shows when bot has unread message */}
-        <AnimatePresence>
-          {hasUnreadBotMessage && !isContactOpen && (
-            <motion.div
-              className="relative bg-white rounded-2xl shadow-xl px-4 py-2 border border-red-50 max-w-xs"
-              initial={{ opacity: 0, x: -20, scale: 0.9 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -20, scale: 0.9 }}
-              transition={{ duration: 0.3, type: "spring" }}
-            >
-              <div className="absolute -bottom-1 right-6 w-3 h-3 bg-white border-l border-b border-red-50 rotate-45"></div>
-              <p className="text-xs text-gray-800 leading-tight" style={{ fontFamily: 'Estedad, sans-serif' }}>
-                <TypeWriter text={chatMessages[chatMessages.length - 1]?.text ? chatMessages[chatMessages.length - 1].text.substring(0, 40) + '...' : 'منتظر پاسختم!'} speed={30} />
+                {hasUnreadBotMessage ? (
+                  <TypeWriter text={chatMessages[chatMessages.length - 1]?.text ? chatMessages[chatMessages.length - 1].text.substring(0, 40) + '...' : 'منتظر پاسختم!'} speed={30} />
+                ) : showInitialBubble ? (
+                  <TypeWriter text={chatMessages[0]?.text ? chatMessages[0].text.substring(0, 40) + '...' : 'سلام! چطور می‌تونم کمکت کنم؟'} speed={30} />
+                ) : null}
               </p>
             </motion.div>
           )}
@@ -2185,7 +2134,7 @@ export default function Home() {
                         value={projectOrderForm.phone}
                         onChange={(e) => setProjectOrderForm(prev => ({ ...prev, phone: e.target.value }))}
                         className="h-9 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all text-left text-sm"
-                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                        placeholder="۰۹۱۳۴۳۳۶۶۲۷"
                         dir="ltr"
                         required
                       />

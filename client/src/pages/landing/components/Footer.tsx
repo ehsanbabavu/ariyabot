@@ -1,8 +1,6 @@
 import React from 'react';
-import FacebookIcon from './icons/FacebookIcon';
-import TwitterIcon from './icons/TwitterIcon';
-import LinkedinIcon from './icons/LinkedinIcon';
-import InstagramIcon from './icons/InstagramIcon';
+import instaLogo from '@assets/insta-logo.png';
+import whatsappLogo from '@assets/whatsapp-logo.png';
 
 const Footer: React.FC = () => {
     return (
@@ -15,12 +13,6 @@ const Footer: React.FC = () => {
                         <p className="text-gray-400 mb-4">
                             بهترین راه برای ارتباط با مشتریان و رشد کسب و کار شما.
                         </p>
-                        <div className="flex space-x-4 space-x-reverse justify-end md:justify-start">
-                            <a href="#" className="text-gray-400 hover:text-white transition-colors"><FacebookIcon className="w-6 h-6" /></a>
-                            <a href="#" className="text-gray-400 hover:text-white transition-colors"><TwitterIcon className="w-6 h-6" /></a>
-                            <a href="#" className="text-gray-400 hover:text-white transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
-                            <a href="#" className="text-gray-400 hover:text-white transition-colors"><InstagramIcon className="w-6 h-6" /></a>
-                        </div>
                     </div>
 
                     {/* Column 2 */}
@@ -45,15 +37,21 @@ const Footer: React.FC = () => {
                         </ul>
                     </div>
                     
-                    {/* Column 4 */}
+                    {/* Column 4 - Contact */}
                     <div>
-                        <h4 className="text-lg font-semibold mb-4">پشتیبانی</h4>
+                        <h4 className="text-lg font-semibold mb-4">تماس</h4>
                         <ul className="space-y-2">
-                            <li><a href="#" className="text-gray-400 hover:text-white transition-colors">مرکز راهنمایی</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white transition-colors">سیاست حفظ حریم خصوصی</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white transition-colors">شرایط خدمات</a></li>
-                            <li><a href="#" className="text-gray-400 hover:text-white transition-colors">سوالات متداول</a></li>
+                            <li><a href="tel:09134336627" className="text-gray-400 hover:text-white transition-colors">۰۹۱۳۴۳۳۶۶۲۷</a></li>
+                            <li><a href="mailto:support@ariyabot.com" className="text-gray-400 hover:text-white transition-colors">support@ariyabot.com</a></li>
                         </ul>
+                        <div className="flex space-x-4 space-x-reverse justify-end md:justify-start mt-6">
+                            <a href="#" className="text-gray-400 hover:text-white transition-colors">
+                                <img src={instaLogo} alt="Instagram" className="w-6 h-6" />
+                            </a>
+                            <a href="https://wa.me" className="text-gray-400 hover:text-white transition-colors">
+                                <img src={whatsappLogo} alt="WhatsApp" className="w-6 h-6" />
+                            </a>
+                        </div>
                     </div>
                 </div>
                 <div className="border-t border-gray-700 mt-8 pt-6 text-center text-gray-500">
