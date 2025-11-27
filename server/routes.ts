@@ -3476,6 +3476,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PROJECT ORDER REQUEST ROUTES
+  // ============================
+  
+  // Create project order request (public - no auth required)
+  app.post("/api/project-orders", async (req, res) => {
+    try {
+      const { firstName, lastName, phone, description } = req.body;
+      
+      if (!firstName || !lastName || !phone || !description) {
+        return res.status(400).json({ message: "تمام فیلدها الزامی هستند" });
+      }
+      
+      const request = await storage.createProjectOrderRequest({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        description: description.trim(),
+      });
+      
+      res.status(201).json({ 
+        message: "درخواست شما با موفقیت ثبت شد. به زودی با شما تماس می‌گیریم.",
+        request 
+      });
+    } catch (error) {
+      console.error("Error creating project order request:", error);
+      res.status(500).json({ message: "خطا در ثبت درخواست. لطفا مجددا تلاش کنید." });
+    }
+  });
+  
+  // Get all project order requests (admin only)
+  app.get("/api/admin/project-orders", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند درخواست‌ها را مشاهده کند" });
+      }
+      
+      const requests = await storage.getProjectOrderRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error getting project order requests:", error);
+      res.status(500).json({ message: "خطا در دریافت درخواست‌ها" });
+    }
+  });
+  
+  // Update project order request status (admin only)
+  app.patch("/api/admin/project-orders/:id/status", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      const { status } = req.body;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند وضعیت را تغییر دهد" });
+      }
+      
+      if (!status) {
+        return res.status(400).json({ message: "وضعیت جدید الزامی است" });
+      }
+      
+      const validStatuses = ['pending', 'reviewed', 'contacted', 'completed'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "وضعیت نامعتبر است" });
+      }
+      
+      const updated = await storage.updateProjectOrderRequestStatus(id, status);
+      if (!updated) {
+        return res.status(404).json({ message: "درخواست یافت نشد" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating project order request status:", error);
+      res.status(500).json({ message: "خطا در به‌روزرسانی وضعیت" });
+    }
+  });
+  
+  // Delete project order request (admin only)
+  app.delete("/api/admin/project-orders/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "فقط ادمین می‌تواند درخواست را حذف کند" });
+      }
+      
+      await storage.deleteProjectOrderRequest(id);
+      res.json({ message: "درخواست با موفقیت حذف شد" });
+    } catch (error) {
+      console.error("Error deleting project order request:", error);
+      res.status(500).json({ message: "خطا در حذف درخواست" });
+    }
+  });
+
   // Get user by ID (for getting parent info)
   app.get("/api/users/:userId", authenticateToken, async (req: AuthRequest, res) => {
     try {

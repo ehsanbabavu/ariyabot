@@ -1,6 +1,10 @@
 # Overview
 
-This project is a modern, full-stack TypeScript Persian e-commerce and support web application. It offers comprehensive features including user management, a ticketing system, inventory, and subscription services with role-based access control. The platform is designed for the Persian market, featuring a fully localized Farsi UI, responsive design, and AI-powered functionalities like smart ordering and WhatsApp-based deposit receipt processing. The ambition is to provide an intuitive and powerful online business tool, enhancing user experience through advanced AI and robust system architecture.
+## About Ariya Bot
+**Ariya Bot** is your intelligent 24/7customer support assistant designed to transform how you communicate with customers. It's a modern, full-stack TypeScript Persian e-commerce and support platform that brings together powerful tools for online business management. From automated customer interactions to streamlined order processing, Ariya Bot makes it easy to manage your products, handle customer inquiries, and grow your business.
+
+## Project Description
+This project is a comprehensive, full-stack TypeScript web application built specifically for the Persian market. It offers extensive features including intelligent customer support, e-commerce capabilities, user management, ticketing system, inventory control, and subscription services with role-based access control. The platform features a fully localized Farsi UI with RTL (right-to-left) support, responsive mobile-first design, and AI-powered functionalities like smart ordering and WhatsApp-based deposit receipt processing. The goal is to provide an intuitive and powerful online business tool that enhances user experience through advanced AI and robust system architecture.
 
 # User Preferences
 
@@ -109,7 +113,7 @@ Preferred communication style: Simple, everyday language.
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)
-- **Date**: November 21, 2025 (Fresh GitHub Clone Import - Setup Completed)
+- **Date**: November 26, 2025 (Fresh GitHub Clone Import - Setup Completed)
 - **Status**: ✅ Successfully imported and configured in Replit environment
 - **Setup Actions**:
   - ✅ Installed all npm dependencies (640 packages)

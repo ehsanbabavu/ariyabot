@@ -701,3 +701,26 @@ export type InsertGuestChatSession = z.infer<typeof insertGuestChatSessionSchema
 
 export type GuestChatMessage = typeof guestChatMessages.$inferSelect;
 export type InsertGuestChatMessage = z.infer<typeof insertGuestChatMessageSchema>;
+
+// Project Order Requests - Submissions from homepage popup
+export const projectOrderRequests = pgTable("project_order_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  phone: text("phone").notNull(),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("pending"), // pending, reviewed, contacted, completed
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProjectOrderRequestSchema = createInsertSchema(projectOrderRequests).omit({
+  id: true,
+  createdAt: true,
+  status: true,
+});
+
+export const updateProjectOrderRequestSchema = createInsertSchema(projectOrderRequests).partial().required({ id: true });
+
+export type ProjectOrderRequest = typeof projectOrderRequests.$inferSelect;
+export type InsertProjectOrderRequest = z.infer<typeof insertProjectOrderRequestSchema>;
+export type UpdateProjectOrderRequest = z.infer<typeof updateProjectOrderRequestSchema>;

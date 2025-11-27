@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql, desc, and, gte, or, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages } from "@shared/schema";
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type ContentSection, type InsertContentSection, type LoginLog, type InsertLoginLog, type CryptoPrice, type InsertCryptoPrice, type GuestChatSession, type InsertGuestChatSession, type GuestChatMessage, type InsertGuestChatMessage } from "@shared/schema";
+import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type ContentSection, type InsertContentSection, type LoginLog, type InsertLoginLog, type CryptoPrice, type InsertCryptoPrice, type GuestChatSession, type InsertGuestChatSession, type GuestChatMessage, type InsertGuestChatMessage, type ProjectOrderRequest, type InsertProjectOrderRequest } from "@shared/schema";
 import { type IStorage } from "./storage";
 import bcrypt from "bcryptjs";
 
@@ -16,7 +16,7 @@ const pool = new Pool({
   ssl: false
 });
 const db = drizzle(pool, {
-  schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages }
+  schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests }
 });
 
 // Export db instance for use in routes
@@ -2271,6 +2271,70 @@ export class DbStorage implements IStorage {
         .where(eq(guestChatSessions.id, sessionId));
     } catch (error) {
       console.error("Error closing guest chat session:", error);
+      throw error;
+    }
+  }
+
+  // Project Order Request methods
+  async createProjectOrderRequest(data: InsertProjectOrderRequest): Promise<ProjectOrderRequest> {
+    try {
+      const result = await db.insert(projectOrderRequests)
+        .values(data)
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating project order request:", error);
+      throw error;
+    }
+  }
+
+  async getProjectOrderRequests(): Promise<ProjectOrderRequest[]> {
+    try {
+      return await db
+        .select()
+        .from(projectOrderRequests)
+        .orderBy(desc(projectOrderRequests.createdAt));
+    } catch (error) {
+      console.error("Error getting project order requests:", error);
+      return [];
+    }
+  }
+
+  async getProjectOrderRequestById(id: string): Promise<ProjectOrderRequest | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(projectOrderRequests)
+        .where(eq(projectOrderRequests.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting project order request:", error);
+      return undefined;
+    }
+  }
+
+  async updateProjectOrderRequestStatus(id: string, status: string): Promise<ProjectOrderRequest | undefined> {
+    try {
+      const result = await db
+        .update(projectOrderRequests)
+        .set({ status })
+        .where(eq(projectOrderRequests.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error updating project order request status:", error);
+      throw error;
+    }
+  }
+
+  async deleteProjectOrderRequest(id: string): Promise<void> {
+    try {
+      await db
+        .delete(projectOrderRequests)
+        .where(eq(projectOrderRequests.id, id));
+    } catch (error) {
+      console.error("Error deleting project order request:", error);
       throw error;
     }
   }

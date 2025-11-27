@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog, type GuestChatSession, type GuestChatMessage } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog, type GuestChatSession, type GuestChatMessage, type ProjectOrderRequest, type InsertProjectOrderRequest } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -190,6 +190,13 @@ export interface IStorage {
   getGuestChatMessages(sessionId: string): Promise<GuestChatMessage[]>;
   markGuestChatMessagesAsRead(sessionId: string, sender: 'guest' | 'admin'): Promise<void>;
   getTotalUnreadGuestChats(): Promise<number>;
+  
+  // Project Order Requests
+  createProjectOrderRequest(data: InsertProjectOrderRequest): Promise<ProjectOrderRequest>;
+  getProjectOrderRequests(): Promise<ProjectOrderRequest[]>;
+  getProjectOrderRequestById(id: string): Promise<ProjectOrderRequest | undefined>;
+  updateProjectOrderRequestStatus(id: string, status: string): Promise<ProjectOrderRequest | undefined>;
+  deleteProjectOrderRequest(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -2044,6 +2051,44 @@ export class MemStorage implements IStorage {
       }
     }
     return total;
+  }
+
+  // Project Order Request methods (stub implementation for MemStorage)
+  private projectOrderRequests: Map<string, ProjectOrderRequest> = new Map();
+
+  async createProjectOrderRequest(data: InsertProjectOrderRequest): Promise<ProjectOrderRequest> {
+    const request: ProjectOrderRequest = {
+      id: randomUUID(),
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone,
+      description: data.description,
+      status: 'pending',
+      createdAt: new Date(),
+    };
+    this.projectOrderRequests.set(request.id, request);
+    return request;
+  }
+
+  async getProjectOrderRequests(): Promise<ProjectOrderRequest[]> {
+    return Array.from(this.projectOrderRequests.values())
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async getProjectOrderRequestById(id: string): Promise<ProjectOrderRequest | undefined> {
+    return this.projectOrderRequests.get(id);
+  }
+
+  async updateProjectOrderRequestStatus(id: string, status: string): Promise<ProjectOrderRequest | undefined> {
+    const request = this.projectOrderRequests.get(id);
+    if (!request) return undefined;
+    request.status = status;
+    this.projectOrderRequests.set(id, request);
+    return request;
+  }
+
+  async deleteProjectOrderRequest(id: string): Promise<void> {
+    this.projectOrderRequests.delete(id);
   }
 }
 
