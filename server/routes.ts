@@ -3522,6 +3522,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get pending project order requests count (admin only)
+  app.get("/api/admin/project-orders/pending-count", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const user = req.user!;
+      
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      
+      const requests = await storage.getProjectOrderRequests();
+      const pendingCount = requests.filter(r => r.status === "pending").length;
+      res.json({ pendingCount });
+    } catch (error) {
+      console.error("Error getting pending project orders count:", error);
+      res.status(500).json({ message: "خطا در دریافت تعداد درخواست‌ها" });
+    }
+  });
+  
   // Update project order request status (admin only)
   app.patch("/api/admin/project-orders/:id/status", authenticateToken, async (req: AuthRequest, res) => {
     try {

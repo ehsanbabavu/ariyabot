@@ -20,6 +20,8 @@ __export(schema_exports, {
   contentSections: () => contentSections,
   cryptoPrices: () => cryptoPrices,
   faqs: () => faqs,
+  guestChatMessages: () => guestChatMessages,
+  guestChatSessions: () => guestChatSessions,
   insertAddressSchema: () => insertAddressSchema,
   insertAiTokenSettingsSchema: () => insertAiTokenSettingsSchema,
   insertBlockchainSettingsSchema: () => insertBlockchainSettingsSchema,
@@ -29,12 +31,15 @@ __export(schema_exports, {
   insertContentSectionSchema: () => insertContentSectionSchema,
   insertCryptoPriceSchema: () => insertCryptoPriceSchema,
   insertFaqSchema: () => insertFaqSchema,
+  insertGuestChatMessageSchema: () => insertGuestChatMessageSchema,
+  insertGuestChatSessionSchema: () => insertGuestChatSessionSchema,
   insertInternalChatSchema: () => insertInternalChatSchema,
   insertLoginLogSchema: () => insertLoginLogSchema,
   insertOrderItemSchema: () => insertOrderItemSchema,
   insertOrderSchema: () => insertOrderSchema,
   insertPasswordResetOtpSchema: () => insertPasswordResetOtpSchema,
   insertProductSchema: () => insertProductSchema,
+  insertProjectOrderRequestSchema: () => insertProjectOrderRequestSchema,
   insertReceivedMessageSchema: () => insertReceivedMessageSchema,
   insertSentMessageSchema: () => insertSentMessageSchema,
   insertShippingSettingsSchema: () => insertShippingSettingsSchema,
@@ -53,6 +58,7 @@ __export(schema_exports, {
   orders: () => orders,
   passwordResetOtps: () => passwordResetOtps,
   products: () => products,
+  projectOrderRequests: () => projectOrderRequests,
   receivedMessages: () => receivedMessages,
   resetPasswordSchema: () => resetPasswordSchema,
   sentMessages: () => sentMessages,
@@ -65,6 +71,7 @@ __export(schema_exports, {
   updateCategoryOrderSchema: () => updateCategoryOrderSchema,
   updateContentSectionSchema: () => updateContentSectionSchema,
   updateFaqSchema: () => updateFaqSchema,
+  updateProjectOrderRequestSchema: () => updateProjectOrderRequestSchema,
   updateShippingSettingsSchema: () => updateShippingSettingsSchema,
   updateVatSettingsSchema: () => updateVatSettingsSchema,
   userSubscriptions: () => userSubscriptions,
@@ -76,7 +83,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, boolean, decimal, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, shippingSettings, passwordResetOtps, vatSettings, maintenanceMode, cryptoPrices, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, insertShippingSettingsSchema, updateShippingSettingsSchema, insertPasswordResetOtpSchema, insertVatSettingsSchema, updateVatSettingsSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema, contentSections, insertContentSectionSchema, updateContentSectionSchema, loginLogs, insertLoginLogSchema, insertCryptoPriceSchema;
+var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, shippingSettings, passwordResetOtps, vatSettings, maintenanceMode, cryptoPrices, guestChatSessions, guestChatMessages, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, insertShippingSettingsSchema, updateShippingSettingsSchema, insertPasswordResetOtpSchema, insertVatSettingsSchema, updateVatSettingsSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema, insertGuestChatSessionSchema, insertGuestChatMessageSchema, contentSections, insertContentSectionSchema, updateContentSectionSchema, loginLogs, insertLoginLogSchema, insertCryptoPriceSchema, projectOrderRequests, insertProjectOrderRequestSchema, updateProjectOrderRequestSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -432,6 +439,35 @@ var init_schema = __esm({
     }, (table) => ({
       symbolUnique: unique("crypto_prices_symbol_unique").on(table.symbol)
     }));
+    guestChatSessions = pgTable("guest_chat_sessions", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      sessionToken: text("session_token").notNull().unique(),
+      // توکن منحصر به فرد برای session مهمان
+      guestName: text("guest_name"),
+      // نام مهمان (اختیاری)
+      guestPhone: text("guest_phone"),
+      // شماره تلفن مهمان (اختیاری)
+      guestIpAddress: text("guest_ip_address"),
+      // آدرس IP مهمان
+      isActive: boolean("is_active").notNull().default(true),
+      // آیا session فعال است
+      lastMessageAt: timestamp("last_message_at").defaultNow(),
+      // آخرین پیام
+      unreadByAdmin: integer("unread_by_admin").notNull().default(0),
+      // تعداد پیام‌های خوانده نشده توسط ادمین
+      unreadByGuest: integer("unread_by_guest").notNull().default(0),
+      // تعداد پیام‌های خوانده نشده توسط مهمان
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    guestChatMessages = pgTable("guest_chat_messages", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      sessionId: varchar("session_id").notNull().references(() => guestChatSessions.id),
+      message: text("message").notNull(),
+      sender: text("sender").notNull(),
+      // 'guest' | 'admin'
+      isRead: boolean("is_read").notNull().default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    });
     insertUserSchema = createInsertSchema(users).omit({
       id: true,
       createdAt: true
@@ -643,6 +679,15 @@ var init_schema = __esm({
     resetPasswordSchema = z.object({
       password: z.string().min(6, "\u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0628\u0627\u06CC\u062F \u062D\u062F\u0627\u0642\u0644 \u06F6 \u06A9\u0627\u0631\u0627\u06A9\u062A\u0631 \u0628\u0627\u0634\u062F")
     });
+    insertGuestChatSessionSchema = createInsertSchema(guestChatSessions).omit({
+      id: true,
+      createdAt: true,
+      lastMessageAt: true
+    });
+    insertGuestChatMessageSchema = createInsertSchema(guestChatMessages).omit({
+      id: true,
+      createdAt: true
+    });
     contentSections = pgTable("content_sections", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       sectionKey: text("section_key").notNull().unique(),
@@ -675,6 +720,22 @@ var init_schema = __esm({
       priceInRial: z.union([z.string(), z.number()]).transform((val) => String(val)),
       priceInToman: z.union([z.string(), z.number()]).transform((val) => String(val))
     });
+    projectOrderRequests = pgTable("project_order_requests", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      firstName: text("first_name").notNull(),
+      lastName: text("last_name").notNull(),
+      phone: text("phone").notNull(),
+      description: text("description").notNull(),
+      status: text("status").notNull().default("pending"),
+      // pending, reviewed, contacted, completed
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    insertProjectOrderRequestSchema = createInsertSchema(projectOrderRequests).omit({
+      id: true,
+      createdAt: true,
+      status: true
+    });
+    updateProjectOrderRequestSchema = createInsertSchema(projectOrderRequests).partial().required({ id: true });
   }
 });
 
@@ -697,7 +758,7 @@ var init_db_storage = __esm({
       ssl: false
     });
     db = drizzle(pool, {
-      schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices }
+      schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests }
     });
     DbStorage = class {
       constructor() {
@@ -1591,7 +1652,9 @@ var init_db_storage = __esm({
           status: orders.status,
           statusHistory: orders.statusHistory,
           orderNumber: orders.orderNumber,
+          shippingMethod: orders.shippingMethod,
           notes: orders.notes,
+          paymentStartedAt: orders.paymentStartedAt,
           createdAt: orders.createdAt,
           updatedAt: orders.updatedAt,
           addressTitle: addresses.title,
@@ -1615,7 +1678,9 @@ var init_db_storage = __esm({
           status: orders.status,
           statusHistory: orders.statusHistory,
           orderNumber: orders.orderNumber,
+          shippingMethod: orders.shippingMethod,
           notes: orders.notes,
+          paymentStartedAt: orders.paymentStartedAt,
           createdAt: orders.createdAt,
           updatedAt: orders.updatedAt,
           addressTitle: addresses.title,
@@ -1634,7 +1699,9 @@ var init_db_storage = __esm({
           status: orders.status,
           statusHistory: orders.statusHistory,
           orderNumber: orders.orderNumber,
+          shippingMethod: orders.shippingMethod,
           notes: orders.notes,
+          paymentStartedAt: orders.paymentStartedAt,
           createdAt: orders.createdAt,
           updatedAt: orders.updatedAt,
           addressTitle: addresses.title,
@@ -2167,6 +2234,171 @@ var init_db_storage = __esm({
         } catch (error) {
           console.error("Error getting login logs by user:", error);
           return [];
+        }
+      }
+      // Guest Chat Session Methods
+      async createGuestChatSession(sessionToken, guestName, guestPhone, guestIpAddress) {
+        try {
+          const result = await db.insert(guestChatSessions).values({
+            sessionToken,
+            guestName,
+            guestPhone,
+            guestIpAddress,
+            isActive: true,
+            unreadByAdmin: 0,
+            unreadByGuest: 0
+          }).returning();
+          return result[0];
+        } catch (error) {
+          console.error("Error creating guest chat session:", error);
+          throw error;
+        }
+      }
+      async getGuestChatSessionByToken(sessionToken) {
+        try {
+          const result = await db.select().from(guestChatSessions).where(eq(guestChatSessions.sessionToken, sessionToken)).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error("Error getting guest chat session:", error);
+          throw error;
+        }
+      }
+      async getAllGuestChatSessions() {
+        try {
+          return await db.select().from(guestChatSessions).orderBy(desc(guestChatSessions.lastMessageAt));
+        } catch (error) {
+          console.error("Error getting all guest chat sessions:", error);
+          return [];
+        }
+      }
+      async getActiveGuestChatSessions() {
+        try {
+          return await db.select().from(guestChatSessions).where(eq(guestChatSessions.isActive, true)).orderBy(desc(guestChatSessions.lastMessageAt));
+        } catch (error) {
+          console.error("Error getting active guest chat sessions:", error);
+          return [];
+        }
+      }
+      async updateGuestChatSession(sessionId, updates) {
+        try {
+          const result = await db.update(guestChatSessions).set(updates).where(eq(guestChatSessions.id, sessionId)).returning();
+          return result[0];
+        } catch (error) {
+          console.error("Error updating guest chat session:", error);
+          throw error;
+        }
+      }
+      // Guest Chat Message Methods
+      async createGuestChatMessage(sessionId, message, sender) {
+        try {
+          const result = await db.insert(guestChatMessages).values({
+            sessionId,
+            message,
+            sender,
+            isRead: false
+          }).returning();
+          if (sender === "guest") {
+            await db.update(guestChatSessions).set({
+              lastMessageAt: /* @__PURE__ */ new Date(),
+              unreadByAdmin: sql2`${guestChatSessions.unreadByAdmin} + 1`
+            }).where(eq(guestChatSessions.id, sessionId));
+          } else {
+            await db.update(guestChatSessions).set({
+              lastMessageAt: /* @__PURE__ */ new Date(),
+              unreadByGuest: sql2`${guestChatSessions.unreadByGuest} + 1`
+            }).where(eq(guestChatSessions.id, sessionId));
+          }
+          return result[0];
+        } catch (error) {
+          console.error("Error creating guest chat message:", error);
+          throw error;
+        }
+      }
+      async getGuestChatMessages(sessionId) {
+        try {
+          return await db.select().from(guestChatMessages).where(eq(guestChatMessages.sessionId, sessionId)).orderBy(guestChatMessages.createdAt);
+        } catch (error) {
+          console.error("Error getting guest chat messages:", error);
+          return [];
+        }
+      }
+      async markGuestChatMessagesAsRead(sessionId, sender) {
+        try {
+          const messageSender = sender === "admin" ? "guest" : "admin";
+          await db.update(guestChatMessages).set({ isRead: true }).where(and(
+            eq(guestChatMessages.sessionId, sessionId),
+            eq(guestChatMessages.sender, messageSender),
+            eq(guestChatMessages.isRead, false)
+          ));
+          if (sender === "admin") {
+            await db.update(guestChatSessions).set({ unreadByAdmin: 0 }).where(eq(guestChatSessions.id, sessionId));
+          } else {
+            await db.update(guestChatSessions).set({ unreadByGuest: 0 }).where(eq(guestChatSessions.id, sessionId));
+          }
+        } catch (error) {
+          console.error("Error marking guest chat messages as read:", error);
+          throw error;
+        }
+      }
+      async getTotalUnreadGuestChats() {
+        try {
+          const result = await db.select({ total: sql2`cast(sum(${guestChatSessions.unreadByAdmin}) as integer)` }).from(guestChatSessions).where(eq(guestChatSessions.isActive, true));
+          return result[0]?.total || 0;
+        } catch (error) {
+          console.error("Error getting total unread guest chats:", error);
+          return 0;
+        }
+      }
+      async closeGuestChatSession(sessionId) {
+        try {
+          await db.update(guestChatSessions).set({ isActive: false }).where(eq(guestChatSessions.id, sessionId));
+        } catch (error) {
+          console.error("Error closing guest chat session:", error);
+          throw error;
+        }
+      }
+      // Project Order Request methods
+      async createProjectOrderRequest(data) {
+        try {
+          const result = await db.insert(projectOrderRequests).values(data).returning();
+          return result[0];
+        } catch (error) {
+          console.error("Error creating project order request:", error);
+          throw error;
+        }
+      }
+      async getProjectOrderRequests() {
+        try {
+          return await db.select().from(projectOrderRequests).orderBy(desc(projectOrderRequests.createdAt));
+        } catch (error) {
+          console.error("Error getting project order requests:", error);
+          return [];
+        }
+      }
+      async getProjectOrderRequestById(id) {
+        try {
+          const result = await db.select().from(projectOrderRequests).where(eq(projectOrderRequests.id, id)).limit(1);
+          return result[0];
+        } catch (error) {
+          console.error("Error getting project order request:", error);
+          return void 0;
+        }
+      }
+      async updateProjectOrderRequestStatus(id, status) {
+        try {
+          const result = await db.update(projectOrderRequests).set({ status }).where(eq(projectOrderRequests.id, id)).returning();
+          return result[0];
+        } catch (error) {
+          console.error("Error updating project order request status:", error);
+          throw error;
+        }
+      }
+      async deleteProjectOrderRequest(id) {
+        try {
+          await db.delete(projectOrderRequests).where(eq(projectOrderRequests.id, id));
+        } catch (error) {
+          console.error("Error deleting project order request:", error);
+          throw error;
         }
       }
     };
@@ -3580,6 +3812,133 @@ var init_storage = __esm({
       }
       async getLoginLogsByUser(userId) {
         return Array.from(this.loginLogs.values()).filter((log2) => log2.userId === userId).sort((a, b) => (b.loginAt?.getTime() || 0) - (a.loginAt?.getTime() || 0));
+      }
+      // Guest Chat Methods (stub implementation for MemStorage)
+      guestChatSessions = /* @__PURE__ */ new Map();
+      guestChatMessages = /* @__PURE__ */ new Map();
+      async createGuestChatSession(sessionToken, guestName, guestPhone, guestIpAddress) {
+        const session = {
+          id: randomUUID(),
+          sessionToken,
+          guestName: guestName || null,
+          guestPhone: guestPhone || null,
+          guestIpAddress: guestIpAddress || null,
+          isActive: true,
+          lastMessageAt: /* @__PURE__ */ new Date(),
+          unreadByAdmin: 0,
+          unreadByGuest: 0,
+          createdAt: /* @__PURE__ */ new Date()
+        };
+        this.guestChatSessions.set(session.id, session);
+        return session;
+      }
+      async getGuestChatSessionByToken(sessionToken) {
+        return Array.from(this.guestChatSessions.values()).find((s) => s.sessionToken === sessionToken);
+      }
+      async getAllGuestChatSessions() {
+        return Array.from(this.guestChatSessions.values()).sort(
+          (a, b) => (b.lastMessageAt?.getTime() || 0) - (a.lastMessageAt?.getTime() || 0)
+        );
+      }
+      async getActiveGuestChatSessions() {
+        return Array.from(this.guestChatSessions.values()).filter((s) => s.isActive).sort((a, b) => (b.lastMessageAt?.getTime() || 0) - (a.lastMessageAt?.getTime() || 0));
+      }
+      async updateGuestChatSession(sessionId, updates) {
+        const session = this.guestChatSessions.get(sessionId);
+        if (!session) return void 0;
+        const updated = { ...session, ...updates };
+        this.guestChatSessions.set(sessionId, updated);
+        return updated;
+      }
+      async closeGuestChatSession(sessionId) {
+        const session = this.guestChatSessions.get(sessionId);
+        if (session) {
+          session.isActive = false;
+          this.guestChatSessions.set(sessionId, session);
+        }
+      }
+      async createGuestChatMessage(sessionId, message, sender) {
+        const msg = {
+          id: randomUUID(),
+          sessionId,
+          message,
+          sender,
+          isRead: false,
+          createdAt: /* @__PURE__ */ new Date()
+        };
+        this.guestChatMessages.set(msg.id, msg);
+        const session = this.guestChatSessions.get(sessionId);
+        if (session) {
+          session.lastMessageAt = /* @__PURE__ */ new Date();
+          if (sender === "guest") {
+            session.unreadByAdmin = (session.unreadByAdmin || 0) + 1;
+          } else {
+            session.unreadByGuest = (session.unreadByGuest || 0) + 1;
+          }
+          this.guestChatSessions.set(sessionId, session);
+        }
+        return msg;
+      }
+      async getGuestChatMessages(sessionId) {
+        return Array.from(this.guestChatMessages.values()).filter((m) => m.sessionId === sessionId).sort((a, b) => (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
+      }
+      async markGuestChatMessagesAsRead(sessionId, sender) {
+        const messageSender = sender === "admin" ? "guest" : "admin";
+        for (const [id, msg] of this.guestChatMessages.entries()) {
+          if (msg.sessionId === sessionId && msg.sender === messageSender && !msg.isRead) {
+            msg.isRead = true;
+            this.guestChatMessages.set(id, msg);
+          }
+        }
+        const session = this.guestChatSessions.get(sessionId);
+        if (session) {
+          if (sender === "admin") {
+            session.unreadByAdmin = 0;
+          } else {
+            session.unreadByGuest = 0;
+          }
+          this.guestChatSessions.set(sessionId, session);
+        }
+      }
+      async getTotalUnreadGuestChats() {
+        let total = 0;
+        for (const session of this.guestChatSessions.values()) {
+          if (session.isActive) {
+            total += session.unreadByAdmin || 0;
+          }
+        }
+        return total;
+      }
+      // Project Order Request methods (stub implementation for MemStorage)
+      projectOrderRequests = /* @__PURE__ */ new Map();
+      async createProjectOrderRequest(data) {
+        const request = {
+          id: randomUUID(),
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          description: data.description,
+          status: "pending",
+          createdAt: /* @__PURE__ */ new Date()
+        };
+        this.projectOrderRequests.set(request.id, request);
+        return request;
+      }
+      async getProjectOrderRequests() {
+        return Array.from(this.projectOrderRequests.values()).sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+      }
+      async getProjectOrderRequestById(id) {
+        return this.projectOrderRequests.get(id);
+      }
+      async updateProjectOrderRequestStatus(id, status) {
+        const request = this.projectOrderRequests.get(id);
+        if (!request) return void 0;
+        request.status = status;
+        this.projectOrderRequests.set(id, request);
+        return request;
+      }
+      async deleteProjectOrderRequest(id) {
+        this.projectOrderRequests.delete(id);
       }
     };
     storage = process.env.NODE_ENV === "test" ? new MemStorage() : new DbStorage();
@@ -9426,13 +9785,32 @@ ${newPassword}
       if (order.userId !== req.user.id) {
         return res.status(403).json({ message: "\u0634\u0645\u0627 \u0645\u062C\u0627\u0632 \u0628\u0647 \u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0627\u06CC\u0646 \u0633\u0641\u0627\u0631\u0634 \u0646\u06CC\u0633\u062A\u06CC\u062F" });
       }
+      if (order.paymentStartedAt) {
+        const startTime = new Date(order.paymentStartedAt).getTime();
+        const currentTime = (/* @__PURE__ */ new Date()).getTime();
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1e3);
+        const totalSeconds = 10 * 60;
+        const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+        if (remainingSeconds > 0) {
+          console.log(`\u23F1\uFE0F Timer \u0642\u0628\u0644\u0627\u064B \u0645\u0648\u062C\u0648\u062F \u0627\u0633\u062A \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${req.params.orderId} - \u0628\u0627\u0642\u06CC\u0645\u0627\u0646\u062F\u0647: ${remainingSeconds}s`);
+          return res.json({
+            success: true,
+            paymentStartedAt: order.paymentStartedAt,
+            alreadyStarted: true,
+            remainingSeconds
+          });
+        }
+        console.log(`\u231B Timer \u0642\u0628\u0644\u06CC expire \u0634\u062F\u0647 \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${req.params.orderId} - \u0627\u06CC\u062C\u0627\u062F timer \u062C\u062F\u06CC\u062F`);
+      }
       const now = /* @__PURE__ */ new Date();
       await db.update(orders).set({
         paymentStartedAt: now
       }).where(eq(orders.id, req.params.orderId));
+      console.log(`\u2705 Timer \u062C\u062F\u06CC\u062F \u0634\u0631\u0648\u0639 \u0634\u062F \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${req.params.orderId}`);
       res.json({
         success: true,
-        paymentStartedAt: now.toISOString()
+        paymentStartedAt: now.toISOString(),
+        alreadyStarted: false
       });
     } catch (error) {
       console.error("Start payment timer error:", error);
@@ -9441,6 +9819,9 @@ ${newPassword}
   });
   app2.get("/api/orders/:orderId/payment-timer", authenticateToken, requireLevel2, async (req, res) => {
     try {
+      res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.set("Pragma", "no-cache");
+      res.set("Expires", "0");
       const order = await storage.getOrder(req.params.orderId);
       if (!order) {
         return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
@@ -10059,6 +10440,220 @@ ${newPassword}
     } catch (error) {
       console.error("Error marking all messages as read:", error);
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0639\u0644\u0627\u0645\u062A\u200C\u06AF\u0630\u0627\u0631\u06CC \u067E\u06CC\u0627\u0645\u200C\u0647\u0627" });
+    }
+  });
+  app2.post("/api/guest-chat/session", async (req, res) => {
+    try {
+      const { sessionToken, guestName, guestPhone } = req.body;
+      if (!sessionToken) {
+        return res.status(400).json({ message: "\u062A\u0648\u06A9\u0646 \u062C\u0644\u0633\u0647 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A" });
+      }
+      const rawIpAddress = req.headers["x-forwarded-for"] || req.ip || "Unknown";
+      const guestIpAddress = typeof rawIpAddress === "string" ? rawIpAddress.replace(/,\s*/g, "---") : rawIpAddress;
+      let session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        session = await storage.createGuestChatSession(sessionToken, guestName, guestPhone, guestIpAddress);
+        await storage.createGuestChatMessage(session.id, "\u0633\u0644\u0627\u0645! \u0686\u0637\u0648\u0631 \u0645\u06CC\u200C\u062A\u0648\u0646\u0645 \u06A9\u0645\u06A9\u062A\u0648\u0646 \u06A9\u0646\u0645\u061F", "admin");
+      }
+      res.json(session);
+    } catch (error) {
+      console.error("Error creating guest chat session:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u062C\u0644\u0633\u0647 \u0686\u062A" });
+    }
+  });
+  app2.get("/api/guest-chat/:sessionToken/messages", async (req, res) => {
+    try {
+      const { sessionToken } = req.params;
+      const session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        return res.status(404).json({ message: "\u062C\u0644\u0633\u0647 \u0686\u062A \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const messages = await storage.getGuestChatMessages(session.id);
+      await storage.markGuestChatMessagesAsRead(session.id, "guest");
+      res.json({ session, messages });
+    } catch (error) {
+      console.error("Error getting guest chat messages:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627" });
+    }
+  });
+  app2.post("/api/guest-chat/:sessionToken/messages", async (req, res) => {
+    try {
+      const { sessionToken } = req.params;
+      const { message } = req.body;
+      if (!message || !message.trim()) {
+        return res.status(400).json({ message: "\u067E\u06CC\u0627\u0645 \u0646\u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u062E\u0627\u0644\u06CC \u0628\u0627\u0634\u062F" });
+      }
+      const session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        return res.status(404).json({ message: "\u062C\u0644\u0633\u0647 \u0686\u062A \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      if (!session.isActive) {
+        return res.status(400).json({ message: "\u0627\u06CC\u0646 \u062C\u0644\u0633\u0647 \u0686\u062A \u0628\u0633\u062A\u0647 \u0634\u062F\u0647 \u0627\u0633\u062A" });
+      }
+      const newMessage = await storage.createGuestChatMessage(session.id, message.trim(), "guest");
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error sending guest message:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645" });
+    }
+  });
+  app2.get("/api/admin/guest-chats", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u0686\u062A\u200C\u0647\u0627\u06CC \u0645\u0647\u0645\u0627\u0646\u0627\u0646 \u0631\u0627 \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u062F" });
+      }
+      const sessions = await storage.getAllGuestChatSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error getting guest chat sessions:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062C\u0644\u0633\u0627\u062A \u0686\u062A" });
+    }
+  });
+  app2.get("/api/admin/guest-chats/active", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u0686\u062A\u200C\u0647\u0627\u06CC \u0645\u0647\u0645\u0627\u0646\u0627\u0646 \u0631\u0627 \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u062F" });
+      }
+      const sessions = await storage.getActiveGuestChatSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error getting active guest chat sessions:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062C\u0644\u0633\u0627\u062A \u0686\u062A \u0641\u0639\u0627\u0644" });
+    }
+  });
+  app2.get("/api/admin/guest-chats/unread-count", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u0645\u062D\u062F\u0648\u062F" });
+      }
+      const unreadCount = await storage.getTotalUnreadGuestChats();
+      res.json({ unreadCount });
+    } catch (error) {
+      console.error("Error getting unread guest chats count:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0639\u062F\u0627\u062F \u067E\u06CC\u0627\u0645\u200C\u0647\u0627\u06CC \u062E\u0648\u0627\u0646\u062F\u0647 \u0646\u0634\u062F\u0647" });
+    }
+  });
+  app2.get("/api/admin/guest-chats/:sessionId/messages", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      const { sessionId } = req.params;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u067E\u06CC\u0627\u0645\u200C\u0647\u0627 \u0631\u0627 \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u062F" });
+      }
+      const messages = await storage.getGuestChatMessages(sessionId);
+      await storage.markGuestChatMessagesAsRead(sessionId, "admin");
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting guest chat messages for admin:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627" });
+    }
+  });
+  app2.post("/api/admin/guest-chats/:sessionId/messages", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      const { sessionId } = req.params;
+      const { message } = req.body;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u067E\u0627\u0633\u062E \u0627\u0631\u0633\u0627\u0644 \u06A9\u0646\u062F" });
+      }
+      if (!message || !message.trim()) {
+        return res.status(400).json({ message: "\u067E\u06CC\u0627\u0645 \u0646\u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u062E\u0627\u0644\u06CC \u0628\u0627\u0634\u062F" });
+      }
+      const newMessage = await storage.createGuestChatMessage(sessionId, message.trim(), "admin");
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error sending admin reply:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u0627\u0633\u062E" });
+    }
+  });
+  app2.patch("/api/admin/guest-chats/:sessionId/close", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      const { sessionId } = req.params;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u062C\u0644\u0633\u0647 \u0631\u0627 \u0628\u0628\u0646\u062F\u062F" });
+      }
+      await storage.closeGuestChatSession(sessionId);
+      res.json({ message: "\u062C\u0644\u0633\u0647 \u0686\u062A \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0633\u062A\u0647 \u0634\u062F" });
+    } catch (error) {
+      console.error("Error closing guest chat session:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0633\u062A\u0646 \u062C\u0644\u0633\u0647 \u0686\u062A" });
+    }
+  });
+  app2.post("/api/project-orders", async (req, res) => {
+    try {
+      const { firstName, lastName, phone, description } = req.body;
+      if (!firstName || !lastName || !phone || !description) {
+        return res.status(400).json({ message: "\u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0627\u0644\u0632\u0627\u0645\u06CC \u0647\u0633\u062A\u0646\u062F" });
+      }
+      const request = await storage.createProjectOrderRequest({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        description: description.trim()
+      });
+      res.status(201).json({
+        message: "\u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0634\u0645\u0627 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0634\u062F. \u0628\u0647 \u0632\u0648\u062F\u06CC \u0628\u0627 \u0634\u0645\u0627 \u062A\u0645\u0627\u0633 \u0645\u06CC\u200C\u06AF\u06CC\u0631\u06CC\u0645.",
+        request
+      });
+    } catch (error) {
+      console.error("Error creating project order request:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u062F\u0631\u062E\u0648\u0627\u0633\u062A. \u0644\u0637\u0641\u0627 \u0645\u062C\u062F\u062F\u0627 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F." });
+    }
+  });
+  app2.get("/api/admin/project-orders", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u062F\u0631\u062E\u0648\u0627\u0633\u062A\u200C\u0647\u0627 \u0631\u0627 \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u062F" });
+      }
+      const requests = await storage.getProjectOrderRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error getting project order requests:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062F\u0631\u062E\u0648\u0627\u0633\u062A\u200C\u0647\u0627" });
+    }
+  });
+  app2.patch("/api/admin/project-orders/:id/status", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+      const { status } = req.body;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u0648\u0636\u0639\u06CC\u062A \u0631\u0627 \u062A\u063A\u06CC\u06CC\u0631 \u062F\u0647\u062F" });
+      }
+      if (!status) {
+        return res.status(400).json({ message: "\u0648\u0636\u0639\u06CC\u062A \u062C\u062F\u06CC\u062F \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A" });
+      }
+      const validStatuses = ["pending", "reviewed", "contacted", "completed"];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "\u0648\u0636\u0639\u06CC\u062A \u0646\u0627\u0645\u0639\u062A\u0628\u0631 \u0627\u0633\u062A" });
+      }
+      const updated = await storage.updateProjectOrderRequestStatus(id, status);
+      if (!updated) {
+        return res.status(404).json({ message: "\u062F\u0631\u062E\u0648\u0627\u0633\u062A \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating project order request status:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0648\u0636\u0639\u06CC\u062A" });
+    }
+  });
+  app2.delete("/api/admin/project-orders/:id", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0627\u062F\u0645\u06CC\u0646 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u062F \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0631\u0627 \u062D\u0630\u0641 \u06A9\u0646\u062F" });
+      }
+      await storage.deleteProjectOrderRequest(id);
+      res.json({ message: "\u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062D\u0630\u0641 \u0634\u062F" });
+    } catch (error) {
+      console.error("Error deleting project order request:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u062F\u0631\u062E\u0648\u0627\u0633\u062A" });
     }
   });
   app2.get("/api/users/:userId", authenticateToken, async (req, res) => {
