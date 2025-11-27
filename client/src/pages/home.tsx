@@ -1,9 +1,13 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Users, ArrowRight, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Menu, X, Users, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, Loader2, Send, Phone, User, FileText } from "lucide-react";
 import { useState, useEffect, useCallback, ReactNode, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import ariyaBotImage from "@assets/generated_images/colorful_ai_ariya_bot_assistant_illustration.png";
 import robotCharacterImage from "@assets/generated_images/robot_character.jpg";
 import robotCharacterVideosImage from "@assets/generated_images/robot_character_videos.jpg";
@@ -45,20 +49,24 @@ function FAQAccordion() {
     <div className="space-y-3">
       {[
         {
-          question: "اهداف این پیش فروش چیست؟",
-          answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+          question: "آریا بات چطور وقتم رو صرفه‌جویی می‌کنه؟",
+          answer: "آریا بات خودکار پیام‌های واتس‌اپ رو جواب می‌ده، سفارشات رو پردازش می‌کنه، و حتی رسید‌های واریزی رو تشخیص می‌ده! شما فقط یک بار تنظیم کنید و ربات ۲۴/۷ کار می‌کنه. دیگه نیازی نیست هر ساعت نشسته باشید و پیام‌ها رو جواب بدید."
         },
         {
-          question: "توکن فروشی و پیش فروش چیست؟",
-          answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+          question: "من می‌تونم چند محصول اضافه کنم؟",
+          answer: "بدون محدودیت! هر قدر محصول دارید اضافه کنید. انبار خود رو مدیریت کنید، قیمت‌ها رو تغییر بدید، و درسته ببینید کدوم چی فروخته شده یا موجود نیست. آریا بات همه‌اش رو ساده و سریع می‌کنه."
         },
         {
-          question: "تاریخ شروع پیش فروش چیست؟",
-          answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+          question: "ربات چطور به پیام‌های مشتریان جواب می‌ده؟",
+          answer: "ربات با هوش مصنوعی پیشرفته متوجه می‌شه مشتری چی می‌خواد. سوالات معمول (قیمت، موجودی، حمل‌ونقل) رو خودکار جواب می‌ده. اگه سوال پیچیده بود، برای شما نوتیفیکیشن می‌فرسته تا بشنید."
         },
         {
-          question: "چگونه ممکن است در پیش فروش شرکت کنم؟",
-          answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+          question: "ببینم امروز چقدر فروختم؟",
+          answer: "یه نگاه کن! داشبورد آریا بات نمودار‌های قشنگ و اعداد واضح نشون می‌ده: چند سفارش، کل درآمد، کدوم محصول‌ها بیشتر فروخته شد. یا از هر جای دنیا وارد شو - گوشی، لپ‌تاپ، تبلت - همه جا دسترسی داری."
+        },
+        {
+          question: "راه‌اندازیش سخت نیست؟",
+          answer: "نه! فقط ۱۰ دقیقه برای راه‌اندازیش لازمه. حتی اگه هیچ دانشی نداشته باشی ، ما راهنمای ساده داریم و اگه گیر کردی، تیممان کمکت می‌کنه."
         }
       ].map((item, index) => (
         <motion.div
@@ -369,6 +377,220 @@ interface ChatMessage {
   sender: 'user' | 'bot';
 }
 
+function AnimatedTablet() {
+  const [mousePos, setMousePos] = useState({ x: 40, y: 40 });
+  const [clickPos, setClickPos] = useState<{ x: number; y: number } | null>(null);
+  const [scrollPos, setScrollPos] = useState(0);
+  const tabletRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sequence = async () => {
+      while (true) {
+        // Click on menu item
+        for (let i = 0; i < 15; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30));
+          setMousePos(prev => ({
+            x: prev.x + (280 - prev.x) * 0.1,
+            y: prev.y + (22 - prev.y) * 0.1,
+          }));
+        }
+        setClickPos({ x: 280, y: 22 });
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setClickPos(null);
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        // Move to first product card
+        for (let i = 0; i < 15; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30));
+          setMousePos(prev => ({
+            x: prev.x + (150 - prev.x) * 0.1,
+            y: prev.y + (120 - prev.y) * 0.1,
+          }));
+        }
+        setClickPos({ x: 150, y: 120 });
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setClickPos(null);
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        // Move to second product card
+        for (let i = 0; i < 15; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30));
+          setMousePos(prev => ({
+            x: prev.x + (150 - prev.x) * 0.1,
+            y: prev.y + (200 - prev.y) * 0.1,
+          }));
+        }
+        setClickPos({ x: 150, y: 200 });
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setClickPos(null);
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        // Scroll down animation
+        for (let s = 0; s <= 100; s += 10) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          setScrollPos(s);
+        }
+        await new Promise(resolve => setTimeout(resolve, 400));
+
+        // Click add to cart button
+        for (let i = 0; i < 15; i++) {
+          await new Promise(resolve => setTimeout(resolve, 30));
+          setMousePos(prev => ({
+            x: prev.x + (150 - prev.x) * 0.1,
+            y: prev.y + (280 - prev.y) * 0.1,
+          }));
+        }
+        setClickPos({ x: 150, y: 280 });
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setClickPos(null);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Reset
+        setScrollPos(0);
+      }
+    };
+
+    sequence();
+  }, []);
+
+  return (
+    <motion.div 
+      ref={tabletRef}
+      className="relative z-10 w-80 h-96 md:w-96 md:h-[480px] bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-4 shadow-2xl border-8 border-black/40"
+      animate={{ y: [0, -10, 0] }}
+      transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+    >
+      {/* Screen */}
+      <div className="w-full h-full bg-white rounded-2xl overflow-hidden flex flex-col relative">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-3 flex items-center justify-between flex-shrink-0">
+          <div className="text-sm font-bold">اسٹور</div>
+          <motion.button 
+            className="text-xs bg-white/20 px-2 py-1 rounded cursor-pointer hover:bg-white/30"
+            onClick={() => setClickPos({ x: 280, y: 22 })}
+          >
+            منو
+          </motion.button>
+        </div>
+
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-hidden">
+          <motion.div 
+            animate={{ y: -scrollPos }}
+            transition={{ duration: 0.5 }}
+            className="w-full space-y-2 p-3"
+          >
+            {/* Hero Section */}
+            <div className="bg-gradient-to-r from-pink-300 to-rose-300 rounded-lg p-3 mb-2 text-center">
+              <p className="text-xs font-bold text-gray-800">تازه‌ترین محصولات</p>
+              <p className="text-xs text-gray-700">۵۰٪ تخفیف</p>
+            </div>
+
+            {/* Product Card 1 */}
+            <motion.div 
+              className="bg-gradient-to-br from-blue-100 to-cyan-100 rounded-lg p-3 border border-blue-300 cursor-pointer hover:shadow-md transition-shadow"
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setClickPos({ x: 150, y: 120 })}
+            >
+              <div className="w-full h-16 bg-gradient-to-br from-blue-400 to-cyan-500 rounded mb-2 flex items-center justify-center">
+                <span className="text-xl">💻</span>
+              </div>
+              <p className="text-xs font-bold text-gray-800">لپ‌تاپ پرو</p>
+              <p className="text-xs text-gray-600">۱۲ میلیون تومان</p>
+            </motion.div>
+
+            {/* Product Card 2 */}
+            <motion.div 
+              className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg p-3 border border-purple-300 cursor-pointer hover:shadow-md transition-shadow"
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setClickPos({ x: 150, y: 200 })}
+            >
+              <div className="w-full h-16 bg-gradient-to-br from-purple-400 to-pink-500 rounded mb-2 flex items-center justify-center">
+                <span className="text-xl">📱</span>
+              </div>
+              <p className="text-xs font-bold text-gray-800">گوشی هوشمند</p>
+              <p className="text-xs text-gray-600">۸ میلیون تومان</p>
+            </motion.div>
+
+            {/* Product Card 3 */}
+            <motion.div 
+              className="bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg p-3 border border-green-300 cursor-pointer hover:shadow-md transition-shadow"
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setClickPos({ x: 150, y: 280 })}
+            >
+              <div className="w-full h-16 bg-gradient-to-br from-green-400 to-emerald-500 rounded mb-2 flex items-center justify-center">
+                <span className="text-xl">⌚</span>
+              </div>
+              <p className="text-xs font-bold text-gray-800">ساعت هوشمند</p>
+              <p className="text-xs text-gray-600">۲ میلیون تومان</p>
+            </motion.div>
+
+            {/* Add to Cart Button */}
+            <motion.button 
+              className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold rounded text-xs mt-2 cursor-pointer hover:shadow-lg transition-all"
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setClickPos({ x: 150, y: 280 })}
+            >
+              افزودن به سبد
+            </motion.button>
+
+            {/* Footer */}
+            <div className="bg-gray-100 rounded p-2 mt-2 text-center text-xs text-gray-700">
+              <p className="font-semibold">۲۴/۷ تماس پشتیبانی</p>
+              <p className="text-gray-600">۰۹۱۰۱۲۳۴۵۶۷</p>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Click Effect */}
+        <AnimatePresence>
+          {clickPos && (
+            <motion.div
+              key={`click-${clickPos.x}-${clickPos.y}`}
+              initial={{ opacity: 1, scale: 1, x: clickPos.x, y: clickPos.y }}
+              animate={{ opacity: 0, scale: 1.5 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="absolute pointer-events-none"
+              style={{
+                left: 0,
+                top: 0,
+              }}
+            >
+              <div className="w-8 h-8 rounded-full border-2 border-emerald-500 opacity-80" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Mouse Cursor */}
+        <motion.div
+          animate={{ x: mousePos.x, y: mousePos.y }}
+          transition={{ type: "spring", damping: 3, mass: 0.5, stiffness: 100 }}
+          className="absolute pointer-events-none z-50 w-5 h-6"
+          style={{
+            left: 0,
+            top: 0,
+          }}
+        >
+          {/* Arrow Cursor SVG */}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="w-5 h-6 text-gray-800 drop-shadow-lg"
+          >
+            <path d="M3 3l18 18M3 3l7 2M3 3l2 7" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </motion.div>
+      </div>
+
+      {/* Notch */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-3xl"></div>
+    </motion.div>
+  );
+}
+
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -380,7 +602,52 @@ export default function Home() {
   const [sessionToken] = useState(() => generateSessionToken());
   const [isLoadingChat, setIsLoadingChat] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
   const prevMessagesCount = useRef(0);
+  const shakeTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // Project Order Modal State
+  const [isProjectOrderOpen, setIsProjectOrderOpen] = useState(false);
+  const [projectOrderForm, setProjectOrderForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    description: ''
+  });
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [orderSubmitSuccess, setOrderSubmitSuccess] = useState(false);
+  const [orderSubmitError, setOrderSubmitError] = useState('');
+
+  const handleProjectOrderSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingOrder(true);
+    setOrderSubmitError('');
+    
+    try {
+      const response = await fetch('/api/project-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectOrderForm)
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'خطا در ثبت درخواست');
+      }
+      
+      setOrderSubmitSuccess(true);
+      setProjectOrderForm({ firstName: '', lastName: '', phone: '', description: '' });
+      
+      setTimeout(() => {
+        setIsProjectOrderOpen(false);
+        setOrderSubmitSuccess(false);
+      }, 3000);
+    } catch (error) {
+      setOrderSubmitError(error instanceof Error ? error.message : 'خطا در ثبت درخواست');
+    } finally {
+      setIsSubmittingOrder(false);
+    }
+  };
 
   const loadChatSession = useCallback(async () => {
     try {
@@ -415,17 +682,22 @@ export default function Home() {
     }
   }, [sessionToken]);
 
+  // Load chat session on mount and when chat opens
   useEffect(() => {
-    if (isContactOpen) {
-      loadChatSession();
-    }
-  }, [isContactOpen, loadChatSession]);
+    loadChatSession();
+  }, [loadChatSession]);
 
+  // Poll messages ALWAYS (even when chat is closed) to detect admin replies
   useEffect(() => {
-    if (!isContactOpen) return;
-    
     const pollMessages = async () => {
       try {
+        // First ensure session exists
+        await fetch('/api/guest-chat/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionToken })
+        });
+        
         const messagesRes = await fetch(`/api/guest-chat/${sessionToken}/messages`);
         if (!messagesRes.ok) return;
         
@@ -440,8 +712,14 @@ export default function Home() {
         if (formattedMessages.length > prevMessagesCount.current) {
           const newMessages = formattedMessages.slice(prevMessagesCount.current);
           const hasNewBotMessage = newMessages.some(m => m.sender === 'bot');
-          if (hasNewBotMessage) {
+          if (hasNewBotMessage && !isContactOpen) {
             setHasUnreadBotMessage(true);
+            // Trigger shake animation for new bot message
+            setIsShaking(true);
+            if (shakeTimeoutRef.current) clearTimeout(shakeTimeoutRef.current);
+            shakeTimeoutRef.current = setTimeout(() => {
+              setIsShaking(false);
+            }, 3000);
           }
         }
         
@@ -452,9 +730,13 @@ export default function Home() {
       }
     };
     
+    // Poll immediately on mount
+    pollMessages();
+    
+    // Then poll every 3 seconds
     const interval = setInterval(pollMessages, 3000);
     return () => clearInterval(interval);
-  }, [isContactOpen, sessionToken]);
+  }, [sessionToken, isContactOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -469,11 +751,14 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Clear unread notification and initial bubble when chat is opened
+  // Clear unread notification and initial bubble when chat is opened, reset bubble when closed
   useEffect(() => {
     if (isContactOpen) {
       setHasUnreadBotMessage(false);
       setShowInitialBubble(false);
+    } else {
+      // When chat closes, show bubble again so it appears when user scrolls
+      setShowInitialBubble(true);
     }
   }, [isContactOpen]);
 
@@ -491,6 +776,7 @@ export default function Home() {
     { name: "اشتراک ها", href: "#news" },
     { name: "اخرین اخبار", href: "#pricing" },
     { name: "سوالات متداول", href: "#faq" },
+    { name: "سفارش پروژه", href: "#project-orders" },
   ];
 
   const handleNavClick = (href: string) => {
@@ -548,20 +834,24 @@ export default function Home() {
 
   const faqItems = [
     {
-      question: "اهداف این پیش فروش چیست؟",
-      answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+      question: "آریا بات چطور وقتم رو صرفه‌جویی می‌کنه؟",
+      answer: "آریا بات خودکار پیام‌های واتس‌اپ رو جواب می‌ده، سفارشات رو پردازش می‌کنه، و حتی رسید‌های واریزی رو تشخیص می‌ده! شما فقط یک بار تنظیم کنید و ربات ۲۴/۷ کار می‌کنه. دیگه نیازی نیست هر ساعت نشسته باشید و پیام‌ها رو جواب بدید."
     },
     {
-      question: "توکن فروشی و پیش فروش چیست؟",
-      answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+      question: "من می‌تونم چند محصول اضافه کنم؟",
+      answer: "بدون محدودیت! هر قدر محصول دارید اضافه کنید. انبار خود رو مدیریت کنید، قیمت‌ها رو تغییر بدید، و درسته ببینید کدوم چی فروخته شده یا موجود نیست. آریا بات همه‌اش رو ساده و سریع می‌کنه."
     },
     {
-      question: "تاریخ شروع پیش فروش چیست؟",
-      answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+      question: "ربات چطور به پیام‌های مشتریان جواب می‌ده؟",
+      answer: "ربات با هوش مصنوعی پیشرفته متوجه می‌شه مشتری چی می‌خواد. سوالات معمول (قیمت، موجودی، حمل‌ونقل) رو خودکار جواب می‌ده. اگه سوال پیچیده بود، برای شما نوتیفیکیشن می‌فرسته تا بشنید."
     },
     {
-      question: "چگونه ممکن است در پیش فروش شرکت کنم؟",
-      answer: "لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است."
+      question: "ببینم امروز چقدر فروختم؟",
+      answer: "یه نگاه کن! داشبورد آریا بات نمودار‌های قشنگ و اعداد واضح نشون می‌ده: چند سفارش، کل درآمد، کدوم محصول‌ها بیشتر فروخته شد. یا از هر جای دنیا وارد شو - گوشی، لپ‌تاپ، تبلت - همه جا دسترسی داری."
+    },
+    {
+      question: "راه‌اندازیش سخت نیست؟",
+      answer: "نه! فقط ۱۰ دقیقه برای راه‌اندازیش لازمه. حتی اگه هیچ دانشی نداشته باشی ، ما راهنمای ساده داریم و اگه گیر کردی، تیممان کمکت می‌کنه."
     }
   ];
 
@@ -706,20 +996,6 @@ export default function Home() {
                   className="absolute inset-0 rounded-3xl -z-10 bg-gradient-to-l from-purple-400/20 to-pink-400/20 blur-3xl"
                  />
                  
-                 <motion.div 
-                   animate={{
-                     rotate: [0, 360],
-                   }}
-                   transition={{
-                     repeat: Infinity,
-                     duration: 20,
-                     ease: "linear"
-                   }}
-                   className="absolute inset-0 rounded-3xl -z-10"
-                 >
-                   <div className="absolute inset-0 rounded-3xl border-2 border-transparent bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-border opacity-30"></div>
-                 </motion.div>
-                 
                  <div className="relative bg-white rounded-3xl p-2 shadow-2xl border border-white/60 backdrop-blur-sm">
                    <motion.img 
                     src={ariyaBotImage}
@@ -781,17 +1057,17 @@ export default function Home() {
                 className="space-y-8 order-2 md:order-1"
               >
               {/* Title */}
-              <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight">
-                ویدیوهایی را توضیح دهید که پیام برند شما را ساده می کنند.
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 leading-tight">
+                پاسخگوی هوشمند شما ۲۴/۷
               </h2>
 
               {/* Description Paragraphs */}
               <div className="space-y-6">
                 <p className="text-gray-600 text-lg leading-relaxed">
-                  لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است.
+                  دیگه نیازی نیست هر پیام مشتری رو خودتون جواب بدید! آریا بات میتونه به‌طور خودکار پیام‌های واتس‌اپ رو جواب بده، سفارش‌ها رو پردازش کنه و حتی رسید‌های واریزی رو تشخیص بده. دستیار هوشمند شما درست وقتی خواب هستید هم کار می‌کنه.
                 </p>
                 <p className="text-gray-600 text-lg leading-relaxed">
-                  لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است. چاپگرها و متون بلکه روزنامه و مجله در ستون و سطرآنچنان که لازم است و هر گاه زمانی برای بروز می کند و برای فرض شرط حتما.
+                  همه چیز یک جا: مدیریت محصولات، رفع مشکلات مشتری، دنبال‌کردن سفارش‌ها و تحلیل فروش. نه نیاز به نرم‌افزار‌های پیچیده، نه آموزش‌های طولانی - فقط یک سیستم ساده و فارسی که برای کسب‌وکار کوچک تا بزرگ کار می‌کنه.
                 </p>
               </div>
             </motion.div>
@@ -835,7 +1111,7 @@ export default function Home() {
 
                   {/* Stat 2 */}
                   <motion.div className="absolute bottom-0 left-1/2 -translate-x-1/2 bg-white rounded-2xl p-4 shadow-lg border border-emerald-100">
-                    <div className="text-emerald-600 font-black text-xl">50K+</div>
+                    <div className="text-emerald-600 font-black text-xl">200</div>
                     <div className="text-gray-600 text-xs mt-1">کاربر فعال</div>
                   </motion.div>
 
@@ -847,7 +1123,7 @@ export default function Home() {
 
                   {/* Stat 4 */}
                   <motion.div className="absolute top-1/2 -translate-y-1/2 left-0 bg-white rounded-2xl p-4 shadow-lg border border-pink-100">
-                    <div className="text-pink-600 font-black text-xl">15M+</div>
+                    <div className="text-pink-600 font-black text-xl">500</div>
                     <div className="text-gray-600 text-xs mt-1">درخواست</div>
                   </motion.div>
                 </motion.div>
@@ -891,207 +1167,183 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-16 max-w-2xl mx-auto"
           >
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>خدمات اصلی ما</h2>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>خدمات اصلی ما</h2>
           </motion.div>
 
           {/* Services Grid */}
-          <div className="grid md:grid-cols-3 gap-8 lg:gap-10">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Service Card 1 */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="group relative bg-white rounded-xl p-4 shadow-md border border-gray-100 hover:shadow-2xl hover:border-purple-200 transition-all"
+              whileHover={{ scale: 1.05, rotateY: 5, transition: { duration: 0.4 } }}
+              className="group relative h-48 rounded-2xl p-6 shadow-xl border border-blue-200/50 overflow-hidden bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-600"
             >
-              {/* Background accent */}
-              <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-purple-100 to-blue-100 rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               
-              {/* Icon */}
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ repeat: Infinity, duration: 3 }}
-                className="relative z-10 w-10 h-10 bg-gradient-to-br from-purple-100 to-blue-100 rounded-2xl flex items-center justify-center mb-4"
-              >
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </motion.div>
-
-              {/* Content */}
-              <h3 className="text-base font-bold text-gray-900 mb-2 relative z-10">تحلیل اطلاعات</h3>
-              <p className="text-gray-600 relative z-10">
-                لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.
-              </p>
-
-              {/* Hover effect border */}
-              <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-purple-500 to-blue-500 w-0 group-hover:w-full transition-all duration-500 rounded-full"></div>
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black text-white mb-2">گزارش‌های تفصیلی</h3>
+                  <p className="text-white/90 text-sm leading-relaxed">پیگیری فروش و درآمد هر روز با نمودارهای تفصیلی. ببینید کدام محصولات بیشتر فروش رفتند و کدام مشتریان بیشتر خرید کردند!</p>
+                </div>
+                <motion.div
+                  animate={{ y: [0, -12, 0], rotate: [0, 5, 0] }}
+                  transition={{ repeat: Infinity, duration: 4 }}
+                  className="flex-shrink-0 w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shadow-lg border border-white/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </motion.div>
+              </div>
             </motion.div>
 
             {/* Service Card 2 */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="group relative bg-white rounded-xl p-4 shadow-md border border-gray-100 hover:shadow-2xl hover:border-cyan-200 transition-all"
+              whileHover={{ scale: 1.05, rotateY: 5, transition: { duration: 0.4 } }}
+              className="group relative h-48 rounded-2xl p-6 shadow-xl border border-emerald-200/50 overflow-hidden bg-gradient-to-br from-emerald-600 via-emerald-500 to-teal-600"
             >
-              {/* Background accent */}
-              <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-cyan-100 to-emerald-100 rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               
-              {/* Icon */}
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ repeat: Infinity, duration: 3, delay: 0.1 }}
-                className="relative z-10 w-10 h-10 bg-gradient-to-br from-cyan-100 to-emerald-100 rounded-2xl flex items-center justify-center mb-4"
-              >
-                <svg className="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-                </svg>
-              </motion.div>
-
-              {/* Content */}
-              <h3 className="text-base font-bold text-gray-900 mb-2 relative z-10">دستیار اجتماعی تطبیقی</h3>
-              <p className="text-gray-600 relative z-10">
-                لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.
-              </p>
-
-              {/* Hover effect border */}
-              <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-cyan-500 to-emerald-500 w-0 group-hover:w-full transition-all duration-500 rounded-full"></div>
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black text-white mb-2">تنظیمات</h3>
+                  <p className="text-white/90 text-sm leading-relaxed">تمام تنظیمات فروشگاه را در یک جا کنترل کنید. دسته‌بندی محصولات، روش‌های پرداخت، ارسال و هزینه‌های اضافی!</p>
+                </div>
+                <motion.div
+                  animate={{ y: [0, -12, 0], rotate: [0, -5, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, delay: 0.1 }}
+                  className="flex-shrink-0 w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shadow-lg border border-white/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                </motion.div>
+              </div>
             </motion.div>
 
             {/* Service Card 3 */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="group relative bg-white rounded-xl p-4 shadow-md border border-gray-100 hover:shadow-2xl hover:border-pink-200 transition-all"
+              whileHover={{ scale: 1.05, rotateY: 5, transition: { duration: 0.4 } }}
+              className="group relative h-48 rounded-2xl p-6 shadow-xl border border-orange-200/50 overflow-hidden bg-gradient-to-br from-orange-600 via-orange-500 to-amber-600"
             >
-              {/* Background accent */}
-              <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-pink-100 to-rose-100 rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               
-              {/* Icon */}
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ repeat: Infinity, duration: 3, delay: 0.2 }}
-                className="relative z-10 w-10 h-10 bg-gradient-to-br from-pink-100 to-rose-100 rounded-2xl flex items-center justify-center mb-4"
-              >
-                <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-              </motion.div>
-
-              {/* Content */}
-              <h3 className="text-base font-bold text-gray-900 mb-2 relative z-10">متجر های ذکی</h3>
-              <p className="text-gray-600 relative z-10">
-                لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.
-              </p>
-
-              {/* Hover effect border */}
-              <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-pink-500 to-rose-500 w-0 group-hover:w-full transition-all duration-500 rounded-full"></div>
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black text-white mb-2">فروشگاه شما</h3>
+                  <p className="text-white/90 text-sm leading-relaxed">محصولاتتان را اضافه، ویرایش و حذف کنید. قیمت، موجودی و تصاویر - همه چیز را به راحتی مدیریت کنید!</p>
+                </div>
+                <motion.div
+                  animate={{ y: [0, -12, 0], rotate: [0, 5, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, delay: 0.2 }}
+                  className="flex-shrink-0 w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shadow-lg border border-white/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                </motion.div>
+              </div>
             </motion.div>
 
             {/* Service Card 4 */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="group relative bg-white rounded-xl p-4 shadow-md border border-gray-100 hover:shadow-2xl hover:border-indigo-200 transition-all"
+              whileHover={{ scale: 1.05, rotateY: 5, transition: { duration: 0.4 } }}
+              className="group relative h-48 rounded-2xl p-6 shadow-xl border border-violet-200/50 overflow-hidden bg-gradient-to-br from-violet-600 via-purple-500 to-indigo-600"
             >
-              {/* Background accent */}
-              <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               
-              {/* Icon */}
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ repeat: Infinity, duration: 3, delay: 0.3 }}
-                className="relative z-10 w-10 h-10 bg-gradient-to-br from-indigo-100 to-blue-100 rounded-2xl flex items-center justify-center mb-4"
-              >
-                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </motion.div>
-
-              {/* Content */}
-              <h3 className="text-base font-bold text-gray-900 mb-2 relative z-10">خودکارسازی هوشمند</h3>
-              <p className="text-gray-600 relative z-10">
-                لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.
-              </p>
-
-              {/* Hover effect border */}
-              <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-indigo-500 to-blue-500 w-0 group-hover:w-full transition-all duration-500 rounded-full"></div>
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black text-white mb-2">پاسخ‌های خودکار</h3>
+                  <p className="text-white/90 text-sm leading-relaxed">ربات هوشمند ما در هر لحظه به پرسش‌های مشتریان پاسخ می‌دهد. حتی وقتی خواب هستید، کار ادامه دارد!</p>
+                </div>
+                <motion.div
+                  animate={{ y: [0, -12, 0], rotate: [0, -5, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, delay: 0.3 }}
+                  className="flex-shrink-0 w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shadow-lg border border-white/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </motion.div>
+              </div>
             </motion.div>
 
             {/* Service Card 5 */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="group relative bg-white rounded-xl p-4 shadow-md border border-gray-100 hover:shadow-2xl hover:border-orange-200 transition-all"
+              whileHover={{ scale: 1.05, rotateY: 5, transition: { duration: 0.4 } }}
+              className="group relative h-48 rounded-2xl p-6 shadow-xl border border-rose-200/50 overflow-hidden bg-gradient-to-br from-rose-600 via-pink-500 to-red-600"
             >
-              {/* Background accent */}
-              <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               
-              {/* Icon */}
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ repeat: Infinity, duration: 3, delay: 0.4 }}
-                className="relative z-10 w-10 h-10 bg-gradient-to-br from-orange-100 to-amber-100 rounded-2xl flex items-center justify-center mb-4"
-              >
-                <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </motion.div>
-
-              {/* Content */}
-              <h3 className="text-base font-bold text-gray-900 mb-2 relative z-10">راهحل های مالی</h3>
-              <p className="text-gray-600 relative z-10">
-                لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.
-              </p>
-
-              {/* Hover effect border */}
-              <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 w-0 group-hover:w-full transition-all duration-500 rounded-full"></div>
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black text-white mb-2">حساب‌ها و تراکنش‌ها</h3>
+                  <p className="text-white/90 text-sm leading-relaxed">تمام پول‌های ورودی و خروجی را ببینید. حساب مشتریان، موجودی حساب و تاریخچه تراکنش‌ها!</p>
+                </div>
+                <motion.div
+                  animate={{ y: [0, -12, 0], rotate: [0, 5, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, delay: 0.4 }}
+                  className="flex-shrink-0 w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shadow-lg border border-white/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </motion.div>
+              </div>
             </motion.div>
 
             {/* Service Card 6 */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10, transition: { duration: 0.3 } }}
-              className="group relative bg-white rounded-xl p-4 shadow-md border border-gray-100 hover:shadow-2xl hover:border-teal-200 transition-all"
+              whileHover={{ scale: 1.05, rotateY: 5, transition: { duration: 0.4 } }}
+              className="group relative h-48 rounded-2xl p-6 shadow-xl border border-sky-200/50 overflow-hidden bg-gradient-to-br from-sky-500 via-cyan-500 to-blue-600"
             >
-              {/* Background accent */}
-              <div className="absolute top-0 right-0 w-10 h-10 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-bl-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-white/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
               
-              {/* Icon */}
-              <motion.div
-                animate={{ y: [0, -5, 0] }}
-                transition={{ repeat: Infinity, duration: 3, delay: 0.5 }}
-                className="relative z-10 w-10 h-10 bg-gradient-to-br from-teal-100 to-cyan-100 rounded-2xl flex items-center justify-center mb-4"
-              >
-                <svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              </motion.div>
-
-              {/* Content */}
-              <h3 className="text-base font-bold text-gray-900 mb-2 relative z-10">تکنولوژی ابری</h3>
-              <p className="text-gray-600 relative z-10">
-                لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ و با استفاده از طراحان گرافیک است.
-              </p>
-
-              {/* Hover effect border */}
-              <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-teal-500 to-cyan-500 w-0 group-hover:w-full transition-all duration-500 rounded-full"></div>
+              <div className="relative z-10 flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-black text-white mb-2">دسترسی همه‌جا</h3>
+                  <p className="text-white/90 text-sm leading-relaxed">از هر جای دنیا کار کنید! گوشی، لپ‌تاپ، تبلت یا رایانه - در همه‌جا به فروشگاهتان دسترسی دارید!</p>
+                </div>
+                <motion.div
+                  animate={{ y: [0, -12, 0], rotate: [0, -5, 0] }}
+                  transition={{ repeat: Infinity, duration: 4, delay: 0.5 }}
+                  className="flex-shrink-0 w-14 h-14 bg-white/20 backdrop-blur-xl rounded-2xl flex items-center justify-center shadow-lg border border-white/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                </motion.div>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -1108,7 +1360,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-16 max-w-2xl mx-auto"
           >
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>اشتراک ها</h2>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>اشتراک ها</h2>
           </motion.div>
 
           {/* Pricing Cards Grid */}
@@ -1301,7 +1553,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-16 max-w-2xl mx-auto"
           >
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>اخرین اخبار</h2>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>اخرین اخبار</h2>
           </motion.div>
 
           {/* News Carousel */}
@@ -1320,10 +1572,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="text-center mb-16 max-w-2xl mx-auto"
           >
-            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>سوالات متداول پیش فروش</h2>
-            <p className="text-gray-600 text-lg leading-relaxed">
-              لورم ایپسوم متن ساختگی با تولید سادگی نامفهوم از صنعت چاپ، فقط یک فنون است ممکن است پازدهستان فوتبال برنامه ریزی دفاتر راحتی است.
-            </p>
+            <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-4" style={{ fontFamily: 'Vazirmatn-Regular' }}>سوالات متداول</h2>
           </motion.div>
 
           <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-start">
@@ -1358,6 +1607,119 @@ export default function Home() {
               className="order-1 md:order-2"
             >
               <FAQAccordion />
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section - Project Orders */}
+      <section id="project-orders" className="py-20 md:py-32 px-4 overflow-hidden bg-gradient-to-b from-white via-emerald-50/30 to-white">
+        <div className="container mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* Left Column - Animated Tablet with Mouse Motion */}
+            <motion.div 
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              className="flex items-center justify-center relative order-2 md:order-1"
+            >
+              {/* Background Glow */}
+              <div className="absolute -top-20 -left-20 w-80 h-80 bg-emerald-300/20 rounded-full blur-3xl"></div>
+              <div className="absolute -bottom-20 right-0 w-72 h-72 bg-orange-300/20 rounded-full blur-3xl"></div>
+
+              {/* Tablet Device Frame */}
+              <AnimatedTablet />
+            </motion.div>
+
+            {/* Right Column - Text & Features */}
+            <motion.div 
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="order-1 md:order-2 space-y-4"
+            >
+              {/* Title & Description */}
+              <div className="space-y-4">
+                <h2 className="text-3xl md:text-4xl font-black text-gray-900 leading-tight">
+                  پروژه خود را سفارش دهید
+                </h2>
+                <p className="text-gray-600 text-lg leading-relaxed">
+                  از وب‌سایت و نرم‌افزار شخصی گرفته تا سیستم‌های پیچیده‌ی تجاری، ما تمام نیازهای توسعه شما را برطرف می‌کنیم. قیمت‌ها بر اساس الزامات پروژه شما تعیین می‌شود.
+                </p>
+              </div>
+
+              {/* Feature Cards */}
+              <div className="space-y-4">
+                {/* Feature 1 */}
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  viewport={{ once: true }}
+                  className="group p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 flex items-start gap-4"
+                >
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-1">تحویل سریع و قابل‌اعتماد</h3>
+                    <p className="text-sm text-gray-600">تمام پروژه‌ها در مدت ۷ روز کاری تحویل داده می‌شوند. کیفیت و سرعت ما بی‌نظیر است.</p>
+                  </div>
+                </motion.div>
+
+                {/* Feature 2 */}
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                  viewport={{ once: true }}
+                  className="group p-4 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100/50 hover:border-orange-300 hover:shadow-lg transition-all duration-300 flex items-start gap-4"
+                >
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-1">مشاوره و طراحی رایگان</h3>
+                    <p className="text-sm text-gray-600">پیش از شروع، ما برای درک کامل الزامات شما مشاوره رایگان میدیم.</p>
+                  </div>
+                </motion.div>
+
+                {/* Feature 3 */}
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.6, delay: 0.5 }}
+                  viewport={{ once: true }}
+                  className="group p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100/50 hover:border-blue-300 hover:shadow-lg transition-all duration-300 flex items-start gap-4"
+                >
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-1">پشتیبانی تا ۳۰ روز</h3>
+                    <p className="text-sm text-gray-600">پس از تحویل، ما برای ۳۰ روز رایگان پشتیبانی و اصلاحات انجام میدیم.</p>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* CTA Button */}
+              <div className="flex justify-end pt-2">
+                <motion.button 
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.6 }}
+                  viewport={{ once: true }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setIsProjectOrderOpen(true)}
+                  className="px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl hover:shadow-xl transition-all duration-300 flex items-center gap-2"
+                >
+                  ثبت سفارش پروژه
+                  <ArrowRight className="w-5 h-5" />
+                </motion.button>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -1513,7 +1875,7 @@ export default function Home() {
             >
               <div className="absolute -bottom-1 right-6 w-3 h-3 bg-white border-l border-b border-red-50 rotate-45"></div>
               <p className="text-xs text-gray-800 leading-tight" style={{ fontFamily: 'Estedad, sans-serif' }}>
-                <TypeWriter text={chatMessages[0]?.text.substring(0, 40) + '...'} speed={30} />
+                <TypeWriter text={chatMessages[0]?.text ? chatMessages[0].text.substring(0, 40) + '...' : 'سلام! چطور می‌تونم کمکت کنم؟'} speed={30} />
               </p>
             </motion.div>
           )}
@@ -1531,7 +1893,7 @@ export default function Home() {
             >
               <div className="absolute -bottom-1 right-6 w-3 h-3 bg-white border-l border-b border-red-50 rotate-45"></div>
               <p className="text-xs text-gray-800 leading-tight" style={{ fontFamily: 'Estedad, sans-serif' }}>
-                <TypeWriter text={chatMessages[chatMessages.length - 1]?.text.substring(0, 40) + '...'} speed={30} />
+                <TypeWriter text={chatMessages[chatMessages.length - 1]?.text ? chatMessages[chatMessages.length - 1].text.substring(0, 40) + '...' : 'منتظر پاسختم!'} speed={30} />
               </p>
             </motion.div>
           )}
@@ -1542,14 +1904,14 @@ export default function Home() {
           key={`chat-btn-${hasUnreadBotMessage}`}
           onClick={() => setIsContactOpen(!isContactOpen)}
           className={`relative w-16 h-16 rounded-full shadow-2xl flex items-center justify-center text-white transition-all flex-shrink-0 group ${
-            hasUnreadBotMessage && !isContactOpen
+            (hasUnreadBotMessage && !isContactOpen) || isShaking
               ? 'bg-gradient-to-br from-red-600 via-red-500 to-red-700 hover:shadow-red-500/50'
               : 'bg-gradient-to-br from-green-600 via-green-500 to-emerald-600 hover:shadow-green-500/50'
           }`}
           whileHover={{ scale: 1.1, rotate: 5 }}
           whileTap={{ scale: 0.95 }}
-          animate={isContactOpen ? { rotate: 180 } : (hasUnreadBotMessage ? { x: [0, -20, 20, -20, 0] } : { rotate: 0 })}
-          transition={hasUnreadBotMessage ? { repeat: Infinity, repeatDelay: 5, duration: 0.4 } : undefined}
+          animate={isContactOpen ? { rotate: 180 } : (isShaking ? { x: [0, -30, 30, -30, 0] } : (hasUnreadBotMessage ? { x: [0, -30, 30, -30, 0] } : { rotate: 0 }))}
+          transition={isShaking || hasUnreadBotMessage ? { repeat: isShaking ? 2 : Infinity, repeatDelay: 5, duration: 0.4 } : undefined}
         >
           <motion.div
             className="absolute inset-0 rounded-full bg-gradient-to-br from-green-400 to-emerald-400 opacity-0 group-hover:opacity-100 blur-xl"
@@ -1736,6 +2098,160 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Project Order Modal */}
+      <Dialog open={isProjectOrderOpen} onOpenChange={setIsProjectOrderOpen}>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-gradient-to-br from-white via-white to-purple-50/30" dir="rtl">
+          <div className="relative">
+            {/* Header with gradient background */}
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-6 py-8 text-white">
+              <DialogHeader className="text-right">
+                <DialogTitle className="text-2xl font-black mb-2 flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  ثبت سفارش پروژه
+                </DialogTitle>
+                <DialogDescription className="text-emerald-100 text-base leading-relaxed">
+                  اطلاعات خودتون رو وارد کنید تا کارشناسان ما در اسرع وقت باهاتون تماس بگیرن
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            {/* Form Content */}
+            <form onSubmit={handleProjectOrderSubmit} className="p-6 space-y-5">
+              {orderSubmitSuccess ? (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-8"
+                >
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
+                    <motion.svg 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.2, type: "spring" }}
+                      className="w-10 h-10" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </motion.svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">درخواست شما ثبت شد!</h3>
+                  <p className="text-gray-600">به زودی با شما تماس می‌گیریم</p>
+                </motion.div>
+              ) : (
+                <>
+                  {/* Name Fields Row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName" className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-600" />
+                        نام
+                      </Label>
+                      <Input
+                        id="firstName"
+                        value={projectOrderForm.firstName}
+                        onChange={(e) => setProjectOrderForm(prev => ({ ...prev, firstName: e.target.value }))}
+                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
+                        placeholder="نام شما"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName" className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-600" />
+                        نام خانوادگی
+                      </Label>
+                      <Input
+                        id="lastName"
+                        value={projectOrderForm.lastName}
+                        onChange={(e) => setProjectOrderForm(prev => ({ ...prev, lastName: e.target.value }))}
+                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
+                        placeholder="نام خانوادگی"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Phone Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-emerald-600" />
+                      شماره تماس
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={projectOrderForm.phone}
+                      onChange={(e) => setProjectOrderForm(prev => ({ ...prev, phone: e.target.value }))}
+                      className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all text-left"
+                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                      dir="ltr"
+                      required
+                    />
+                  </div>
+
+                  {/* Description Field */}
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                      توضیحات پروژه
+                    </Label>
+                    <Textarea
+                      id="description"
+                      value={projectOrderForm.description}
+                      onChange={(e) => setProjectOrderForm(prev => ({ ...prev, description: e.target.value }))}
+                      className="min-h-[120px] rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all resize-none"
+                      placeholder="توضیحات پروژه خود را بنویسید... مثلاً: نیاز به یک فروشگاه آنلاین با امکان پرداخت آنلاین دارم"
+                      required
+                    />
+                  </div>
+
+                  {/* Error Message */}
+                  {orderSubmitError && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm text-center"
+                    >
+                      {orderSubmitError}
+                    </motion.div>
+                  )}
+
+                  {/* Submit Button */}
+                  <motion.button
+                    type="submit"
+                    disabled={isSubmittingOrder}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full h-14 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white font-bold rounded-xl hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingOrder ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        در حال ثبت...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        ارسال درخواست
+                      </>
+                    )}
+                  </motion.button>
+
+                  {/* Info Note */}
+                  <p className="text-xs text-gray-500 text-center leading-relaxed">
+                    با ارسال این فرم، کارشناسان ما ظرف ۲۴ ساعت با شما تماس خواهند گرفت
+                  </p>
+                </>
+              )}
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Background decoration */}
       <div className="fixed top-0 right-0 w-1/2 h-full bg-gradient-to-bl from-blue-50/50 via-purple-50/30 to-transparent -z-10 rounded-bl-[100px]"></div>
