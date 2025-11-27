@@ -163,30 +163,21 @@ export default function ProjectOrders() {
   const pendingCount = requests.filter(r => r.status === "pending").length;
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="پیشنهاد سفارش">
       <div className="p-4 md:p-6 space-y-6" dir="rtl">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-        >
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl text-white">
-                <FileText className="w-6 h-6" />
-              </div>
-              پیشنهاد سفارش
-            </h1>
-            <p className="text-gray-500 mt-1">مدیریت درخواست‌های سفارش پروژه از بازدیدکنندگان</p>
-          </div>
-          {pendingCount > 0 && (
+        {pendingCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-end"
+          >
             <Badge className="bg-yellow-100 text-yellow-800 border border-yellow-200 px-4 py-2 text-sm">
               <AlertCircle className="w-4 h-4 ml-2" />
               {pendingCount} درخواست جدید
             </Badge>
-          )}
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* Filters */}
         <motion.div

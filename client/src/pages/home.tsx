@@ -2101,25 +2101,25 @@ export default function Home() {
 
       {/* Project Order Modal */}
       <Dialog open={isProjectOrderOpen} onOpenChange={setIsProjectOrderOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-gradient-to-br from-white via-white to-purple-50/30" dir="rtl">
-          <div className="relative">
+        <DialogContent className="sm:max-w-[900px] p-0 overflow-hidden rounded-full border-0 shadow-2xl bg-gradient-to-br from-white via-white to-purple-50/30" dir="rtl">
+          <div className="relative flex">
             {/* Header with gradient background */}
-            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-6 py-8 text-white">
-              <DialogHeader className="text-right">
-                <DialogTitle className="text-2xl font-black mb-2 flex items-center gap-3">
-                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <FileText className="w-6 h-6" />
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 px-5 py-6 text-white w-72 flex flex-col justify-center rounded-r-2xl">
+              <DialogHeader className="text-right space-y-2">
+                <DialogTitle className="text-xl font-black flex items-center gap-2">
+                  <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <FileText className="w-5 h-5" />
                   </div>
                   ثبت سفارش پروژه
                 </DialogTitle>
-                <DialogDescription className="text-emerald-100 text-base leading-relaxed">
+                <DialogDescription className="text-emerald-100 text-sm leading-relaxed text-right">
                   اطلاعات خودتون رو وارد کنید تا کارشناسان ما در اسرع وقت باهاتون تماس بگیرن
                 </DialogDescription>
               </DialogHeader>
             </div>
 
             {/* Form Content */}
-            <form onSubmit={handleProjectOrderSubmit} className="p-6 space-y-5">
+            <form onSubmit={handleProjectOrderSubmit} className="flex-1 p-5 space-y-4 flex flex-col">
               {orderSubmitSuccess ? (
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -2144,68 +2144,66 @@ export default function Home() {
                 </motion.div>
               ) : (
                 <>
-                  {/* Name Fields Row */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName" className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                        <User className="w-4 h-4 text-emerald-600" />
+                  {/* Name and Phone Fields Row */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="firstName" className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-emerald-600" />
                         نام
                       </Label>
                       <Input
                         id="firstName"
                         value={projectOrderForm.firstName}
                         onChange={(e) => setProjectOrderForm(prev => ({ ...prev, firstName: e.target.value }))}
-                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
-                        placeholder="نام شما"
+                        className="h-9 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all text-sm"
+                        placeholder="نام"
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName" className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                        <User className="w-4 h-4 text-emerald-600" />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="lastName" className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-emerald-600" />
                         نام خانوادگی
                       </Label>
                       <Input
                         id="lastName"
                         value={projectOrderForm.lastName}
                         onChange={(e) => setProjectOrderForm(prev => ({ ...prev, lastName: e.target.value }))}
-                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all"
-                        placeholder="نام خانوادگی"
+                        className="h-9 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all text-sm"
+                        placeholder="خانوادگی"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone" className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                        تماس
+                      </Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={projectOrderForm.phone}
+                        onChange={(e) => setProjectOrderForm(prev => ({ ...prev, phone: e.target.value }))}
+                        className="h-9 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all text-left text-sm"
+                        placeholder="۰۹۱۲۳۴۵۶۷۸۹"
+                        dir="ltr"
                         required
                       />
                     </div>
                   </div>
 
-                  {/* Phone Field */}
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-emerald-600" />
-                      شماره تماس
-                    </Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={projectOrderForm.phone}
-                      onChange={(e) => setProjectOrderForm(prev => ({ ...prev, phone: e.target.value }))}
-                      className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all text-left"
-                      placeholder="۰۹۱۲۳۴۵۶۷۸۹"
-                      dir="ltr"
-                      required
-                    />
-                  </div>
-
                   {/* Description Field */}
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-emerald-600" />
-                      توضیحات پروژه
+                  <div className="space-y-1.5">
+                    <Label htmlFor="description" className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                      توضیحات
                     </Label>
                     <Textarea
                       id="description"
                       value={projectOrderForm.description}
                       onChange={(e) => setProjectOrderForm(prev => ({ ...prev, description: e.target.value }))}
-                      className="min-h-[120px] rounded-xl border-2 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all resize-none"
-                      placeholder="توضیحات پروژه خود را بنویسید... مثلاً: نیاز به یک فروشگاه آنلاین با امکان پرداخت آنلاین دارم"
+                      className="min-h-20 rounded-lg border border-gray-200 focus:border-emerald-500 focus:ring-emerald-500/20 transition-all resize-none text-sm"
+                      placeholder="توضیحات پروژه..."
                       required
                     />
                   </div>
@@ -2215,7 +2213,7 @@ export default function Home() {
                     <motion.div 
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm text-center"
+                      className="p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs text-center"
                     >
                       {orderSubmitError}
                     </motion.div>
@@ -2227,24 +2225,24 @@ export default function Home() {
                     disabled={isSubmittingOrder}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="w-full h-14 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white font-bold rounded-xl hover:shadow-xl hover:shadow-emerald-500/30 transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full h-10 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-emerald-500/30 transition-all duration-300 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed text-sm"
                   >
                     {isSubmittingOrder ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        در حال ثبت...
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        ثبت...
                       </>
                     ) : (
                       <>
-                        <Send className="w-5 h-5" />
-                        ارسال درخواست
+                        <Send className="w-4 h-4" />
+                        ارسال
                       </>
                     )}
                   </motion.button>
 
                   {/* Info Note */}
                   <p className="text-xs text-gray-500 text-center leading-relaxed">
-                    با ارسال این فرم، کارشناسان ما ظرف ۲۴ ساعت با شما تماس خواهند گرفت
+                    در اسرا وقت کارشناسان ما با شما تماس خواهند گرفت
                   </p>
                 </>
               )}

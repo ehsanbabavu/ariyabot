@@ -22,6 +22,7 @@ import UserWhatsappTokens from "@/pages/admin/user-whatsapp-tokens";
 import CardanoSettings from "@/pages/admin/cardano-settings";
 import BankCardsManagement from "@/pages/admin/bank-cards";
 import GuestChats from "@/pages/admin/guest-chats";
+import ProjectOrders from "@/pages/admin/project-orders";
 import Profile from "@/pages/user/profile";
 import SendTicket from "@/pages/user/send-ticket";
 import MyTickets from "@/pages/user/my-tickets";
@@ -213,6 +214,7 @@ function Router() {
       <Route path="/users" component={() => <AdminRoute component={UserManagement} />} />
       <Route path="/tickets" component={() => <AdminRoute component={TicketManagement} />} />
       <Route path="/guest-chats" component={() => <AdminRoute component={GuestChats} />} />
+      <Route path="/project-orders" component={() => <AdminRoute component={ProjectOrders} />} />
       <Route path="/subscriptions" component={() => <AdminRoute component={Subscriptions} />} />
       <Route path="/categories" component={() => <AdminOrLevel1Route component={Categories} />} />
       <Route path="/ai-token" component={() => <AdminRoute component={AITokenSettings} />} />
