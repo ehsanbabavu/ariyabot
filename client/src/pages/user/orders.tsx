@@ -7,9 +7,131 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Package, Calendar, MapPin, CreditCard, Clock, CheckCircle2, Truck, Package2, ShoppingBag, Download, Eye, Wallet, Copy, Check, ArrowRight, ArrowLeft } from "lucide-react";
+import { Package, Calendar, MapPin, CreditCard, Clock, CheckCircle2, Truck, Package2, ShoppingBag, Download, Eye, Wallet, Timer, Copy } from "lucide-react";
 import { type Order, type OrderItem } from "@shared/schema";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import QRCodeStyling from "qr-code-styling";
+
+const QRCodeDisplay = ({ walletAddress }: { walletAddress: string }) => {
+  const qrRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    if (qrRef.current && walletAddress) {
+      const qrCode = new QRCodeStyling({
+        width: 120,
+        height: 120,
+        data: walletAddress,
+        margin: 0,
+        qrOptions: {
+          typeNumber: 0,
+          mode: 'Byte',
+          errorCorrectionLevel: 'H',
+        },
+        imageOptions: {
+          hideBackgroundDots: false,
+          imageSize: 0.4,
+          margin: 0,
+        },
+        dotsOptions: {
+          color: '#000000',
+          type: 'square',
+        },
+        backgroundOptions: {
+          color: '#ffffff',
+        },
+        cornersSquareOptions: {
+          color: '#000000',
+          type: 'square',
+        },
+        cornersDotOptions: {
+          color: '#000000',
+          type: 'square',
+        },
+      });
+      
+      qrCode.append(qrRef.current);
+    }
+  }, [walletAddress]);
+  
+  return (
+    <div 
+      ref={qrRef} 
+      className="mb-3 p-2 bg-white rounded border-2 border-gray-300 dark:border-slate-600 flex items-center justify-center"
+      style={{ width: '140px', height: '140px' }}
+    />
+  );
+};
+
+const convertToPersianNumbers = (num: number): string => {
+  const persianNumerals = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return String(num)
+    .split('')
+    .map(digit => persianNumerals[parseInt(digit)] || digit)
+    .join('');
+};
+
+const CountdownTimer = ({ registeredAt }: { registeredAt: string }) => {
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  
+  const calculateTimeLeft = useCallback(() => {
+    const registeredTime = new Date(registeredAt).getTime();
+    const tenMinutesInMs = 10 * 60 * 1000;
+    const endTime = registeredTime + tenMinutesInMs;
+    const now = Date.now();
+    const remaining = Math.max(0, endTime - now);
+    return remaining;
+  }, [registeredAt]);
+  
+  useEffect(() => {
+    setTimeLeft(calculateTimeLeft());
+    
+    const interval = setInterval(() => {
+      const remaining = calculateTimeLeft();
+      setTimeLeft(remaining);
+      
+      if (remaining <= 0) {
+        clearInterval(interval);
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [calculateTimeLeft]);
+  
+  if (timeLeft === null) return null;
+  
+  const minutes = Math.floor(timeLeft / 60000);
+  const seconds = Math.floor((timeLeft % 60000) / 1000);
+  
+  const isExpired = timeLeft <= 0;
+  const threeMinutesInMs = 3 * 60 * 1000;
+  const fiveMinutesInMs = 5 * 60 * 1000;
+  
+  // Determine the complete class based on time remaining
+  let timerClass = 'flex items-center gap-1.5 text-base font-bold font-mono text-black dark:text-black px-2.5 py-1.5 rounded';
+  
+  if (isExpired) {
+    timerClass += ' bg-gray-300 dark:bg-gray-600';
+  } else if (timeLeft <= threeMinutesInMs) {
+    timerClass += ' bg-red-400 dark:bg-red-600 animate-pulse';
+  } else if (timeLeft <= fiveMinutesInMs) {
+    timerClass += ' bg-yellow-400 dark:bg-yellow-600';
+  } else {
+    timerClass += ' bg-green-400 dark:bg-green-600';
+  }
+  
+  return (
+    <div className={timerClass}>
+      <Timer className="w-4 h-4" />
+      {isExpired ? (
+        <span>۰۰:۰۰</span>
+      ) : (
+        <span>
+          {convertToPersianNumbers(minutes).padStart(2, '۰')}:{convertToPersianNumbers(seconds).padStart(2, '۰')}
+        </span>
+      )}
+    </div>
+  );
+};
 import html2canvas from "html2canvas";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -60,6 +182,13 @@ const statusIcons = {
   cancelled: Clock
 };
 
+const cryptoLogos = {
+  TRX: '/images/tron-logo.jpg',
+  USDT: '/images/usdt-logo.jpg',
+  XRP: '/images/xrp-logo.jpg',
+  ADA: '/images/ada-logo.png'
+};
+
 const transactionSchema = z.object({
   amount: z.coerce.number().positive("مبلغ باید مثبت باشد"),
   transactionDate: z.string().min(1, "تاریخ انجام تراکنش الزامی است"),
@@ -73,6 +202,7 @@ type PaymentMethod = { type: 'crypto'; crypto: CryptoType } | { type: 'card' };
 
 export default function OrdersPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // دریافت ارزهای فعال از localStorage
   const [activeWallets, setActiveWallets] = useState<string[]>([]);
@@ -98,15 +228,11 @@ export default function OrdersPage() {
     return new Intl.NumberFormat('fa-IR').format(Number(price)) + ' تومان';
   };
 
-  // Payment dialog states - سه dialog جداگانه
+  // Payment dialog states
   const [step1DialogOpen, setStep1DialogOpen] = useState(false); // Dialog انتخاب روش پرداخت
-  const [step2CryptoDialogOpen, setStep2CryptoDialogOpen] = useState(false); // Dialog جزئیات ارز دیجیتال
-  const [step2CardDialogOpen, setStep2CardDialogOpen] = useState(false); // Dialog جزئیات کارت بانکی
   const [selectedPaymentOrderId, setSelectedPaymentOrderId] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
-  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [formattedAmount, setFormattedAmount] = useState('');
-  const [paymentTimer, setPaymentTimer] = useState<number>(0); // زمان باقی‌مانده به ثانیه
 
   // Fetch crypto prices
   const { data: cryptoPricesData } = useQuery<{
@@ -151,90 +277,61 @@ export default function OrdersPage() {
       const response = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/seller-info`);
       return response.json();
     },
-    enabled: !!selectedPaymentOrderId && (step1DialogOpen || step2CryptoDialogOpen || step2CardDialogOpen),
+    enabled: !!selectedPaymentOrderId && step1DialogOpen,
   });
+
+  // Crypto transactions map - key is orderId
+  const [cryptoTransactionsMap, setCryptoTransactionsMap] = useState<{ [key: string]: any[] }>({});
+
+  // Custom hook to fetch crypto transactions for each order
+  const fetchCryptoTransactionsForOrder = async (orderId: string) => {
+    try {
+      const response = await apiRequest('GET', `/api/orders/${orderId}/crypto-transactions`);
+      const data = await response.json();
+      if (data.success) {
+        setCryptoTransactionsMap(prev => ({
+          ...prev,
+          [orderId]: data.transactions || []
+        }));
+      }
+    } catch (error) {
+      console.error(`خطا در دریافت تراکنش‌های سفارش ${orderId}:`, error);
+      setCryptoTransactionsMap(prev => ({
+        ...prev,
+        [orderId]: []
+      }));
+    }
+  };
+
+  const deleteCryptoTransaction = async (transactionId: string, orderId: string) => {
+    try {
+      await apiRequest('DELETE', `/api/crypto-transactions/${transactionId}`);
+      setCryptoTransactionsMap(prev => ({
+        ...prev,
+        [orderId]: (prev[orderId] || []).filter(t => t.id !== transactionId)
+      }));
+      toast({
+        title: "موفق",
+        description: "تراکنش ارز دیجیتال با موفقیت حذف شد",
+      });
+    } catch (error) {
+      console.error("خطا در حذف تراکنش:", error);
+      toast({
+        title: "خطا",
+        description: "خطا در حذف تراکنش",
+        variant: "destructive",
+      });
+    }
+  };
 
   // استفاده از specific order اگر موجود باشد، وگرنه از orders array استفاده کن
   const selectedPaymentOrder = specificOrder || orders.find(o => o.id === selectedPaymentOrderId);
 
   const handlePayment = async (orderId: string) => {
-    console.log('🔘 کلیک پرداخت برای سفارش:', orderId);
-    
-    // فوری set کردن تا queries enable شوند
     setSelectedPaymentOrderId(orderId);
-    
-    // چک کردن timer برای تصمیم‌گیری بین Step 1 یا Step 2 ارز دیجیتال
-    try {
-      const timerResponse = await apiRequest('GET', `/api/orders/${orderId}/payment-timer`);
-      const timerData = await timerResponse.json();
-      
-      console.log('🔍 handlePayment timer check:', timerData);
-      
-      // اگر تایمر فعال است، مستقیماً Step 2 ارز دیجیتال را باز کن
-      if (timerData.hasTimer && timerData.remainingSeconds > 0 && !timerData.isExpired) {
-        // تایمر فعال است - مستقیماً به صفحه ارز دیجیتال برو
-        const cryptoType = timerData.cryptoType || 'TRX';
-        console.log('✅ Timer فعال - مستقیم به Step 2 با ارز:', cryptoType);
-        
-        // Close all other dialogs first
-        setStep1DialogOpen(false);
-        setStep2CardDialogOpen(false);
-        
-        // Set payment method BEFORE opening dialog - this is important!
-        setSelectedPaymentMethod({ type: 'crypto', crypto: cryptoType as CryptoType });
-        
-        // Small delay to ensure state updates are batched
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-        // NOW open the dialog
-        console.log('🟢 Opening Step 2 Crypto Dialog...');
-        setStep2CryptoDialogOpen(true);
-      } else {
-        // اگر تایمر نیست یا منقضی شده، Step 1 را باز کن
-        console.log('⏱️ Timer نیست یا منقضی - Step 1 باز می‌شود');
-        
-        // Close other dialogs
-        setStep2CryptoDialogOpen(false);
-        setStep2CardDialogOpen(false);
-        setSelectedPaymentMethod(null);
-        
-        // Small delay to ensure state updates are batched
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-        // NOW open the dialog
-        console.log('🟢 Opening Step 1 Dialog...');
-        setStep1DialogOpen(true);
-      }
-    } catch (error) {
-      console.error('❌ خطا در چک تایمر:', error);
-      // در صورت خطا، Step 1 را باز کن
-      setStep2CryptoDialogOpen(false);
-      setStep2CardDialogOpen(false);
-      setSelectedPaymentMethod(null);
-      
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      console.log('🟢 Opening Step 1 Dialog (Error)...');
-      setStep1DialogOpen(true);
-    }
-  };
-
-  const copyToClipboard = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedAddress(label);
-      toast({
-        title: "کپی شد",
-        description: `${label} کپی شد`,
-      });
-      setTimeout(() => setCopiedAddress(null), 2000);
-    } catch (error) {
-      toast({
-        title: "خطا",
-        description: "خطا در کپی کردن",
-        variant: "destructive",
-      });
-    }
+    setSelectedPaymentMethod(null);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    setStep1DialogOpen(true);
   };
 
   // Transaction form
@@ -259,8 +356,6 @@ export default function OrdersPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       setStep1DialogOpen(false);
-      setStep2CryptoDialogOpen(false);
-      setStep2CardDialogOpen(false);
       setSelectedPaymentMethod(null);
       form.reset();
       toast({
@@ -300,136 +395,114 @@ export default function OrdersPage() {
     createTransactionMutation.mutate(payload);
   };
 
-  const handleSelectPaymentMethod = (method: PaymentMethod) => {
-    setSelectedPaymentMethod(method);
-  };
-
-  const handleProceedToPayment = async () => {
-    if (selectedPaymentMethod && selectedPaymentOrderId) {
-      // برای ارز دیجیتال
-      if (selectedPaymentMethod.type === 'crypto') {
-        try {
-          // همیشه timer جدید شروع کن با ارسال نوع ارز انتخاب شده
-          // سرور خودش چک می‌کند اگر timer قبلی موجود باشد
-          console.log('⏱️ شروع/ادامه timer با ارز:', selectedPaymentMethod.crypto);
-          const startResponse = await apiRequest('POST', `/api/orders/${selectedPaymentOrderId}/start-payment-timer`, {
-            cryptoType: selectedPaymentMethod.crypto
-          });
-          const startData = await startResponse.json();
-          console.log('✅ Timer response:', startData);
-          
-          // اگر سرور cryptoType برگرداند و متفاوت است، استفاده کن
-          if (startData.cryptoType && startData.cryptoType !== selectedPaymentMethod.crypto) {
-            setSelectedPaymentMethod({ type: 'crypto', crypto: startData.cryptoType as CryptoType });
-          }
-          
-          // بستن Step 1 و باز کردن Step 2 ارز دیجیتال
-          setStep1DialogOpen(false);
-          setStep2CryptoDialogOpen(true);
-        } catch (error) {
-          console.error('❌ خطا در مدیریت timer:', error);
-          toast({
-            title: 'خطا',
-            description: 'خطا در شروع تایمر پرداخت',
-            variant: 'destructive'
-          });
-          return;
+  const saveCryptoTransaction = async (cryptoType: string) => {
+    if (!selectedPaymentOrder || !cryptoPrices) return;
+    
+    try {
+      const cryptoPrice = cryptoPrices[cryptoType as keyof typeof cryptoPrices];
+      if (!cryptoPrice) return;
+      
+      const cryptoAmount = Number(selectedPaymentOrder.totalAmount) / cryptoPrice;
+      const tomanEquivalent = selectedPaymentOrder.totalAmount;
+      const transactionDate = moment().format('YYYY-MM-DD');
+      
+      // دریافت آدرس ولت فروشنده
+      let walletAddress: string | null = null;
+      if (sellerInfo) {
+        if (cryptoType === 'TRX') {
+          walletAddress = sellerInfo.tronWalletAddress;
+        } else if (cryptoType === 'USDT') {
+          walletAddress = sellerInfo.usdtTrc20WalletAddress;
+        } else if (cryptoType === 'XRP') {
+          walletAddress = sellerInfo.rippleWalletAddress;
+        } else if (cryptoType === 'ADA') {
+          walletAddress = sellerInfo.cardanoWalletAddress;
         }
-      } else {
-        // برای کارت بانکی - باز کردن Step 2 کارت بانکی
-        setStep1DialogOpen(false);
-        setStep2CardDialogOpen(true);
       }
+      
+      const response = await apiRequest('POST', '/api/crypto-transactions', {
+        orderId: selectedPaymentOrder.id,
+        cryptoType,
+        cryptoAmount: cryptoAmount.toFixed(3),
+        tomanEquivalent,
+        transactionDate,
+        walletAddress: walletAddress || undefined,
+      });
+      
+      const result = await response.json();
+
+      toast({
+        title: "موفق",
+        description: "تراکنش ارز دیجیتال با موفقیت ثبت شد",
+      });
+
+      // اضافه کردن تراکنش جدید به state بدون رفرش صفحه
+      if (result.transaction) {
+        setCryptoTransactionsMap(prev => ({
+          ...prev,
+          [selectedPaymentOrder.id]: [
+            result.transaction,
+            ...(prev[selectedPaymentOrder.id] || [])
+          ]
+        }));
+      }
+      
+      // اغلاق Dialog بدون رفرش
+      handleClosePaymentDialog();
+    } catch (error) {
+      console.error("خطا در ثبت تراکنش:", error);
     }
   };
 
-  const handleBackToMethodSelection = () => {
-    // بستن Step 2 (هر دو نوع) و باز کردن Step 1
-    setStep2CryptoDialogOpen(false);
-    setStep2CardDialogOpen(false);
-    setSelectedPaymentMethod(null);
-    setStep1DialogOpen(true);
+  const handleSelectPaymentMethod = async (method: PaymentMethod) => {
+    setSelectedPaymentMethod(method);
+  };
+
+  // Check if there's an active crypto transaction with time remaining
+  const hasActiveCryptoTransaction = (orderId: string): boolean => {
+    const transactions = cryptoTransactionsMap[orderId] || [];
+    if (transactions.length === 0) return false;
+    
+    const activeTransaction = transactions.find(t => {
+      const registeredTime = new Date(t.registeredAt).getTime();
+      const tenMinutesInMs = 10 * 60 * 1000;
+      const endTime = registeredTime + tenMinutesInMs;
+      const now = Date.now();
+      const remaining = endTime - now;
+      return remaining > 0;
+    });
+    
+    return !!activeTransaction;
+  };
+
+  const handleProceedToPayment = async () => {
+    if (!selectedPaymentOrderId) return;
+
+    // Check for active crypto transaction with remaining time
+    if (hasActiveCryptoTransaction(selectedPaymentOrderId)) {
+      toast({
+        title: "تراکنش فعال",
+        description: "لطفاً تا اتمام تایمر پرداخت ارز مورد نظر منتظر باشید",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedPaymentMethod?.type === 'crypto' && selectedPaymentMethod?.crypto) {
+      // ثبت تراکنش برای ارز دیجیتالی هنگام کلیک روی پرداخت
+      await saveCryptoTransaction(selectedPaymentMethod.crypto);
+    } else if (selectedPaymentMethod?.type === 'card' && selectedPaymentOrderId) {
+      // فقط کارت بانکی
+      form.reset();
+    }
   };
 
   const handleClosePaymentDialog = () => {
-    // بستن تمام dialog ها و reset کردن state
     setStep1DialogOpen(false);
-    setStep2CryptoDialogOpen(false);
-    setStep2CardDialogOpen(false);
     setSelectedPaymentOrderId(null);
     setSelectedPaymentMethod(null);
   };
 
-  // دریافت زمان تایمر برای پرداخت ارز دیجیتال
-  useEffect(() => {
-    if (step2CryptoDialogOpen && selectedPaymentMethod?.type === 'crypto' && selectedPaymentOrderId) {
-      // دریافت اولیه از سرور - این مطمئن می‌کند باقی وقت درست باز یابی شود
-      const fetchTimer = async () => {
-        try {
-          const response = await apiRequest('GET', `/api/orders/${selectedPaymentOrderId}/payment-timer`);
-          const data = await response.json();
-          console.log('✅ داده تایمر:', data);
-          // اگر timer موجود و باقی وقت دارد
-          if (data.hasTimer && data.remainingSeconds !== undefined && data.remainingSeconds > 0) {
-            setPaymentTimer(data.remainingSeconds);
-            console.log('✅ تایمر بروزرسانی شد:', data.remainingSeconds, 'ثانیه');
-          } else if (data.remainingSeconds === 0) {
-            // تایمر تمام شده - صفر باقی بمان (دوباره شروع نشود)
-            console.log('⏱️ تایمر تمام شده - منتظر انتخاب روش جدید');
-            setPaymentTimer(0);
-          } else {
-            // اگر timer موجود نیست، 600 سے شروع کن
-            setPaymentTimer(600);
-            console.log('⏱️ نیا timer: 10:00');
-          }
-        } catch (error) {
-          console.error('❌ خطا در دریافت تایمر:', error);
-          // در صورت خطا، صفر باقی بمان (دوباره شروع نشود)
-          setPaymentTimer(0);
-        }
-      };
-
-      // فوری فراخوانی
-      fetchTimer();
-
-      // Countdown timer - هر ثانیه 1 کم کن
-      const countdownInterval = setInterval(() => {
-        setPaymentTimer(prev => {
-          if (prev > 0) {
-            return prev - 1;
-          }
-          return 0;
-        });
-      }, 1000);
-
-      // Sync با سرور هر 5 ثانیه برای accuracy
-      const syncInterval = setInterval(fetchTimer, 5000);
-
-      return () => {
-        clearInterval(countdownInterval);
-        clearInterval(syncInterval);
-      };
-    } else {
-      // اگر در Step 2 ارز دیجیتال نیستیم یا crypto نیست، تایمر رو صفر کن
-      setPaymentTimer(0);
-    }
-  }, [step2CryptoDialogOpen, selectedPaymentMethod, selectedPaymentOrderId]);
-
-  // وقتی تایمر 0 شود، برگرد به Step 1 و منتظر انتخاب روش جدید باش
-  useEffect(() => {
-    if (paymentTimer === 0 && step2CryptoDialogOpen) {
-      setStep2CryptoDialogOpen(false);
-      setStep1DialogOpen(true);
-      setSelectedPaymentMethod(null);
-    }
-  }, [paymentTimer, step2CryptoDialogOpen]);
-
-  // تبدیل ثانیه به فرمت mm:ss
-  const formatTimer = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
@@ -901,6 +974,140 @@ export default function OrdersPage() {
                         </div>
                       </>
                     )}
+
+                    {/* Crypto Transactions List */}
+                    {(() => {
+                      const transactions = cryptoTransactionsMap[order.id];
+                      
+                      // Auto-fetch on first render
+                      if (transactions === undefined) {
+                        fetchCryptoTransactionsForOrder(order.id);
+                        return null;
+                      }
+
+                      if (!transactions || transactions.length === 0) {
+                        return null;
+                      }
+
+                      return (
+                        <>
+                          <Separator className="my-6" />
+                          <div>
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                              <Wallet className="w-4 h-4" />
+                              تراکنش‌های ارز دیجیتالی
+                            </h4>
+                            <div className="space-y-2">
+                              {transactions.map((transaction, idx) => {
+                                const logoUrl = cryptoLogos[transaction.cryptoType as keyof typeof cryptoLogos];
+                                const cryptoColors = {
+                                  TRX: 'from-blue-500 to-blue-600 border-blue-300 dark:border-blue-500',
+                                  USDT: 'from-green-500 to-green-600 border-green-300 dark:border-green-500',
+                                  XRP: 'from-purple-500 to-purple-600 border-purple-300 dark:border-purple-500',
+                                  ADA: 'from-indigo-500 to-indigo-600 border-indigo-300 dark:border-indigo-500'
+                                };
+                                const colorClass = cryptoColors[transaction.cryptoType as keyof typeof cryptoColors] || cryptoColors.TRX;
+                                
+                                return (
+                                <div key={transaction.id || idx} className="backdrop-blur-sm bg-white/80 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden hover:shadow-lg transition-all">
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
+                                    {/* ستون اول - لوگو و نام ارز */}
+                                    <div className="flex flex-col items-center justify-center gap-3 md:border-r border-gray-200 dark:border-slate-600">
+                                      <div className={`bg-gradient-to-br ${colorClass} p-3 rounded-lg shadow-md`}>
+                                        {logoUrl ? (
+                                          <img 
+                                            src={logoUrl} 
+                                            alt={transaction.cryptoType}
+                                            className="w-10 h-10 object-contain"
+                                            onError={(e) => {
+                                              (e.target as HTMLImageElement).style.display = 'none';
+                                            }}
+                                          />
+                                        ) : (
+                                          <div className="w-10 h-10 bg-white/20 rounded flex items-center justify-center">
+                                            <span className="text-sm font-bold text-white">{transaction.cryptoType[0]}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-center">
+                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{transaction.cryptoType}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">ارز دیجیتالی</p>
+                                      </div>
+                                    </div>
+
+                                    {/* ستون دوم - معلومات تراکنش */}
+                                    <div className="flex flex-col justify-center gap-4 md:border-r border-gray-200 dark:border-slate-600">
+                                      <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">مقدار</p>
+                                        <p className="text-lg font-bold text-gray-900 dark:text-white">
+                                          {parseFloat(transaction.cryptoAmount).toFixed(3)}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">معادل ریالی</p>
+                                        <p className="text-base font-semibold text-green-600 dark:text-green-400">
+                                          {formatPrice(transaction.tomanEquivalent)}
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">تاریخ ثبت</p>
+                                        <p className="text-xs text-gray-700 dark:text-gray-300">
+                                          {moment(transaction.transactionDate).format('jYYYY/jMM/jDD')}
+                                        </p>
+                                      </div>
+                                      {transaction.registeredAt && (
+                                        <div>
+                                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ثبت‌شده</p>
+                                          <p className="text-xs text-gray-700 dark:text-gray-300">
+                                            {moment(transaction.registeredAt).format('jYYYY/jMM/jDD HH:mm')}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* ستون سوم - QR و تایمر */}
+                                    <div className="flex flex-col items-center justify-between gap-3">
+                                      {transaction.registeredAt && (
+                                        <div className="w-full flex justify-center">
+                                          <CountdownTimer registeredAt={transaction.registeredAt} />
+                                        </div>
+                                      )}
+                                      
+                                      {transaction.walletAddress && (
+                                        <div className="w-full flex flex-col items-center gap-2">
+                                          <QRCodeDisplay walletAddress={transaction.walletAddress} />
+                                          <div className="flex items-center gap-2 w-full justify-center">
+                                            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">کپی</span>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600"
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(transaction.walletAddress!);
+                                                toast({
+                                                  title: "کپی شد",
+                                                  description: "آدرس ولت در کلیپبورد کپی شد",
+                                                });
+                                              }}
+                                            >
+                                              <Copy className="w-4 h-4" />
+                                            </Button>
+                                          </div>
+                                          <p className="text-xs font-mono bg-white dark:bg-slate-800 p-1.5 rounded break-all text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700 w-full text-center leading-tight">
+                                            {transaction.walletAddress.substring(0, 12)}...
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               );
@@ -1400,365 +1607,6 @@ export default function OrdersPage() {
                 >
                   <CreditCard className="w-4 h-4 ml-2" />
                   پرداخت
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Step 2 Dialog - ارز دیجیتال */}
-      <Dialog open={step2CryptoDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          handleClosePaymentDialog();
-        }
-        // Don't set true here - it's already handled by handlePayment
-      }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
-          <DialogHeader>
-            <DialogTitle className="text-right text-xl">
-              پرداخت با ارز دیجیتال
-            </DialogTitle>
-          </DialogHeader>
-          
-          {!selectedPaymentOrder ? (
-            <div className="flex items-center justify-center p-8" dir="rtl">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">در حال بارگذاری...</p>
-              </div>
-            </div>
-          ) : selectedPaymentMethod?.type === 'crypto' ? (
-            <div className="space-y-4" dir="rtl">
-              {/* Order Summary */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">اطلاعات سفارش</h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">شماره سفارش: </span>
-                    <span className="font-bold">#{selectedPaymentOrder.orderNumber || selectedPaymentOrder.id.slice(0, 8)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">مبلغ قابل پرداخت: </span>
-                    <span className="font-bold text-green-600">{formatPrice(selectedPaymentOrder.totalAmount)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Crypto Payment Details */}
-              <div className="space-y-4">
-                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-4 mb-6">
-                      {selectedPaymentMethod?.crypto === 'TRX' && <img src="/images/tron-logo.jpg" alt="TRX" className="w-12 h-12 rounded-full" />}
-                      {selectedPaymentMethod?.crypto === 'USDT' && <img src="/images/usdt-logo.jpg" alt="USDT" className="w-12 h-12 rounded-full" />}
-                      {selectedPaymentMethod?.crypto === 'XRP' && <img src="/images/xrp-logo.jpg" alt="XRP" className="w-12 h-12 rounded-full" />}
-                      {selectedPaymentMethod?.crypto === 'ADA' && <img src="/images/ada-logo.png" alt="ADA" className="w-12 h-12 rounded-full" />}
-                      <div>
-                        <h3 className="text-xl font-bold">
-                          {selectedPaymentMethod?.crypto === 'TRX' && 'TRX (Tron)'}
-                          {selectedPaymentMethod?.crypto === 'USDT' && 'USDT (Tether)'}
-                          {selectedPaymentMethod?.crypto === 'XRP' && 'XRP (Ripple)'}
-                          {selectedPaymentMethod?.crypto === 'ADA' && 'ADA (Cardano)'}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {cryptoPrices && selectedPaymentMethod?.crypto && new Intl.NumberFormat('fa-IR').format(cryptoPrices[selectedPaymentMethod.crypto])} تومان
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Wallet Address */}
-                    {sellerInfo && (
-                      <div className="space-y-4">
-                        {(() => {
-                          let walletAddress = '';
-                          if (selectedPaymentMethod?.crypto === 'TRX') walletAddress = sellerInfo.tronWalletAddress || '';
-                          if (selectedPaymentMethod?.crypto === 'USDT') walletAddress = sellerInfo.usdtTrc20WalletAddress || '';
-                          if (selectedPaymentMethod?.crypto === 'XRP') walletAddress = sellerInfo.rippleWalletAddress || '';
-                          if (selectedPaymentMethod?.crypto === 'ADA') walletAddress = sellerInfo.cardanoWalletAddress || '';
-
-                          return walletAddress ? (
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
-                              <div className="mb-3">
-                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">آدرس ولت:</span>
-                              </div>
-                              <div className="flex flex-row-reverse items-center gap-2 bg-gray-50 dark:bg-gray-900 p-3 rounded">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => copyToClipboard(walletAddress, 'آدرس ولت')}
-                                  className="flex-shrink-0"
-                                >
-                                  {copiedAddress === 'آدرس ولت' ? (
-                                    <Check className="w-4 h-4 text-green-600" />
-                                  ) : (
-                                    <Copy className="w-4 h-4" />
-                                  )}
-                                </Button>
-                                <p className="font-mono text-lg font-bold break-all text-center flex-1">
-                                  {walletAddress}
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg text-sm text-yellow-800 dark:text-yellow-200">
-                              فروشنده هنوز آدرس ولت خود را ثبت نکرده است. لطفاً با فروشنده تماس بگیرید.
-                            </div>
-                          );
-                        })()}
-
-                        {/* Payment Timer */}
-                        {paymentTimer > 0 && (
-                          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-2 border-yellow-200 dark:border-yellow-800 p-4 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                                <span className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">زمان باقی‌مانده برای پرداخت:</span>
-                              </div>
-                              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400 font-mono">
-                                {formatTimer(paymentTimer)}
-                              </div>
-                            </div>
-                            <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
-                              لطفاً قبل از اتمام زمان، تراکنش خود را ثبت کنید
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Amount Details */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">مقدار واریزی:</span>
-                            <span className="font-bold text-lg">
-                              {cryptoPrices && selectedPaymentMethod?.crypto && (Number(selectedPaymentOrder.totalAmount) / cryptoPrices[selectedPaymentMethod.crypto]).toFixed(6)} {selectedPaymentMethod?.crypto}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">معادل تومان:</span>
-                            <span className="font-bold text-green-600">
-                              {formatPrice(selectedPaymentOrder.totalAmount)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Action Buttons for Crypto Step 2 */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={handleBackToMethodSelection}
-                  className="min-w-[120px]"
-                  size="default"
-                >
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                  بازگشت
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleClosePaymentDialog}
-                  className="min-w-[120px]"
-                  size="default"
-                >
-                  بستن
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      {/* Step 2 Dialog - کارت بانکی */}
-      <Dialog open={step2CardDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          handleClosePaymentDialog();
-        } else {
-          setStep2CardDialogOpen(true);
-        }
-      }}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" showClose={false}>
-          <DialogHeader>
-            <DialogTitle className="text-right text-xl">
-              پرداخت با کارت بانکی
-            </DialogTitle>
-          </DialogHeader>
-          
-          {selectedPaymentOrder && selectedPaymentMethod?.type === 'card' && (
-            <div className="space-y-4" dir="rtl">
-              {/* Order Summary */}
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">اطلاعات سفارش</h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">شماره سفارش: </span>
-                    <span className="font-bold">#{selectedPaymentOrder.orderNumber || selectedPaymentOrder.id.slice(0, 8)}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600 dark:text-gray-400">مبلغ قابل پرداخت: </span>
-                    <span className="font-bold text-green-600">{formatPrice(selectedPaymentOrder.totalAmount)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bank Card Payment Details */}
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">ثبت اطلاعات تراکنش کارت به کارت</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...form}>
-                      <form onSubmit={form.handleSubmit(onSubmitTransaction)} className="space-y-4">
-                        {/* Row 1: مبلغ و تاریخ */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="amount"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>مبلغ (ریال)</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="text"
-                                    value={formattedAmount}
-                                    onChange={(e) => {
-                                      const value = e.target.value.replace(/[^0-9]/g, '');
-                                      const numericValue = value ? parseInt(value, 10) : 0;
-                                      
-                                      const formatted = numericValue.toLocaleString('en-US');
-                                      setFormattedAmount(formatted === '0' ? '' : formatted);
-                                      
-                                      field.onChange(numericValue);
-                                    }}
-                                    placeholder="۰"
-                                    className="text-right"
-                                    dir="rtl"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name="transactionDate"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>تاریخ انجام تراکنش</FormLabel>
-                                <FormControl>
-                                  <PersianDatePicker 
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    placeholder="انتخاب تاریخ"
-                                    className="text-right"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        {/* Row 2: ساعت و از حساب */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="transactionTime"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>ساعت انجام تراکنش</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="time"
-                                    {...field}
-                                    className="text-right"
-                                    dir="rtl"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name="accountSource"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>از حساب</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    placeholder="نام بانک یا منبع حساب..."
-                                    {...field}
-                                    className="text-right"
-                                    dir="rtl"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        {/* Row 3: شماره پیگیری */}
-                        <FormField
-                          control={form.control}
-                          name="referenceId"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>شماره پیگیری (اختیاری)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  {...field}
-                                  value={field.value ?? ""}
-                                  placeholder="شماره پیگیری تراکنش"
-                                  className="text-right"
-                                  dir="rtl"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="flex gap-3 pt-4">
-                          <Button 
-                            type="submit" 
-                            disabled={createTransactionMutation.isPending}
-                            size="lg"
-                            className="bg-blue-500 hover:bg-blue-600 text-white flex-1"
-                          >
-                            {createTransactionMutation.isPending ? "در حال ثبت..." : "ثبت تراکنش"}
-                          </Button>
-                        </div>
-                      </form>
-                    </Form>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Action Buttons for Card Step 2 */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  onClick={handleBackToMethodSelection}
-                  className="min-w-[120px]"
-                  size="default"
-                >
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                  بازگشت
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleClosePaymentDialog}
-                  className="min-w-[120px]"
-                  size="default"
-                >
-                  بستن
                 </Button>
               </div>
             </div>
