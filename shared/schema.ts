@@ -333,6 +333,20 @@ export const guestChatMessages = pgTable("guest_chat_messages", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Crypto Transactions - تراکنش‌های ارز دیجیتال
+export const cryptoTransactions = pgTable("crypto_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  cryptoType: text("crypto_type").notNull(), // TRX, USDT, XRP, ADA
+  cryptoAmount: decimal("crypto_amount", { precision: 20, scale: 8 }).notNull(), // مقدار ارز
+  tomanEquivalent: decimal("toman_equivalent", { precision: 15, scale: 2 }).notNull(), // معادل تومان
+  transactionDate: text("transaction_date").notNull(), // تاریخ تراکنش
+  walletAddress: text("wallet_address"), // آدرس ولت فروشنده
+  registeredAt: timestamp("registered_at").defaultNow(), // زمان ثبت
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -579,6 +593,16 @@ export const insertGuestChatMessageSchema = createInsertSchema(guestChatMessages
   createdAt: true,
 });
 
+// Crypto Transactions schema
+export const insertCryptoTransactionSchema = createInsertSchema(cryptoTransactions).omit({
+  id: true,
+  registeredAt: true,
+  createdAt: true,
+}).extend({
+  cryptoAmount: z.union([z.string(), z.number()]).transform(val => String(val)),
+  tomanEquivalent: z.union([z.string(), z.number()]).transform(val => String(val)),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -648,6 +672,9 @@ export type InsertPasswordResetOtp = z.infer<typeof insertPasswordResetOtpSchema
 export type VatSettings = typeof vatSettings.$inferSelect;
 export type InsertVatSettings = z.infer<typeof insertVatSettingsSchema>;
 export type UpdateVatSettings = z.infer<typeof updateVatSettingsSchema>;
+
+export type CryptoTransaction = typeof cryptoTransactions.$inferSelect;
+export type InsertCryptoTransaction = z.infer<typeof insertCryptoTransactionSchema>;
 
 // Content Management for Website
 export const contentSections = pgTable("content_sections", {

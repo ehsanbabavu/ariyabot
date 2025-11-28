@@ -19,6 +19,7 @@ __export(schema_exports, {
   categories: () => categories,
   contentSections: () => contentSections,
   cryptoPrices: () => cryptoPrices,
+  cryptoTransactions: () => cryptoTransactions,
   faqs: () => faqs,
   guestChatMessages: () => guestChatMessages,
   guestChatSessions: () => guestChatSessions,
@@ -30,6 +31,7 @@ __export(schema_exports, {
   insertCategorySchema: () => insertCategorySchema,
   insertContentSectionSchema: () => insertContentSectionSchema,
   insertCryptoPriceSchema: () => insertCryptoPriceSchema,
+  insertCryptoTransactionSchema: () => insertCryptoTransactionSchema,
   insertFaqSchema: () => insertFaqSchema,
   insertGuestChatMessageSchema: () => insertGuestChatMessageSchema,
   insertGuestChatSessionSchema: () => insertGuestChatSessionSchema,
@@ -83,7 +85,7 @@ import { sql } from "drizzle-orm";
 import { pgTable, text, varchar, timestamp, integer, boolean, decimal, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, shippingSettings, passwordResetOtps, vatSettings, maintenanceMode, cryptoPrices, guestChatSessions, guestChatMessages, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, insertShippingSettingsSchema, updateShippingSettingsSchema, insertPasswordResetOtpSchema, insertVatSettingsSchema, updateVatSettingsSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema, insertGuestChatSessionSchema, insertGuestChatMessageSchema, contentSections, insertContentSectionSchema, updateContentSectionSchema, loginLogs, insertLoginLogSchema, insertCryptoPriceSchema, projectOrderRequests, insertProjectOrderRequestSchema, updateProjectOrderRequestSchema;
+var users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, internalChats, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, faqs, shippingSettings, passwordResetOtps, vatSettings, maintenanceMode, cryptoPrices, guestChatSessions, guestChatMessages, cryptoTransactions, insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertInternalChatSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartSchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, insertFaqSchema, updateFaqSchema, insertShippingSettingsSchema, updateShippingSettingsSchema, insertPasswordResetOtpSchema, insertVatSettingsSchema, updateVatSettingsSchema, updateCategoryOrderSchema, ticketReplySchema, resetPasswordSchema, insertGuestChatSessionSchema, insertGuestChatMessageSchema, insertCryptoTransactionSchema, contentSections, insertContentSectionSchema, updateContentSectionSchema, loginLogs, insertLoginLogSchema, insertCryptoPriceSchema, projectOrderRequests, insertProjectOrderRequestSchema, updateProjectOrderRequestSchema;
 var init_schema = __esm({
   "shared/schema.ts"() {
     "use strict";
@@ -317,6 +319,8 @@ var init_schema = __esm({
       // یادداشت‌های کاربر
       paymentStartedAt: timestamp("payment_started_at"),
       // زمان شروع پرداخت برای تایمر 10 دقیقه‌ای
+      selectedCryptoType: text("selected_crypto_type"),
+      // نوع ارز دیجیتال انتخاب شده: TRX, USDT, XRP, ADA
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
     });
@@ -466,6 +470,24 @@ var init_schema = __esm({
       sender: text("sender").notNull(),
       // 'guest' | 'admin'
       isRead: boolean("is_read").notNull().default(false),
+      createdAt: timestamp("created_at").defaultNow()
+    });
+    cryptoTransactions = pgTable("crypto_transactions", {
+      id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+      orderId: varchar("order_id").notNull().references(() => orders.id),
+      userId: varchar("user_id").notNull().references(() => users.id),
+      cryptoType: text("crypto_type").notNull(),
+      // TRX, USDT, XRP, ADA
+      cryptoAmount: decimal("crypto_amount", { precision: 20, scale: 8 }).notNull(),
+      // مقدار ارز
+      tomanEquivalent: decimal("toman_equivalent", { precision: 15, scale: 2 }).notNull(),
+      // معادل تومان
+      transactionDate: text("transaction_date").notNull(),
+      // تاریخ تراکنش
+      walletAddress: text("wallet_address"),
+      // آدرس ولت فروشنده
+      registeredAt: timestamp("registered_at").defaultNow(),
+      // زمان ثبت
       createdAt: timestamp("created_at").defaultNow()
     });
     insertUserSchema = createInsertSchema(users).omit({
@@ -688,6 +710,14 @@ var init_schema = __esm({
       id: true,
       createdAt: true
     });
+    insertCryptoTransactionSchema = createInsertSchema(cryptoTransactions).omit({
+      id: true,
+      registeredAt: true,
+      createdAt: true
+    }).extend({
+      cryptoAmount: z.union([z.string(), z.number()]).transform((val) => String(val)),
+      tomanEquivalent: z.union([z.string(), z.number()]).transform((val) => String(val))
+    });
     contentSections = pgTable("content_sections", {
       id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
       sectionKey: text("section_key").notNull().unique(),
@@ -758,7 +788,7 @@ var init_db_storage = __esm({
       ssl: false
     });
     db = drizzle(pool, {
-      schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests }
+      schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests, cryptoTransactions }
     });
     DbStorage = class {
       constructor() {
@@ -7445,6 +7475,7 @@ import path2 from "path";
 import { fileURLToPath } from "url";
 import { z as z2 } from "zod";
 import fs2 from "fs";
+import { and as and2 } from "drizzle-orm";
 
 // server/tron-service.ts
 import { createHash } from "crypto";
@@ -9748,6 +9779,21 @@ ${newPassword}
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0633\u0641\u0627\u0631\u0634\u0627\u062A" });
     }
   });
+  app2.get("/api/orders/:orderId", authenticateToken, requireLevel2, async (req, res) => {
+    try {
+      const order = await storage.getOrder(req.params.orderId);
+      if (!order) {
+        return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      if (order.userId !== req.user.id) {
+        return res.status(403).json({ message: "\u0634\u0645\u0627 \u0645\u062C\u0627\u0632 \u0628\u0647 \u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0627\u06CC\u0646 \u0633\u0641\u0627\u0631\u0634 \u0646\u06CC\u0633\u062A\u06CC\u062F" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Get order error:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0633\u0641\u0627\u0631\u0634" });
+    }
+  });
   app2.get("/api/orders/:orderId/seller-info", authenticateToken, requireLevel2, async (req, res) => {
     try {
       const order = await storage.getOrder(req.params.orderId);
@@ -9778,6 +9824,7 @@ ${newPassword}
   });
   app2.post("/api/orders/:orderId/start-payment-timer", authenticateToken, requireLevel2, async (req, res) => {
     try {
+      const { cryptoType } = req.body;
       const order = await storage.getOrder(req.params.orderId);
       if (!order) {
         return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
@@ -9796,6 +9843,7 @@ ${newPassword}
           return res.json({
             success: true,
             paymentStartedAt: order.paymentStartedAt,
+            cryptoType: order.selectedCryptoType,
             alreadyStarted: true,
             remainingSeconds
           });
@@ -9804,12 +9852,14 @@ ${newPassword}
       }
       const now = /* @__PURE__ */ new Date();
       await db.update(orders).set({
-        paymentStartedAt: now
+        paymentStartedAt: now,
+        selectedCryptoType: cryptoType || null
       }).where(eq(orders.id, req.params.orderId));
-      console.log(`\u2705 Timer \u062C\u062F\u06CC\u062F \u0634\u0631\u0648\u0639 \u0634\u062F \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${req.params.orderId}`);
+      console.log(`\u2705 Timer \u062C\u062F\u06CC\u062F \u0634\u0631\u0648\u0639 \u0634\u062F \u0628\u0631\u0627\u06CC \u0633\u0641\u0627\u0631\u0634 ${req.params.orderId} \u0628\u0627 \u0627\u0631\u0632 ${cryptoType || "\u0646\u0627\u0645\u0634\u062E\u0635"}`);
       res.json({
         success: true,
         paymentStartedAt: now.toISOString(),
+        cryptoType: cryptoType || null,
         alreadyStarted: false
       });
     } catch (error) {
@@ -9832,7 +9882,8 @@ ${newPassword}
       if (!order.paymentStartedAt) {
         return res.json({
           hasTimer: false,
-          remainingSeconds: 0
+          remainingSeconds: 0,
+          cryptoType: null
         });
       }
       const startTime = new Date(order.paymentStartedAt).getTime();
@@ -9843,6 +9894,7 @@ ${newPassword}
       res.json({
         hasTimer: true,
         paymentStartedAt: order.paymentStartedAt,
+        cryptoType: order.selectedCryptoType || null,
         remainingSeconds,
         isExpired: remainingSeconds === 0
       });
@@ -10615,6 +10667,20 @@ ${newPassword}
     } catch (error) {
       console.error("Error getting project order requests:", error);
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062F\u0631\u062E\u0648\u0627\u0633\u062A\u200C\u0647\u0627" });
+    }
+  });
+  app2.get("/api/admin/project-orders/pending-count", authenticateToken, async (req, res) => {
+    try {
+      const user = req.user;
+      if (user.role !== "admin") {
+        return res.status(403).json({ message: "\u062F\u0633\u062A\u0631\u0633\u06CC \u063A\u06CC\u0631\u0645\u062C\u0627\u0632" });
+      }
+      const requests = await storage.getProjectOrderRequests();
+      const pendingCount = requests.filter((r) => r.status === "pending").length;
+      res.json({ pendingCount });
+    } catch (error) {
+      console.error("Error getting pending project orders count:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0639\u062F\u0627\u062F \u062F\u0631\u062E\u0648\u0627\u0633\u062A\u200C\u0647\u0627" });
     }
   });
   app2.patch("/api/admin/project-orders/:id/status", authenticateToken, async (req, res) => {
@@ -11592,6 +11658,75 @@ ${newPassword}
       });
     }
   });
+  app2.post("/api/crypto-transactions", authenticateToken, async (req, res) => {
+    try {
+      const { orderId, cryptoType, cryptoAmount, tomanEquivalent, transactionDate, walletAddress } = req.body;
+      if (!orderId || !cryptoType || !cryptoAmount || !tomanEquivalent || !transactionDate) {
+        return res.status(400).json({
+          message: "\u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0627\u0644\u0632\u0627\u0645\u06CC \u0647\u0633\u062A\u0646\u062F"
+        });
+      }
+      const cryptoTransaction = await db.insert(cryptoTransactions).values({
+        orderId,
+        userId: req.user.id,
+        cryptoType,
+        cryptoAmount: String(cryptoAmount),
+        tomanEquivalent: String(tomanEquivalent),
+        transactionDate,
+        walletAddress: walletAddress || null
+      }).returning();
+      res.json({
+        success: true,
+        message: "\u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0634\u062F",
+        transaction: cryptoTransaction[0]
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A \u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644",
+        success: false
+      });
+    }
+  });
+  app2.get("/api/orders/:orderId/crypto-transactions", authenticateToken, async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const transactions2 = await db.query.cryptoTransactions.findMany({
+        where: (t, { eq: eq3, and: and3 }) => and3(
+          eq3(t.orderId, orderId),
+          eq3(t.userId, req.user.id)
+        ),
+        orderBy: (t, { desc: desc2 }) => desc2(t.registeredAt)
+      });
+      res.json({
+        success: true,
+        transactions: transactions2 || []
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644",
+        success: false,
+        transactions: []
+      });
+    }
+  });
+  app2.delete("/api/crypto-transactions/:transactionId", authenticateToken, async (req, res) => {
+    try {
+      const { transactionId } = req.params;
+      await db.delete(cryptoTransactions).where(and2(eq(cryptoTransactions.id, transactionId), eq(cryptoTransactions.userId, req.user.id)));
+      res.json({
+        success: true,
+        message: "\u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062D\u0630\u0641 \u0634\u062F"
+      });
+    } catch (error) {
+      console.error("\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644:", error);
+      res.status(500).json({
+        message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644",
+        success: false
+      });
+    }
+  });
   const httpServer = createServer(app2);
   return httpServer;
 }
@@ -11635,6 +11770,11 @@ var vite_config_default = defineConfig({
     host: "0.0.0.0",
     port: 5e3,
     allowedHosts: true,
+    hmr: {
+      protocol: "wss",
+      host: process.env.REPLIT_DEV_DOMAIN || "localhost",
+      port: 443
+    },
     fs: {
       strict: true,
       deny: ["**/.*"]

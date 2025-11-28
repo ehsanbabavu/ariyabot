@@ -35,6 +35,11 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5000,
     allowedHosts: true,
+    hmr: {
+      protocol: "wss",
+      host: process.env.REPLIT_DEV_DOMAIN || "localhost",
+      port: 443,
+    },
     fs: {
       strict: true,
       deny: ["**/.*"],

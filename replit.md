@@ -94,6 +94,16 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## November 28, 2025 - Auto-Save Crypto Transactions
+- **سیستم ذخیره‌سازی خودکار تراکنش‌های ارز دیجیتال**:
+  - جدول `cryptoTransactions` در دیتابیس برای ذخیره‌سازی تفاصیل پرداخت ارز
+  - فیلدهای ذخیره‌شده: `cryptoType`, `cryptoAmount`, `tomanEquivalent`, `transactionDate`, `registeredAt`
+  - API endpoint `/api/crypto-transactions` برای ثبت تراکنش
+  - صفحه سفارشات کاربران سطح 2 به‌روز شد - وقتی ارز دیجیتال انتخاب شود، تراکنش خودکار ذخیره می‌شود
+  - حذف کامل Step 2 dialogs (ارز دیجیتال و کارت بانکی)
+  - صفحه پرداخت ساده‌تر شد - فقط Step 1 (انتخاب روش پرداخت) باقی‌ماند
+  - Database migration با موفقیت انجام شد (`npm run db:push`)
+
 ## November 25, 2025
 - **سیستم چت مهمانان**: سیستم چت برای بازدیدکنندگان غیرعضو صفحه اصلی
   - جداول `guestChatSessions` و `guestChatMessages` در دیتابیس
@@ -113,11 +123,11 @@ Preferred communication style: Simple, everyday language.
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)
-- **Date**: November 27, 2025 (Fresh GitHub Clone Import - Setup Completed)
+- **Date**: November 28, 2025 (Fresh GitHub Clone Import - Setup Completed)
 - **Status**: ✅ Successfully imported and configured in Replit environment
 - **Setup Actions**:
-  - ✅ Installed all npm dependencies (640 packages)
-  - ✅ Connected to PostgreSQL database (DATABASE_URL already configured)
+  - ✅ Dependencies already installed (node_modules present from previous setup)
+  - ✅ Connected to PostgreSQL database (DATABASE_URL configured via Replit)
   - ✅ Pushed database schema using Drizzle Kit (`npm run db:push`)
   - ✅ Created admin and test user accounts automatically (via db-storage.ts initialization)
   - ✅ Initialized test data (3 categories, 6 products, landing page content)

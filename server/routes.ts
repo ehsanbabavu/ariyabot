@@ -6,12 +6,13 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
-import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, maintenanceMode, type User } from "@shared/schema";
+import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, maintenanceMode, type User, cryptoTransactions } from "@shared/schema";
 import { z } from "zod";
 import fs from "fs";
 import { generateAndSaveInvoice } from "./invoice-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { db, eq } from "./db-storage";
+import { and } from "drizzle-orm";
 import { orders } from "@shared/schema";
 import { tronService } from "./tron-service";
 import { rippleService } from "./ripple-service";
@@ -4843,6 +4844,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("خطا در دریافت تراکنش‌های Cardano:", error);
       res.status(500).json({ 
         message: error.message || "خطا در دریافت تراکنش‌های Cardano",
+        success: false
+      });
+    }
+  });
+
+  // Save Crypto Transaction
+  app.post("/api/crypto-transactions", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { orderId, cryptoType, cryptoAmount, tomanEquivalent, transactionDate, walletAddress } = req.body;
+      
+      if (!orderId || !cryptoType || !cryptoAmount || !tomanEquivalent || !transactionDate) {
+        return res.status(400).json({ 
+          message: "تمام فیلدها الزامی هستند" 
+        });
+      }
+
+      const cryptoTransaction = await db.insert(cryptoTransactions).values({
+        orderId,
+        userId: req.user!.id,
+        cryptoType,
+        cryptoAmount: String(cryptoAmount),
+        tomanEquivalent: String(tomanEquivalent),
+        transactionDate,
+        walletAddress: walletAddress || null,
+      }).returning();
+
+      res.json({ 
+        success: true,
+        message: "تراکنش ارز دیجیتال با موفقیت ثبت شد",
+        transaction: cryptoTransaction[0]
+      });
+    } catch (error: any) {
+      console.error("خطا در ثبت تراکنش ارز دیجیتال:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در ثبت تراکنش ارز دیجیتال",
+        success: false
+      });
+    }
+  });
+
+  // Get Crypto Transactions for an Order
+  app.get("/api/orders/:orderId/crypto-transactions", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { orderId } = req.params;
+      
+      const transactions = await db.query.cryptoTransactions.findMany({
+        where: (t, { eq, and }) => and(
+          eq(t.orderId, orderId),
+          eq(t.userId, req.user!.id)
+        ),
+        orderBy: (t, { desc }) => desc(t.registeredAt),
+      });
+
+      res.json({ 
+        success: true,
+        transactions: transactions || []
+      });
+    } catch (error: any) {
+      console.error("خطا در دریافت تراکنش‌های ارز دیجیتال:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در دریافت تراکنش‌های ارز دیجیتال",
+        success: false,
+        transactions: []
+      });
+    }
+  });
+
+  // Delete Crypto Transaction
+  app.delete("/api/crypto-transactions/:transactionId", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { transactionId } = req.params;
+      
+      await db.delete(cryptoTransactions)
+        .where(and(eq(cryptoTransactions.id, transactionId), eq(cryptoTransactions.userId, req.user!.id)));
+
+      res.json({ 
+        success: true,
+        message: "تراکنش ارز دیجیتال با موفقیت حذف شد",
+      });
+    } catch (error: any) {
+      console.error("خطا در حذف تراکنش ارز دیجیتال:", error);
+      res.status(500).json({ 
+        message: error.message || "خطا در حذف تراکنش ارز دیجیتال",
         success: false
       });
     }
