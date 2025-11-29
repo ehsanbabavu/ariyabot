@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Package, Calendar, MapPin, CreditCard, Clock, CheckCircle2, Truck, Package2, ShoppingBag, Download, Eye, Wallet, Timer, Copy } from "lucide-react";
 import { type Order, type OrderItem } from "@shared/schema";
 import { useState, useRef, useEffect, useCallback } from "react";
@@ -107,7 +108,7 @@ const CountdownTimer = ({ registeredAt }: { registeredAt: string }) => {
   const fiveMinutesInMs = 5 * 60 * 1000;
   
   // Determine the complete class based on time remaining
-  let timerClass = 'flex items-center gap-1.5 text-base font-bold font-mono text-black dark:text-black px-2.5 py-1.5 rounded';
+  let timerClass = 'flex items-center gap-1 text-sm font-bold font-mono text-black dark:text-black px-2 py-1 rounded';
   
   if (isExpired) {
     timerClass += ' bg-gray-300 dark:bg-gray-600';
@@ -511,7 +512,8 @@ export default function OrdersPage() {
   // Fetch detailed order with items when modal is opened OR when downloading invoice
   const { data: selectedOrderData, isLoading: isLoadingOrderData } = useQuery<Order & { items: (OrderItem & { productName: string; productDescription?: string; productImage?: string })[]; addressTitle?: string; fullAddress?: string; postalCode?: string; buyerFirstName?: string; buyerLastName?: string; buyerPhone?: string; sellerFirstName?: string; sellerLastName?: string }>({
     queryKey: ['/api/orders', selectedOrderId || downloadingOrderId],
-    enabled: !!(selectedOrderId || downloadingOrderId)
+    enabled: !!(selectedOrderId || downloadingOrderId),
+    staleTime: 0 // Always fetch fresh data
   });
 
   const invoiceRef = useRef<HTMLDivElement>(null);
@@ -989,122 +991,192 @@ export default function OrdersPage() {
                         return null;
                       }
 
+                      const activeTimerCount = transactions.filter(t => {
+                        if (!t.registeredAt) return false;
+                        const registeredTime = new Date(t.registeredAt).getTime();
+                        const tenMinutesInMs = 10 * 60 * 1000;
+                        const endTime = registeredTime + tenMinutesInMs;
+                        const now = Date.now();
+                        const remaining = Math.max(0, endTime - now);
+                        return remaining > 0;
+                      }).length;
+
                       return (
                         <>
                           <Separator className="my-6" />
-                          <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                              <Wallet className="w-4 h-4" />
-                              تراکنش‌های ارز دیجیتالی
-                            </h4>
-                            <div className="space-y-2">
-                              {transactions.map((transaction, idx) => {
-                                const logoUrl = cryptoLogos[transaction.cryptoType as keyof typeof cryptoLogos];
-                                const cryptoColors = {
-                                  TRX: 'from-blue-500 to-blue-600 border-blue-300 dark:border-blue-500',
-                                  USDT: 'from-green-500 to-green-600 border-green-300 dark:border-green-500',
-                                  XRP: 'from-purple-500 to-purple-600 border-purple-300 dark:border-purple-500',
-                                  ADA: 'from-indigo-500 to-indigo-600 border-indigo-300 dark:border-indigo-500'
-                                };
-                                const colorClass = cryptoColors[transaction.cryptoType as keyof typeof cryptoColors] || cryptoColors.TRX;
-                                
-                                return (
-                                <div key={transaction.id || idx} className="backdrop-blur-sm bg-white/80 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden hover:shadow-lg transition-all">
-                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                                    {/* ستون اول - لوگو و نام ارز */}
-                                    <div className="flex flex-col items-center justify-center gap-3 md:border-r border-gray-200 dark:border-slate-600">
-                                      <div className={`bg-gradient-to-br ${colorClass} p-3 rounded-lg shadow-md`}>
-                                        {logoUrl ? (
-                                          <img 
-                                            src={logoUrl} 
-                                            alt={transaction.cryptoType}
-                                            className="w-10 h-10 object-contain"
-                                            onError={(e) => {
-                                              (e.target as HTMLImageElement).style.display = 'none';
-                                            }}
-                                          />
-                                        ) : (
-                                          <div className="w-10 h-10 bg-white/20 rounded flex items-center justify-center">
-                                            <span className="text-sm font-bold text-white">{transaction.cryptoType[0]}</span>
+                          <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="crypto-transactions">
+                              <AccordionTrigger className="text-gray-900 dark:text-gray-100 font-semibold hover:no-underline">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <Wallet className="w-4 h-4" />
+                                    تراکنش‌های ارز دیجیتالی
+                                  </div>
+                                  <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 text-xs px-2 py-1">
+                                    کل تراکنش‌ها: {transactions.length}
+                                  </Badge>
+                                  {activeTimerCount > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-gray-600 dark:text-gray-400">تراکنش فعال:</span>
+                                      <Badge className="bg-green-500 dark:bg-green-600 text-white text-xs">
+                                        {activeTimerCount}
+                                      </Badge>
+                                    </div>
+                                  )}
+                                </div>
+                              </AccordionTrigger>
+                              <AccordionContent>
+                                <div className="space-y-3 pt-4">
+                                  {transactions.map((transaction, idx) => {
+                                    const logoUrl = cryptoLogos[transaction.cryptoType as keyof typeof cryptoLogos];
+                                    const cryptoNames: Record<string, string> = {
+                                      TRX: 'ترون',
+                                      USDT: 'تتر',
+                                      XRP: 'ریپل',
+                                      ADA: 'کاردانو'
+                                    };
+                                    const cryptoBgColors: Record<string, string> = {
+                                      TRX: 'bg-red-500',
+                                      USDT: 'bg-green-500',
+                                      XRP: 'bg-blue-500',
+                                      ADA: 'bg-indigo-500'
+                                    };
+                                    const bgColor = cryptoBgColors[transaction.cryptoType] || 'bg-gray-500';
+                                    const persianName = cryptoNames[transaction.cryptoType] || transaction.cryptoType;
+                                    
+                                    // حساب حالة تایمر
+                                    const getCardBackgroundColor = () => {
+                                      if (transaction.paymentStatus === 'paid') {
+                                        return 'bg-green-50 dark:bg-green-950/30';
+                                      }
+                                      
+                                      if (!transaction.registeredAt) {
+                                        return 'bg-white dark:bg-slate-800';
+                                      }
+                                      
+                                      const registeredTime = new Date(transaction.registeredAt).getTime();
+                                      const tenMinutesInMs = 10 * 60 * 1000;
+                                      const endTime = registeredTime + tenMinutesInMs;
+                                      const now = Date.now();
+                                      const remaining = Math.max(0, endTime - now);
+                                      
+                                      if (remaining <= 0) {
+                                        return 'bg-red-50 dark:bg-red-950/30';
+                                      }
+                                      
+                                      return 'bg-yellow-50 dark:bg-yellow-950/30';
+                                    };
+                                    
+                                    return (
+                                      <div 
+                                        key={transaction.id || idx} 
+                                        className={`${getCardBackgroundColor()} border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm overflow-hidden transition-colors`}
+                                      >
+                                        {/* Header با تایمر و وضعیت */}
+                                        {transaction.registeredAt && (
+                                          <div className="bg-gray-50 dark:bg-slate-900/50 px-4 py-2 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">زمان باقی‌مانده:</span>
+                                              <CountdownTimer registeredAt={transaction.registeredAt} />
+                                            </div>
+                                            <Badge className={transaction.paymentStatus === 'paid' ? 'bg-green-500 dark:bg-green-600 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'}>
+                                              {transaction.paymentStatus === 'paid' ? 'پرداخت شده' : 'پرداخت نشده'}
+                                            </Badge>
                                           </div>
                                         )}
-                                      </div>
-                                      <div className="text-center">
-                                        <p className="text-sm font-bold text-gray-900 dark:text-white">{transaction.cryptoType}</p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">ارز دیجیتالی</p>
-                                      </div>
-                                    </div>
 
-                                    {/* ستون دوم - معلومات تراکنش */}
-                                    <div className="flex flex-col justify-center gap-4 md:border-r border-gray-200 dark:border-slate-600">
-                                      <div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">مقدار</p>
-                                        <p className="text-lg font-bold text-gray-900 dark:text-white">
-                                          {parseFloat(transaction.cryptoAmount).toFixed(3)}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">معادل ریالی</p>
-                                        <p className="text-base font-semibold text-green-600 dark:text-green-400">
-                                          {formatPrice(transaction.tomanEquivalent)}
-                                        </p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">تاریخ ثبت</p>
-                                        <p className="text-xs text-gray-700 dark:text-gray-300">
-                                          {moment(transaction.transactionDate).format('jYYYY/jMM/jDD')}
-                                        </p>
-                                      </div>
-                                      {transaction.registeredAt && (
-                                        <div>
-                                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">ثبت‌شده</p>
-                                          <p className="text-xs text-gray-700 dark:text-gray-300">
-                                            {moment(transaction.registeredAt).format('jYYYY/jMM/jDD HH:mm')}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
+                                        {/* محتوای اصلی - دو ستون */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
+                                          {/* ستون راست - اطلاعات تراکنش */}
+                                          <div className="space-y-4">
+                                            {/* جدول اطلاعات */}
+                                            <div className="bg-gray-50 dark:bg-slate-900/30 rounded-lg p-3 space-y-2">
+                                              <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">مقدار:</span>
+                                                <div className="flex items-center gap-2">
+                                                  <div className={`${bgColor} p-1 rounded`}>
+                                                    {logoUrl ? (
+                                                      <img 
+                                                        src={logoUrl} 
+                                                        alt={transaction.cryptoType}
+                                                        className="w-4 h-4 object-contain"
+                                                        onError={(e) => {
+                                                          (e.target as HTMLImageElement).style.display = 'none';
+                                                        }}
+                                                      />
+                                                    ) : (
+                                                      <span className="text-xs font-bold text-white w-4 h-4 flex items-center justify-center">{transaction.cryptoType[0]}</span>
+                                                    )}
+                                                  </div>
+                                                  <span className="font-mono font-semibold text-gray-900 dark:text-white">
+                                                    {parseFloat(transaction.cryptoAmount).toFixed(4)} {transaction.cryptoType}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">معادل تومانی:</span>
+                                                <span className="font-semibold text-green-600 dark:text-green-400">
+                                                  {formatPrice(transaction.tomanEquivalent)}
+                                                </span>
+                                              </div>
+                                              <div className="flex justify-between items-center">
+                                                <span className="text-sm text-gray-600 dark:text-gray-400">تاریخ:</span>
+                                                <span className="text-sm text-gray-700 dark:text-gray-300">
+                                                  {moment(transaction.transactionDate).format('jYYYY/jMM/jDD')}
+                                                </span>
+                                              </div>
+                                              {transaction.registeredAt && (
+                                                <div className="flex justify-between items-center">
+                                                  <span className="text-sm text-gray-600 dark:text-gray-400">ساعت ثبت:</span>
+                                                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                                                    {moment(transaction.registeredAt).format('HH:mm:ss')}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
 
-                                    {/* ستون سوم - QR و تایمر */}
-                                    <div className="flex flex-col items-center justify-between gap-3">
-                                      {transaction.registeredAt && (
-                                        <div className="w-full flex justify-center">
-                                          <CountdownTimer registeredAt={transaction.registeredAt} />
-                                        </div>
-                                      )}
-                                      
-                                      {transaction.walletAddress && (
-                                        <div className="w-full flex flex-col items-center gap-2">
-                                          <QRCodeDisplay walletAddress={transaction.walletAddress} />
-                                          <div className="flex items-center gap-2 w-full justify-center">
-                                            <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">کپی</span>
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-6 w-6 p-0 text-gray-500 hover:text-blue-600"
-                                              onClick={() => {
-                                                navigator.clipboard.writeText(transaction.walletAddress!);
-                                                toast({
-                                                  title: "کپی شد",
-                                                  description: "آدرس ولت در کلیپبورد کپی شد",
-                                                });
-                                              }}
-                                            >
-                                              <Copy className="w-4 h-4" />
-                                            </Button>
+                                            {/* آدرس ولت */}
+                                            {transaction.walletAddress && (
+                                              <div className="space-y-1">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">آدرس ولت برای واریز:</p>
+                                                <div 
+                                                  className="bg-gray-100 dark:bg-slate-900 p-2 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+                                                  onClick={() => {
+                                                    navigator.clipboard.writeText(transaction.walletAddress!);
+                                                    toast({
+                                                      title: "کپی شد",
+                                                      description: "آدرس ولت در کلیپبورد کپی شد",
+                                                    });
+                                                  }}
+                                                  title="کلیک برای کپی"
+                                                >
+                                                  <p 
+                                                    className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all leading-relaxed"
+                                                    dir="ltr"
+                                                  >
+                                                    {transaction.walletAddress}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            )}
                                           </div>
-                                          <p className="text-xs font-mono bg-white dark:bg-slate-800 p-1.5 rounded break-all text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700 w-full text-center leading-tight">
-                                            {transaction.walletAddress.substring(0, 12)}...
-                                          </p>
+
+                                          {/* ستون چپ - فقط QR */}
+                                          {transaction.walletAddress && (
+                                            <div className="flex flex-col items-center justify-center gap-3 md:border-r md:pr-4 border-gray-200 dark:border-slate-700">
+                                              <div className="bg-white p-2 rounded-lg border border-gray-200 dark:border-slate-600 shadow-sm">
+                                                <QRCodeDisplay walletAddress={transaction.walletAddress} />
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
-                                  </div>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
-                              );
-                              })}
-                            </div>
-                          </div>
+                              </AccordionContent>
+                            </AccordionItem>
+                          </Accordion>
                         </>
                       );
                     })()}
