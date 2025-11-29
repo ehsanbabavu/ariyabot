@@ -343,6 +343,7 @@ export const cryptoTransactions = pgTable("crypto_transactions", {
   tomanEquivalent: decimal("toman_equivalent", { precision: 15, scale: 2 }).notNull(), // معادل تومان
   transactionDate: text("transaction_date").notNull(), // تاریخ تراکنش
   walletAddress: text("wallet_address"), // آدرس ولت فروشنده
+  paymentStatus: text("payment_status").notNull().default("not_paid"), // paid, not_paid
   registeredAt: timestamp("registered_at").defaultNow(), // زمان ثبت
   createdAt: timestamp("created_at").defaultNow(),
 });

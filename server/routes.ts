@@ -4852,13 +4852,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Save Crypto Transaction
   app.post("/api/crypto-transactions", authenticateToken, async (req: AuthRequest, res) => {
     try {
-      const { orderId, cryptoType, cryptoAmount, tomanEquivalent, transactionDate, walletAddress } = req.body;
+      const { orderId, cryptoType, cryptoAmount, tomanEquivalent, transactionDate } = req.body;
       
       if (!orderId || !cryptoType || !cryptoAmount || !tomanEquivalent || !transactionDate) {
         return res.status(400).json({ 
           message: "تمام فیلدها الزامی هستند" 
         });
       }
+
+      // Get the order to find the seller
+      const order = await db.query.orders.findFirst({
+        where: (o, { eq }) => eq(o.id, orderId)
+      });
+
+      if (!order) {
+        return res.status(404).json({ 
+          message: "سفارش یافت نشد" 
+        });
+      }
+
+      // Get the SELLER's information (not the buyer) to get wallet address
+      const seller = await db.query.users.findFirst({
+        where: (u, { eq }) => eq(u.id, order.sellerId)
+      });
+
+      if (!seller) {
+        return res.status(404).json({ 
+          message: "فروشنده یافت نشد" 
+        });
+      }
+
+      // Get wallet address from SELLER based on crypto type
+      let finalWalletAddress = null;
+      switch(cryptoType) {
+        case 'TRX':
+          finalWalletAddress = seller.tronWalletAddress || null;
+          break;
+        case 'USDT':
+          finalWalletAddress = seller.usdtTrc20WalletAddress || null;
+          break;
+        case 'XRP':
+          finalWalletAddress = seller.rippleWalletAddress || null;
+          break;
+        case 'ADA':
+          finalWalletAddress = seller.cardanoWalletAddress || null;
+          break;
+      }
+
+      console.log(`[Crypto Transaction] Creating transaction - Order: ${orderId}, Seller: ${seller.username}, CryptoType: ${cryptoType}, WalletAddress: ${finalWalletAddress}`);
 
       const cryptoTransaction = await db.insert(cryptoTransactions).values({
         orderId,
@@ -4867,7 +4908,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cryptoAmount: String(cryptoAmount),
         tomanEquivalent: String(tomanEquivalent),
         transactionDate,
-        walletAddress: walletAddress || null,
+        walletAddress: finalWalletAddress,
       }).returning();
 
       res.json({ 
