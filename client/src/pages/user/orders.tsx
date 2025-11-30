@@ -234,6 +234,9 @@ export default function OrdersPage() {
   const [selectedPaymentOrderId, setSelectedPaymentOrderId] = useState<string | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [formattedAmount, setFormattedAmount] = useState('');
+  
+  // Accordion states - برای نگه‌داشتن accordion باز بعد از ثبت تراکنش
+  const [openAccordions, setOpenAccordions] = useState<{ [key: string]: string | null }>({});
 
   // Fetch crypto prices
   const { data: cryptoPricesData } = useQuery<{
@@ -445,6 +448,12 @@ export default function OrdersPage() {
             result.transaction,
             ...(prev[selectedPaymentOrder.id] || [])
           ]
+        }));
+        
+        // نگه‌داشتن accordion باز
+        setOpenAccordions(prev => ({
+          ...prev,
+          [selectedPaymentOrder.id]: "crypto-transactions"
         }));
       }
       
@@ -1004,7 +1013,16 @@ export default function OrdersPage() {
                       return (
                         <>
                           <Separator className="my-6" />
-                          <Accordion type="single" collapsible className="w-full">
+                          <Accordion 
+                            type="single" 
+                            collapsible 
+                            className="w-full"
+                            value={openAccordions[order.id] || ""}
+                            onValueChange={(value) => setOpenAccordions(prev => ({
+                              ...prev,
+                              [order.id]: value
+                            }))}
+                          >
                             <AccordionItem value="crypto-transactions">
                               <AccordionTrigger className="text-gray-900 dark:text-gray-100 font-semibold hover:no-underline">
                                 <div className="flex items-center gap-4">
@@ -1094,7 +1112,7 @@ export default function OrdersPage() {
                                               <div className="flex justify-between items-center">
                                                 <span className="text-sm text-gray-600 dark:text-gray-400">مقدار:</span>
                                                 <div className="flex items-center gap-2">
-                                                  <div className={`${bgColor} p-1 rounded`}>
+                                                  <div className="p-1 rounded border border-gray-300 dark:border-gray-600">
                                                     {logoUrl ? (
                                                       <img 
                                                         src={logoUrl} 
@@ -1105,11 +1123,11 @@ export default function OrdersPage() {
                                                         }}
                                                       />
                                                     ) : (
-                                                      <span className="text-xs font-bold text-white w-4 h-4 flex items-center justify-center">{transaction.cryptoType[0]}</span>
+                                                      <span className={`text-xs font-bold text-white w-4 h-4 flex items-center justify-center ${bgColor}`}>{transaction.cryptoType[0]}</span>
                                                     )}
                                                   </div>
                                                   <span className="font-mono font-semibold text-gray-900 dark:text-white">
-                                                    {parseFloat(transaction.cryptoAmount).toFixed(4)} {transaction.cryptoType}
+                                                    {parseFloat(transaction.cryptoAmount).toFixed(3)} {transaction.cryptoType}
                                                   </span>
                                                 </div>
                                               </div>
@@ -1133,6 +1151,23 @@ export default function OrdersPage() {
                                                   </span>
                                                 </div>
                                               )}
+                                              {transaction.registeredAt && (() => {
+                                                const registeredTime = new Date(transaction.registeredAt).getTime();
+                                                const tenMinutesInMs = 10 * 60 * 1000;
+                                                const endTime = registeredTime + tenMinutesInMs;
+                                                const now = Date.now();
+                                                const remaining = Math.max(0, endTime - now);
+                                                const isActive = remaining > 0;
+
+                                                return (
+                                                  <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-600">
+                                                    <span className="text-sm text-gray-600 dark:text-gray-400">وضعیت:</span>
+                                                    <span className={`text-sm font-semibold ${isActive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                                      {isActive ? 'سیستم آماده دریافت تراکنش است' : 'دریافت تراکنش غیرفعال شد'}
+                                                    </span>
+                                                  </div>
+                                                );
+                                              })()}
                                             </div>
 
                                             {/* آدرس ولت */}
@@ -1151,7 +1186,7 @@ export default function OrdersPage() {
                                                   title="کلیک برای کپی"
                                                 >
                                                   <p 
-                                                    className="text-xs font-mono text-gray-700 dark:text-gray-300 break-all leading-relaxed"
+                                                    className="text-base font-mono font-bold text-gray-700 dark:text-gray-300 break-all leading-relaxed text-center"
                                                     dir="ltr"
                                                   >
                                                     {transaction.walletAddress}
@@ -1167,6 +1202,9 @@ export default function OrdersPage() {
                                               <div className="bg-white p-2 rounded-lg border border-gray-200 dark:border-slate-600 shadow-sm">
                                                 <QRCodeDisplay walletAddress={transaction.walletAddress} />
                                               </div>
+                                              <p className="text-xs text-gray-600 dark:text-gray-400 text-center max-w-xs">
+                                                جهت واریز کد کیو آر بالا رو اسکن کنید
+                                              </p>
                                             </div>
                                           )}
                                         </div>
