@@ -19,6 +19,7 @@ import { rippleService } from "./ripple-service";
 import { cardanoService } from "./cardano-service";
 import { tgjuService } from "./tgju-service";
 import { cryptoPriceCacheService } from "./crypto-price-cache-service";
+import { cryptoMatchingService } from "./crypto-matching-service";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2342,27 +2343,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(orders);
     } catch (error) {
       res.status(500).json({ message: "خطا در دریافت سفارشات" });
-    }
-  });
-
-  // Get specific order by ID (for level 2 users to fetch a single order)
-  app.get("/api/orders/:orderId", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
-    try {
-      const order = await storage.getOrder(req.params.orderId);
-      
-      if (!order) {
-        return res.status(404).json({ message: "سفارش یافت نشد" });
-      }
-
-      // Verify that the order belongs to the current user
-      if (order.userId !== req.user!.id) {
-        return res.status(403).json({ message: "شما مجاز به دسترسی به این سفارش نیستید" });
-      }
-
-      res.json(order);
-    } catch (error) {
-      console.error("Get order error:", error);
-      res.status(500).json({ message: "خطا در دریافت سفارش" });
     }
   });
 
@@ -4910,6 +4890,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         transactionDate,
         walletAddress: finalWalletAddress,
       }).returning();
+
+      // تراکنش جدید فعال شد - سرویس مطابقت را فعال کن
+      await cryptoMatchingService.checkForActiveTransactionsAndStart();
 
       res.json({ 
         success: true,
