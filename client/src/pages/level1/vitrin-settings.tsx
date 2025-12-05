@@ -1,13 +1,12 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DashboardLayout } from "@/components/dashboard-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Store, 
@@ -16,10 +15,8 @@ import {
   ExternalLink, 
   Upload, 
   Loader2,
-  Link as LinkIcon,
-  Image as ImageIcon,
-  FileText,
-  Eye
+  Sparkles,
+  Save
 } from "lucide-react";
 
 interface VitrinSettings {
@@ -151,7 +148,7 @@ export default function VitrinSettingsPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout title="ویترین فروشگاه">
+      <DashboardLayout title="تنظیمات ویترین">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -160,181 +157,129 @@ export default function VitrinSettingsPage() {
   }
 
   return (
-    <DashboardLayout title="ویترین فروشگاه">
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">ویترین فروشگاه</h1>
-          <p className="text-muted-foreground mt-1">
-            صفحه شخصی فروشگاه شما که مشتریان می‌توانند محصولات را مشاهده کنند
-          </p>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LinkIcon className="w-5 h-5" />
-              آدرس ویترین
-            </CardTitle>
-            <CardDescription>
-              این آدرس را با مشتریان خود به اشتراک بگذارید
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 relative">
-                <Input
-                  value={fullVitrinUrl}
-                  readOnly
-                  className="pl-24 font-mono text-sm bg-muted/50"
-                  dir="ltr"
+    <DashboardLayout title="تنظیمات ویترین">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Card className="overflow-hidden border-0 shadow-lg bg-gradient-to-br from-primary/5 via-background to-primary/10">
+          <CardContent className="p-6">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="relative group">
+                <Avatar className="w-24 h-24 border-4 border-background shadow-xl ring-2 ring-primary/20">
+                  {settings?.storeLogo ? (
+                    <AvatarImage src={settings.storeLogo} className="object-cover" />
+                  ) : (
+                    <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-primary/60 text-white">
+                      {storeName?.charAt(0) || <Store className="w-10 h-10" />}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleFileChange}
                 />
-                <div className="absolute left-2 top-1/2 -translate-y-1/2 flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2"
-                    onClick={handleCopyLink}
-                  >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-green-500" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 px-2"
-                    onClick={() => window.open(settings?.vitrinUrl, "_blank")}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute -bottom-1 -left-1 h-8 w-8 rounded-full shadow-md md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadLogoMutation.isPending}
+                >
+                  {uploadLogoMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+
+              <div className="space-y-1">
+                <h2 className="text-xl font-bold">{storeName || "فروشگاه شما"}</h2>
+                <div className="flex items-center justify-center gap-1.5 text-sm text-muted-foreground">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span>ویترین فعال</span>
                 </div>
               </div>
-            </div>
-            <div className="flex gap-2">
-              <Badge variant="secondary" className="gap-1">
-                <Store className="w-3 h-3" />
-                فعال
-              </Badge>
-              <Badge variant="outline" className="gap-1">
-                <Eye className="w-3 h-3" />
-                قابل مشاهده برای همه
-              </Badge>
+
+              <div className="w-full max-w-md">
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-background/80 backdrop-blur border">
+                  <Input
+                    value={fullVitrinUrl}
+                    readOnly
+                    className="border-0 bg-transparent font-mono text-sm text-center focus-visible:ring-0"
+                    dir="ltr"
+                  />
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={handleCopyLink}
+                    >
+                      {copied ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={() => window.open(settings?.vitrinUrl, "_blank")}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="w-5 h-5" />
-                لوگوی فروشگاه
-              </CardTitle>
-              <CardDescription>
-                لوگوی فروشگاه در صفحه ویترین نمایش داده می‌شود
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="w-20 h-20 border-2 border-primary/20">
-                  {settings?.storeLogo ? (
-                    <AvatarImage src={settings.storeLogo} />
-                  ) : (
-                    <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-                      {storeName?.charAt(0) || "?"}
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-                <div className="space-y-2">
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadLogoMutation.isPending}
-                  >
-                    {uploadLogoMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4 ml-2" />
-                    )}
-                    آپلود لوگو
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    حداکثر 5 مگابایت - JPG, PNG
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                اطلاعات فروشگاه
-              </CardTitle>
-              <CardDescription>
-                نام و توضیحات فروشگاه را وارد کنید
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="storeName">نام فروشگاه</Label>
-                <Input
-                  id="storeName"
-                  value={storeName}
-                  onChange={(e) => setStoreName(e.target.value)}
-                  placeholder="مثال: فروشگاه موبایل احسان"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="storeDescription">توضیحات</Label>
-                <Textarea
-                  id="storeDescription"
-                  value={storeDescription}
-                  onChange={(e) => setStoreDescription(e.target.value)}
-                  placeholder="توضیحات کوتاه درباره فروشگاه شما..."
-                  rows={3}
-                />
-              </div>
-              <Button 
-                onClick={handleSave} 
-                disabled={updateMutation.isPending}
-                className="w-full"
-              >
-                {updateMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                ) : null}
-                ذخیره تغییرات
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="bg-muted/30">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Store className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold mb-1">نکات مهم</h3>
-                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>آدرس ویترین شما همیشه فعال است و مشتریان می‌توانند محصولات را ببینند</li>
-                  <li>فقط محصولات فعال در ویترین نمایش داده می‌شوند</li>
-                  <li>مشتریان می‌توانند از طریق چت با شما ارتباط برقرار کنند</li>
-                  <li>پیام‌های دریافتی در بخش "چت مهمانان" قابل مشاهده است</li>
-                </ul>
-              </div>
+        <Card className="border-0 shadow-lg">
+          <CardContent className="p-6 space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="storeName" className="text-sm font-medium">
+                نام فروشگاه
+              </Label>
+              <Input
+                id="storeName"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+                placeholder="نام فروشگاه خود را وارد کنید"
+                className="h-11"
+              />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storeDescription" className="text-sm font-medium">
+                توضیحات
+              </Label>
+              <Textarea
+                id="storeDescription"
+                value={storeDescription}
+                onChange={(e) => setStoreDescription(e.target.value)}
+                placeholder="توضیحات کوتاه درباره فروشگاه..."
+                rows={4}
+                className="resize-none"
+              />
+            </div>
+
+            <Button 
+              onClick={handleSave} 
+              disabled={updateMutation.isPending}
+              className="w-full h-11 gap-2"
+              size="lg"
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              ذخیره تغییرات
+            </Button>
           </CardContent>
         </Card>
       </div>

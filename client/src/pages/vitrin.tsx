@@ -1,26 +1,37 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useRoute } from "wouter";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
   Store, 
   ShoppingBag, 
-  MessageCircle, 
+  ShoppingCart,
+  Home,
   Send, 
   Sparkles, 
   User, 
   Package,
   ArrowRight,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Smartphone
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+
+import productImg1 from "@assets/stock_images/product_package_box__aff87e0a.jpg";
+import productImg2 from "@assets/stock_images/product_package_box__3e574040.jpg";
+import productImg3 from "@assets/stock_images/product_package_box__01733114.jpg";
+import productImg4 from "@assets/stock_images/product_package_box__95a8ec97.jpg";
+import productImg5 from "@assets/stock_images/product_package_box__cde3f106.jpg";
+import productImg6 from "@assets/stock_images/product_package_box__6fb8a26d.jpg";
 
 interface VitrinInfo {
   id: string;
@@ -42,11 +53,9 @@ interface Product {
   quantity: number;
 }
 
-interface ChatMessage {
-  id: string;
+interface Message {
+  role: "user" | "assistant";
   content: string;
-  sender: "guest" | "admin";
-  createdAt: string;
 }
 
 function formatPrice(price: string | number): string {
@@ -54,33 +63,53 @@ function formatPrice(price: string | number): string {
   return numPrice.toLocaleString('fa-IR');
 }
 
-function VitrinChatMessage({ message, isOwn }: { message: ChatMessage; isOwn: boolean }) {
+function VitrinChatMessage({ role, content, isTyping }: { role: "user" | "assistant"; content: string; isTyping?: boolean }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      transition={{ duration: 0.4 }}
       className={cn(
-        "flex gap-3 p-4 rounded-2xl max-w-[85%]",
-        isOwn 
-          ? "bg-primary/10 mr-auto flex-row" 
-          : "bg-white border border-border/50 ml-auto flex-row-reverse"
+        "flex gap-4 p-6 w-full max-w-4xl mx-auto rounded-2xl transition-colors pt-[12px] pb-[12px]",
+        role === "assistant" 
+          ? "dark:bg-secondary/10 bg-[#8888f74d] flex-row-reverse" 
+          : "bg-white/50 border border-border/50"
       )}
     >
-      <div className="shrink-0">
-        <Avatar className="w-8 h-8 border border-border/30">
-          <AvatarFallback className={isOwn ? "bg-muted" : "bg-primary/10"}>
-            {isOwn ? <User className="w-4 h-4" /> : <Sparkles className="w-4 h-4 text-primary" />}
-          </AvatarFallback>
+      <div className="shrink-0 mt-1">
+        <Avatar className={cn(
+          "w-10 h-10 border border-border/50 shadow-sm",
+          role === "assistant" ? "bg-primary/10" : "bg-muted"
+        )}>
+          {role === "assistant" ? (
+            <div className="w-full h-full flex items-center justify-center text-[#6c5ce0]">
+              <Sparkles className="w-5 h-5" />
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+              <User className="w-5 h-5" />
+            </div>
+          )}
         </Avatar>
       </div>
-      <div className="flex-1">
-        <p className={cn(
-          "text-sm text-foreground/90 whitespace-pre-wrap",
-          isOwn ? "text-right" : "text-right"
-        )}>
-          {message.content}
-        </p>
+      <div className="flex-1 space-y-2 text-right">
+        <div className="flex items-center justify-end">
+          <span className="font-bold text-[#040f87cc] text-[12px]">
+            {role === "assistant" ? "هوش مصنوعی" : "شما"}
+          </span>
+        </div>
+        
+        <div className="text-foreground/90 whitespace-pre-wrap text-[12px]">
+          {isTyping ? (
+            <span className="flex gap-1 items-center h-6">
+              <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce"></span>
+            </span>
+          ) : (
+            content
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -107,65 +136,118 @@ function VitrinChatInput({ onSend, isLoading }: { onSend: (message: string) => v
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [input]);
 
   return (
-    <div className="w-full relative">
+    <div className="w-full max-w-4xl mx-auto relative">
       <div className={cn(
-        "relative flex items-end gap-2 p-3 rounded-2xl border transition-all duration-300",
-        "bg-background/80 backdrop-blur-lg shadow-lg",
-        "border-primary/20 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10"
+        "relative flex items-end gap-2 p-3 rounded-3xl border transition-all duration-300",
+        "bg-background/60 backdrop-blur-xl shadow-2xl",
+        "border-primary/20 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10"
       )}>
         <Textarea
           ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="پیام خود را بنویسید..."
-          className="min-h-[44px] max-h-[120px] w-full resize-none border-0 bg-transparent py-2 px-2 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 text-sm"
+          placeholder="پیامی بنویسید..."
+          className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent py-4 px-2 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 text-base"
           rows={1}
         />
-        <Button 
-          onClick={handleSend} 
-          disabled={isLoading || !input.trim()}
-          size="icon"
-          className={cn(
-            "h-9 w-9 rounded-full transition-all duration-300",
-            "bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:scale-105",
-            (isLoading || !input.trim()) && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Send className="w-4 h-4" />
-          )}
-        </Button>
+
+        <div className="pb-2 pr-2">
+          <Button 
+            onClick={handleSend} 
+            disabled={isLoading || !input.trim()}
+            size="icon"
+            className={cn(
+              "h-10 w-10 rounded-full transition-all duration-300",
+              "bg-primary text-primary-foreground shadow-lg hover:shadow-primary/25 hover:scale-105",
+              (isLoading || !input.trim()) && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            <Send className="w-5 h-5 ml-0.5" />
+          </Button>
+        </div>
       </div>
     </div>
+  );
+}
+
+interface VitrinBottomNavProps {
+  onShowcase?: () => void;
+  onCart?: () => void;
+  onProfile?: () => void;
+  activeTab?: string;
+  storeLogo?: string | null;
+  storeName?: string;
+}
+
+function VitrinBottomNav({ onShowcase, onCart, onProfile, activeTab, storeLogo, storeName }: VitrinBottomNavProps) {
+  return (
+    <nav className="fixed top-0 left-0 right-0 h-20 border-b border-border/40 bg-white backdrop-blur-xl flex items-center justify-between px-6 z-20">
+      <button
+        onClick={onCart}
+        className={cn(
+          "flex flex-col items-center gap-1 transition-colors",
+          activeTab === "cart" 
+            ? "text-blue-600" 
+            : "text-muted-foreground hover:text-primary"
+        )}
+      >
+        <ShoppingCart className="w-6 h-6" />
+        <span className={cn("font-normal text-[15px]", activeTab === "cart" ? "text-blue-600" : "text-[#000000]")}>سبد خرید</span>
+      </button>
+      
+      <button
+        onClick={onProfile}
+        className={cn(
+          "rounded-full h-24 w-24 overflow-hidden border-4 border-white hover:border-white/90",
+          "transition-all duration-300 hover:scale-110 hover:shadow-lg hover:shadow-primary/20",
+          "absolute top-full left-1/2 -translate-x-1/2 -translate-y-1/2"
+        )}
+      >
+        <Avatar className="h-full w-full border-0">
+          {storeLogo ? (
+            <AvatarImage src={storeLogo} alt={storeName || "فروشگاه"} />
+          ) : null}
+          <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg">
+            {storeName?.charAt(0) || "F"}
+          </AvatarFallback>
+        </Avatar>
+      </button>
+      
+      <button
+        onClick={onShowcase}
+        className={cn(
+          "flex flex-col items-center gap-1 transition-colors",
+          activeTab === "showcase" 
+            ? "text-blue-600" 
+            : "text-muted-foreground hover:text-primary"
+        )}
+      >
+        <Home className="w-6 h-6" />
+        <span className={cn("text-[15px] font-normal", activeTab === "showcase" ? "text-blue-600" : "text-[#000000]")}>ویترین</span>
+      </button>
+    </nav>
   );
 }
 
 export default function VitrinPage() {
   const [, params] = useRoute("/vitrin/:username");
   const username = params?.username;
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState("products");
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState("chat");
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "سلام! من دستیار هوشمند این فروشگاه هستم. چطور می‌توانم امروز به شما کمک کنم؟",
+    },
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let token = localStorage.getItem(`vitrin_chat_${username}`);
-    // Token format: vitrin_${username}_${timestamp}_${random}
-    const expectedPrefix = `vitrin_${username}_`;
-    if (!token || !token.startsWith(expectedPrefix)) {
-      token = `vitrin_${username}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-      localStorage.setItem(`vitrin_chat_${username}`, token);
-    }
-    setSessionToken(token);
-  }, [username]);
 
   const { data: vitrinInfo, isLoading: isLoadingVitrin, error: vitrinError } = useQuery<VitrinInfo>({
     queryKey: ["/api/vitrin", username],
@@ -189,40 +271,44 @@ export default function VitrinPage() {
     enabled: !!username,
   });
 
-  const { data: chatData, isLoading: isLoadingChat } = useQuery<{ session: any; messages: ChatMessage[] }>({
-    queryKey: ["/api/vitrin", username, "chat", sessionToken],
-    queryFn: async () => {
-      const res = await fetch(`/api/vitrin/${username}/chat/${sessionToken}`);
-      if (!res.ok) {
-        return { session: null, messages: [] };
-      }
-      return res.json();
-    },
-    enabled: !!username && !!sessionToken,
-    refetchInterval: 5000,
-  });
-
   const sendMessageMutation = useMutation({
     mutationFn: async (message: string) => {
-      const res = await fetch(`/api/vitrin/${username}/chat`, {
+      const res = await fetch(`/api/vitrin/${username}/ai-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionToken,
-          message,
-        }),
+        body: JSON.stringify({ message }),
       });
       if (!res.ok) throw new Error("خطا در ارسال پیام");
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/vitrin", username, "chat", sessionToken] });
-    },
   });
+
+  const handleSend = async (content: string) => {
+    const userMsg: Message = { role: "user", content };
+    setMessages((prev) => [...prev, userMsg]);
+    setIsLoading(true);
+
+    try {
+      const response = await sendMessageMutation.mutateAsync(content);
+      const aiMsg: Message = {
+        role: "assistant",
+        content: response.response || response.fallbackResponse || "متشکرم از پیام شما! به زودی پاسخ خواهم داد.",
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (error) {
+      const errorMsg: Message = {
+        role: "assistant",
+        content: "متأسفانه در پردازش پیام شما مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatData?.messages]);
+  }, [messages]);
 
   if (isLoadingVitrin) {
     return (
@@ -257,178 +343,122 @@ export default function VitrinPage() {
     );
   }
 
-  const messages = chatData?.messages || [];
-
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/10" dir="rtl">
-      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border/50">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="w-14 h-14 border-2 border-primary/20 shadow-lg">
-              {vitrinInfo.storeLogo ? (
-                <img src={vitrinInfo.storeLogo} alt={vitrinInfo.storeName} className="w-full h-full object-cover" />
-              ) : (
-                <AvatarFallback className="bg-primary/10 text-primary text-lg font-bold">
-                  {vitrinInfo.storeName.charAt(0)}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <div className="flex-1">
-              <h1 className="text-lg font-bold text-foreground">{vitrinInfo.storeName}</h1>
-              {vitrinInfo.storeDescription && (
-                <p className="text-sm text-muted-foreground line-clamp-1">{vitrinInfo.storeDescription}</p>
-              )}
+  if (!isMobile) {
+    return (
+      <div className="flex h-screen w-full bg-background items-center justify-center" dir="rtl">
+        <div className="text-center p-8">
+          <div className="flex justify-center mb-6">
+            <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
+              <Smartphone className="w-10 h-10 text-primary" />
             </div>
-            <Badge variant="secondary" className="hidden sm:flex">
-              <Store className="w-3 h-3 ml-1" />
-              فروشگاه آنلاین
-            </Badge>
           </div>
+          <h1 className="text-xl font-bold text-foreground mb-3">
+            لطفا فقط در حالت موبایل وارد صفحه شوید
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            این برنامه برای استفاده در گوشی موبایل طراحی شده است
+          </p>
         </div>
       </div>
+    );
+  }
 
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="products" className="gap-2">
-              <Package className="w-4 h-4" />
-              محصولات
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="gap-2">
-              <MessageCircle className="w-4 h-4" />
-              چت با فروشنده
-            </TabsTrigger>
-          </TabsList>
+  const fallbackProducts = [
+    { id: "1", name: "محصول 1", priceBeforeDiscount: "250000", priceAfterDiscount: "180000", description: "این محصول با کیفیت عالی و قیمت مناسب برای شما فراهم شده است.", image: productImg1, quantity: 10 },
+    { id: "2", name: "محصول 2", priceBeforeDiscount: "320000", priceAfterDiscount: "220000", description: "یکی از بهترین انتخاب ها در این دسته بندی است.", image: productImg2, quantity: 5 },
+    { id: "3", name: "محصول 3", priceBeforeDiscount: "180000", priceAfterDiscount: "135000", description: "محصول اقتصادی و با کارایی بالا برای افراد کم بودجه.", image: productImg3, quantity: 15 },
+    { id: "4", name: "محصول 4", priceBeforeDiscount: "420000", priceAfterDiscount: "280000", description: "محصول پریمیوم با تکنولوژی روز دنیا و طراحی شیک.", image: productImg4, quantity: 8 },
+    { id: "5", name: "محصول 5", priceBeforeDiscount: "150000", priceAfterDiscount: "99000", description: "گزینه برتر برای خریداران اقتصادی.", image: productImg5, quantity: 20 },
+    { id: "6", name: "محصول 6", priceBeforeDiscount: "380000", priceAfterDiscount: "250000", description: "محصول جدید با ویژگی های بهبود یافته.", image: productImg6, quantity: 3 },
+  ];
 
-          <TabsContent value="products" className="mt-0">
-            {isLoadingProducts ? (
-              <div className="text-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
-                <p className="text-muted-foreground text-sm">در حال بارگذاری محصولات...</p>
+  const displayProducts = products && products.length > 0 ? products : fallbackProducts;
+
+  return (
+    <div className="flex h-screen w-full bg-background overflow-hidden font-sans" dir="rtl">
+      <div className="flex-1 flex flex-col h-full relative">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col h-full">
+          <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden h-full">
+            <div className="flex-1 overflow-y-auto scroll-smooth pt-30 bg-[#fafafa]">
+              <div className="max-w-4xl mx-auto p-4 space-y-6 min-h-full pb-32">
+                {messages.map((msg, i) => (
+                  <VitrinChatMessage key={i} role={msg.role} content={msg.content} />
+                ))}
+                {isLoading && (
+                  <VitrinChatMessage role="assistant" content="" isTyping={true} />
+                )}
+                <div ref={messagesEndRef} />
               </div>
-            ) : products && products.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <AnimatePresence>
-                  {products.map((product, index) => (
-                    <motion.div
-                      key={product.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Card className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
-                        <div className="aspect-square relative overflow-hidden bg-muted">
-                          {product.image ? (
-                            <img 
-                              src={product.image} 
-                              alt={product.name} 
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <ShoppingBag className="w-12 h-12 text-muted-foreground/30" />
-                            </div>
-                          )}
-                          {product.quantity === 0 && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <Badge variant="destructive">ناموجود</Badge>
-                            </div>
-                          )}
-                        </div>
-                        <CardContent className="p-3">
-                          <h3 className="font-semibold text-sm line-clamp-2 mb-2">{product.name}</h3>
-                          <div className="flex items-center justify-between">
-                            <div className="text-left">
-                              {product.priceAfterDiscount && product.priceAfterDiscount !== product.priceBeforeDiscount ? (
-                                <>
-                                  <p className="text-xs text-muted-foreground line-through">
-                                    {formatPrice(product.priceBeforeDiscount)}
-                                  </p>
-                                  <p className="text-sm font-bold text-primary">
-                                    {formatPrice(product.priceAfterDiscount)} تومان
-                                  </p>
-                                </>
-                              ) : (
-                                <p className="text-sm font-bold">
-                                  {formatPrice(product.priceBeforeDiscount)} تومان
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                  <p className="text-muted-foreground">هنوز محصولی ثبت نشده است</p>
-                </CardContent>
-              </Card>
-            )}
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/90 to-transparent pt-10 z-10">
+              <VitrinChatInput onSend={handleSend} isLoading={isLoading} />
+            </div>
           </TabsContent>
 
-          <TabsContent value="chat" className="mt-0">
-            <Card className="overflow-hidden">
-              <div className="h-[400px] flex flex-col">
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/20">
-                  {isLoadingChat ? (
-                    <div className="text-center py-12">
-                      <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-2" />
-                      <p className="text-muted-foreground text-sm">در حال بارگذاری پیام‌ها...</p>
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="text-center py-12">
-                      <MessageCircle className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                      <p className="text-muted-foreground">اولین پیام خود را بفرستید!</p>
-                    </div>
-                  ) : (
-                    messages.map((msg) => (
-                      <VitrinChatMessage 
-                        key={msg.id} 
-                        message={msg} 
-                        isOwn={msg.sender === "guest"} 
+          <TabsContent value="showcase" className="flex-1 overflow-y-auto scroll-smooth px-6 pb-6 pt-24 mt-0 data-[state=inactive]:hidden h-full">
+            <div className="max-w-4xl mx-auto">
+              <div className="grid grid-cols-2 gap-6 pb-20">
+                {displayProducts.map((product) => (
+                  <div key={product.id} className="bg-white rounded-xl overflow-hidden shadow-md border border-border/50 hover:shadow-lg hover:border-primary/30 transition-all duration-300 flex flex-col h-full">
+                    <div className="w-full aspect-video relative overflow-hidden group">
+                      <img 
+                        src={product.image || productImg1} 
+                        alt={product.name} 
+                        className="w-full h-full object-cover" 
                       />
-                    ))
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-
-                <div className="p-4 border-t border-border bg-background">
-                  <VitrinChatInput 
-                    onSend={(message) => sendMessageMutation.mutate(message)} 
-                    isLoading={sendMessageMutation.isPending} 
-                  />
-                </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent"></div>
+                      <h3 className="absolute bottom-0 left-0 right-0 p-3 sm:p-4 sm:text-base text-white font-semibold text-right line-clamp-2 text-[12px] pt-[6px] pb-[6px]">{product.name}</h3>
+                      {product.quantity === 0 && (
+                        <div className="absolute top-2 right-2">
+                          <Badge variant="destructive">ناموجود</Badge>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 sm:p-4 flex flex-col flex-1 text-right">
+                      <p className="text-xs sm:text-sm line-clamp-4 flex-1 text-right font-thin text-[#0a0000] bg-[#ffffff] mt-[2px] mb-[2px]">
+                        {product.description || "محصول با کیفیت عالی"}
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <Button size="sm" className="h-8 sm:h-9 w-8 sm:w-9 p-0 rounded-lg font-semibold bg-[#6572e5e6] text-[#ffffff] hover:bg-[#6572e5e6]/90 flex items-center justify-center">
+                          <Plus className="w-3.5 h-3.5" />
+                        </Button>
+                        <div className="flex flex-col flex-1">
+                          {product.priceAfterDiscount && product.priceAfterDiscount !== product.priceBeforeDiscount ? (
+                            <>
+                              <span className="text-xs text-muted-foreground line-through">{formatPrice(product.priceBeforeDiscount)}</span>
+                              <span className="text-sm font-bold text-black text-left">{formatPrice(product.priceAfterDiscount)}</span>
+                            </>
+                          ) : (
+                            <span className="text-sm font-bold text-black text-left">{formatPrice(product.priceBeforeDiscount)}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="cart" className="flex-1 overflow-auto px-6 pb-6 pt-24 mt-0 data-[state=inactive]:hidden h-full">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white rounded-lg p-6 shadow-sm border border-border pt-[0px] pb-[0px] mt-[40px] mb-[40px]">
+                <p className="text-muted-foreground text-center py-12">سبد خرید شما خالی است</p>
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
-
-      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-lg border-t border-border/50 p-4 sm:hidden">
-        <div className="max-w-4xl mx-auto flex gap-2">
-          <Button 
-            variant={activeTab === "products" ? "default" : "outline"}
-            className="flex-1"
-            onClick={() => setActiveTab("products")}
-          >
-            <Package className="w-4 h-4 ml-2" />
-            محصولات
-          </Button>
-          <Button 
-            variant={activeTab === "chat" ? "default" : "outline"}
-            className="flex-1"
-            onClick={() => setActiveTab("chat")}
-          >
-            <MessageCircle className="w-4 h-4 ml-2" />
-            چت
-          </Button>
-        </div>
-      </div>
+      
+      <VitrinBottomNav 
+        onShowcase={() => setActiveTab("showcase")} 
+        onCart={() => setActiveTab("cart")} 
+        onProfile={() => setActiveTab("chat")} 
+        activeTab={activeTab}
+        storeLogo={vitrinInfo.storeLogo}
+        storeName={vitrinInfo.storeName}
+      />
     </div>
   );
 }
