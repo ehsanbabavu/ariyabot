@@ -1,10 +1,6 @@
 # Overview
 
-## About Ariya Bot
-**Ariya Bot** is your intelligent 24/7customer support assistant designed to transform how you communicate with customers. It's a modern, full-stack TypeScript Persian e-commerce and support platform that brings together powerful tools for online business management. From automated customer interactions to streamlined order processing, Ariya Bot makes it easy to manage your products, handle customer inquiries, and grow your business.
-
-## Project Description
-This project is a comprehensive, full-stack TypeScript web application built specifically for the Persian market. It offers extensive features including intelligent customer support, e-commerce capabilities, user management, ticketing system, inventory control, and subscription services with role-based access control. The platform features a fully localized Farsi UI with RTL (right-to-left) support, responsive mobile-first design, and AI-powered functionalities like smart ordering and WhatsApp-based deposit receipt processing. The goal is to provide an intuitive and powerful online business tool that enhances user experience through advanced AI and robust system architecture.
+**Ariya Bot** is an intelligent 24/7 customer support assistant and a modern, full-stack TypeScript Persian e-commerce platform. It aims to transform customer communication and streamline online business management, offering features from automated customer interactions to order processing. The project provides a comprehensive web application built for the Persian market, including intelligent customer support, e-commerce, user management, ticketing, inventory control, and subscription services with role-based access. It features a fully localized Farsi UI with RTL support, a responsive mobile-first design, and AI-powered functionalities like smart ordering and WhatsApp-based deposit receipt processing, enhancing user experience through advanced AI and robust system architecture.
 
 # User Preferences
 
@@ -14,8 +10,8 @@ Preferred communication style: Simple, everyday language.
 
 ## UI/UX Decisions
 - **Frontend**: React 18 with TypeScript and Vite.
-- **Components & Styling**: shadcn/ui (Radix UI-based) and Tailwind CSS, with Vazirmatn font for Persian script and RTL support.
-- **Responsiveness**: Mobile-first design featuring a hamburger menu and drawer for mobile navigation, and a fixed sidebar for desktop.
+- **Components & Styling**: shadcn/ui (Radix UI-based) and Tailwind CSS, utilizing Vazirmatn font for Persian script and RTL support.
+- **Responsiveness**: Mobile-first design with a hamburger menu and drawer for mobile, and a fixed sidebar for desktop.
 - **Design Elements**: Compact card layouts, auto-sliding carousels, dynamic notifications, and Persian invoice templates with currency conversion.
 
 ## Technical Implementations
@@ -26,49 +22,28 @@ Preferred communication style: Simple, everyday language.
 - **Data Storage**: PostgreSQL with Drizzle ORM, Neon Database for serverless hosting, Drizzle Kit for migrations, and connect-pg-simple for session storage.
 
 ## Feature Specifications
-- **WhatsApp Integration**: AI-powered OCR for deposit receipts (Gemini Vision), smart product ordering, duplicate transaction detection, automated notifications, and invoice delivery. Includes an intelligent, rate-limited queue system (3 messages/sec per user) with retries to prevent API blocking.
+- **WhatsApp Integration**: AI-powered OCR for deposit receipts (Gemini Vision), smart product ordering, duplicate transaction detection, automated notifications, and invoice delivery. Includes an intelligent, rate-limited queue system.
 - **Internal Chat**: Real-time unread message badges with role-based visibility.
-- **Order Management**: Enhanced order display for sellers, new order notifications, unshipped orders dashboard, and automatic invoice generation.
-- **Transaction Management**: Duplicate transaction detection and automated WhatsApp notifications for approval/rejection.
-- **Shipping Management**: Configurable shipping methods (Pishaz, Ordinary, Courier, Free) for sellers, with buyer selection during checkout.
-- **VAT Management**: Seller-configurable Value Added Tax (VAT) with customizable percentage, enable/disable toggle, and invoice thank you message. VAT calculation is integrated into order totals and displayed separately on invoices.
+- **Order Management**: Enhanced order display, new order notifications, unshipped orders dashboard, and automatic invoice generation.
+- **Transaction Management**: Duplicate transaction detection and automated WhatsApp notifications.
+- **Shipping Management**: Configurable shipping methods for sellers, with buyer selection.
+- **VAT Management**: Seller-configurable VAT with customizable percentage, toggle, and invoice thank you message.
 - **Password Reset**: Secure OTP-based recovery via WhatsApp with rate limiting.
-- **Cart Page Redesign**: Responsive two-column layout showing product details on the right and order summary, delivery, and shipping options on the left.
-- **Automatic Order Processing**: Upon deposit transaction approval, the system automatically processes pending orders chronologically, confirming them, deducting payment, and updating balances until funds are insufficient.
-- **Database Backup & Restore**: Complete database backup and restore system for admin users with:
-  - Full PostgreSQL backup creation using pg_dump with automatic download
-  - Restore from SQL backup files with psql
-  - List of saved backups with file size and creation date
-  - Download individual backup files
-  - Delete old backup files
-  - Path traversal protection with filename validation and directory containment checks
-  - Admin-only access with JWT authentication
-  - Persian UI accessible at /database-backup in admin settings menu
-- **Blockchain Settings Management**: Centralized blockchain API token management system:
-  - Database-backed storage for blockchain provider API keys (blockchain_settings table)
-  - Admin UI for configuring Cardano, Tron, Ripple API tokens
-  - Runtime token reload without server restart
-  - Fallback to environment variables for backward compatibility
-  - Secure admin-only access with JWT authentication
-- **Cardano Integration**: Cardanoscan API integration for blockchain transaction retrieval:
-  - Fetch transaction history for any Cardano wallet address
-  - Support for pagination (up to 50 transactions per request)
-  - Free tier API usage with proper authentication
-  - Automatic formatting of ADA amounts with Persian date display
-  - Direct links to Cardanoscan explorer for transaction details
-  - Centered table alignment for better UX
-- **Cryptocurrency Price Tracking**: Real-time price fetching from TGJU.org profile pages:
-  - Scraping-based price retrieval from individual cryptocurrency profile pages (Tron, USDT, Ripple, Cardano)
-  - All prices are fetched and stored in Rial (not Toman) for consistency
-  - Direct live fetching with no caching - always gets the latest price from TGJU.org
-  - Frontend auto-refresh every 2 minutes for real-time price display
-  - Validation ranges to ensure scraped values are reasonable (800K-2M for USDT, 100K-1M for TRX, 1M-10M for XRP, 100K-2M for ADA)
-  - Error handling: throws error if price cannot be fetched or is out of valid range
-  - Centralized fetchProfilePriceInRial helper for consistent scraping logic
+- **Cart Page Redesign**: Responsive two-column layout for product details and order summary.
+- **Automatic Order Processing**: Processes pending orders chronologically upon deposit transaction approval.
+- **Database Backup & Restore**: Full PostgreSQL backup and restore system for admins, including download, deletion, and path traversal protection.
+- **Blockchain Settings Management**: Centralized blockchain API token management system via admin UI for Cardano, Tron, Ripple, with runtime token reload and environment variable fallback.
+- **Cardano Integration**: Cardanoscan API integration for transaction history retrieval, pagination, ADA amount formatting, and direct links to explorer.
+- **Cryptocurrency Price Tracking**: Real-time scraping-based price retrieval from TGJU.org for Tron, USDT, Ripple, Cardano, stored in Rial, with frontend auto-refresh and validation ranges.
+- **Vitrin AI Chat Redesign**: New mobile-only storefront design with AI chat functionality (Gemini AI), product display, and shopping cart tabs. Includes intelligent context for AI chat.
+- **Personal Storefront (Vitrin)**: Public storefront pages (`/vitrin/:username`) for Level 1 sellers to display products, with seller-configurable settings.
+- **Auto-Save Crypto Transactions**: System to automatically save cryptocurrency transaction details for orders.
+- **Guest Chat System**: Chat system for non-member visitors on the home page, with admin management.
+- **New Homepage**: Modern landing page with Framer Motion animations and news carousel.
 
 ## System Design Choices
-- **AI Architecture**: Dual AI provider system supporting Gemini AI (Google) and Liara AI (OpenAI-compatible) with an AI Service Orchestrator for centralized management and automatic failover. Only one provider is active at a time, configurable via admin settings.
-- **Development & Deployment**: Vite for frontend bundling and development server; Express serves static assets in production. Configured for VM deployment.
+- **AI Architecture**: Dual AI provider system (Gemini AI, Liara AI) with an AI Service Orchestrator for centralized management and automatic failover.
+- **Development & Deployment**: Vite for frontend bundling; Express serves static assets. Configured for VM deployment.
 - **Security**: JWT_SECRET and ADMIN_PASSWORD managed via Replit Secrets.
 
 # External Dependencies
@@ -83,118 +58,12 @@ Preferred communication style: Simple, everyday language.
 - Express.js, Drizzle ORM, Multer, jsonwebtoken, bcrypt, Puppeteer.
 
 ## AI Services
-- **Gemini AI**: For OCR and natural language processing.
-- **Liara AI**: OpenAI-compatible alternative AI provider.
+- Gemini AI
+- Liara AI (OpenAI-compatible)
 
 ## Database & Storage
 - Neon Database (PostgreSQL), Drizzle Kit.
 
 ## Blockchain Services
-- **Cardanoscan API**: For Cardano blockchain transaction retrieval and wallet monitoring.
-
-# Recent Changes
-
-## December 5, 2025 - Personal Storefront (Vitrin)
-- **سیستم ویترین فروشگاه شخصی برای فروشندگان سطح 1**:
-  - صفحه عمومی ویترین در `/vitrin/:username` برای نمایش محصولات فروشنده
-  - سیستم چت مستقیم با فروشنده با امنیت session token
-  - صفحه تنظیمات ویترین در `/vitrin-settings` برای فروشندگان
-  - فیلدهای `storeName` و `storeDescription` به جدول users اضافه شد
-  - API های عمومی: GET /api/vitrin/:username, /api/vitrin/:username/products, /api/vitrin/:username/categories
-  - API های چت: POST /api/vitrin/:username/chat, GET /api/vitrin/:username/chat/:sessionToken
-  - API های فروشنده (احراز هویت): GET/PUT /api/seller/vitrin, POST /api/seller/vitrin/logo
-  - امنیت: session token شامل username فروشنده برای جلوگیری از دسترسی غیرمجاز
-  - طراحی RTL کامل با پشتیبانی از زبان فارسی
-
-## November 28, 2025 - Auto-Save Crypto Transactions
-- **سیستم ذخیره‌سازی خودکار تراکنش‌های ارز دیجیتال**:
-  - جدول `cryptoTransactions` در دیتابیس برای ذخیره‌سازی تفاصیل پرداخت ارز
-  - فیلدهای ذخیره‌شده: `cryptoType`, `cryptoAmount`, `tomanEquivalent`, `transactionDate`, `registeredAt`
-  - API endpoint `/api/crypto-transactions` برای ثبت تراکنش
-  - صفحه سفارشات کاربران سطح 2 به‌روز شد - وقتی ارز دیجیتال انتخاب شود، تراکنش خودکار ذخیره می‌شود
-  - حذف کامل Step 2 dialogs (ارز دیجیتال و کارت بانکی)
-  - صفحه پرداخت ساده‌تر شد - فقط Step 1 (انتخاب روش پرداخت) باقی‌ماند
-  - Database migration با موفقیت انجام شد (`npm run db:push`)
-
-## November 25, 2025
-- **سیستم چت مهمانان**: سیستم چت برای بازدیدکنندگان غیرعضو صفحه اصلی
-  - جداول `guestChatSessions` و `guestChatMessages` در دیتابیس
-  - API endpoints عمومی برای ایجاد جلسه و ارسال/دریافت پیام
-  - API endpoints محافظت شده برای مدیر جهت پاسخگویی
-  - صفحه مدیریت چت مهمانان در پنل ادمین (`/guest-chats`)
-  - اتصال پنجره چت صفحه Home به backend با localStorage session
-  - نمایش پیام‌های خوانده نشده و polling خودکار
-- **صفحه اصلی جدید**: صفحه لندینگ قدیمی با صفحه جدید از پوشه `site` جایگزین شد
-  - حذف `client/src/pages/landing.tsx` و پوشه `client/src/pages/landing/`
-  - استفاده از `client/src/pages/home.tsx` جدید با طراحی مدرن
-  - شامل انیمیشن‌های Framer Motion و کاروسل اخبار
-- **حذف مدیریت محتوا**: صفحه مدیریت محتوای سایت حذف شد
-  - حذف `client/src/pages/admin/content-management.tsx`
-  - حذف لینک از sidebar و روتینگ
-
-# Replit Setup & Configuration
-
-## Initial Setup (Completed)
-- **Date**: December 5, 2025 (Fresh GitHub Clone Import - Setup Completed)
-- **Status**: ✅ Successfully imported and configured in Replit environment
-- **Setup Actions**:
-  - ✅ Installed all npm dependencies (642 packages)
-  - ✅ Connected to PostgreSQL database (DATABASE_URL already configured via Replit)
-  - ✅ Pushed database schema using Drizzle Kit (`npm run db:push`)
-  - ✅ Created admin and test user accounts automatically (via db-storage.ts initialization)
-  - ✅ Initialized test data (3 categories, 6 products, landing page content)
-  - ✅ Configured development workflow (npm run dev on port 5000 with webview)
-  - ✅ Set up VM deployment configuration (build: npm run build, run: npm start)
-  - ✅ Created .gitignore file for proper version control
-  - ✅ Frontend already configured with allowedHosts: true for Replit proxy support (vite.config.ts)
-  - ✅ All services started successfully (WhatsApp, AI, cleanup, crypto price caching)
-  - ✅ Application is fully functional and accessible on port 5000
-  - ✅ Persian landing page displaying correctly with RTL support
-  - ✅ Created required directories (stamppic, public/invoices, uploads, invoice)
-  - ✅ Server running on 0.0.0.0:5000 (frontend) with backend APIs on same port
-  - ✅ Cryptocurrency price tracking active (USDT, TRX, XRP, ADA from TGJU.org)
-
-## Environment Configuration
-1. **Database**: PostgreSQL database is provisioned and connected via `DATABASE_URL`
-2. **Schema**: Database schema pushed successfully using Drizzle Kit (`npm run db:push`)
-3. **Port**: Server runs on port 5000 (both dev and production)
-4. **Host**: 0.0.0.0 (configured for Replit proxy support with allowedHosts: true in vite.config.ts)
-
-## Default Credentials
-- **Admin User**: 
-  - Username: `ehsan`
-  - Password: `admin123` (change via `ADMIN_PASSWORD` environment variable)
-- **Test Seller**:
-  - Username: `test_seller`
-  - Password: `test123`
-
-## Required Environment Variables (Optional)
-The following environment variables can be set for enhanced functionality:
-- `JWT_SECRET`: Custom JWT secret (defaults to dev secret if not set)
-- `ADMIN_PASSWORD`: Custom admin password (defaults to admin123)
-- `GEMINI_API_KEY`: For AI-powered features (OCR, smart ordering)
-- `LIARA_AI_API_KEY`: Alternative AI provider
-- `CARDANOSCAN_API_KEY`: For Cardano blockchain transaction retrieval (can also be configured via admin panel)
-- WhatsApp integration tokens (configured per user in admin panel)
-
-**Note**: Blockchain API tokens (Cardano, Tron, Ripple) are now managed through the admin panel at `/cardano-settings` (accessible from Settings menu in admin panel) and stored in the database. Environment variables serve as fallback only.
-
-## Development Workflow
-- **Start Dev Server**: `npm run dev` (automatically configured)
-- **Database Push**: `npm run db:push`
-- **Type Check**: `npm run check`
-- **Build**: `npm run build`
-
-## Deployment
-- **Type**: VM (always-on server)
-- **Build Command**: `npm run build`
-- **Run Command**: `npm start`
-- **Configuration**: Already set up and ready to publish
-
-## Test Data
-The application automatically creates:
-- Admin and test seller accounts
-- 3 mobile phone categories
-- 6 sample products
-
-All ready for testing and demonstration purposes.
+- Cardanoscan API
+- TGJU.org (for cryptocurrency price scraping)

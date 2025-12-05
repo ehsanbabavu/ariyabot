@@ -5104,6 +5104,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Chat for vitrin (public) - Gemini AI integration
+  app.post("/api/vitrin/:username/ai-chat", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { message } = req.body;
+      
+      if (!message?.trim()) {
+        return res.status(400).json({ response: "لطفاً پیام خود را وارد کنید." });
+      }
+      
+      // Input length validation (prevent prompt injection with very long messages)
+      const trimmedMessage = message.trim().slice(0, 2000);
+      
+      const seller = await storage.getUserByUsername(username);
+      
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ response: "فروشگاه یافت نشد." });
+      }
+
+      // Import AI service dynamically
+      const { aiService } = await import("./ai-service");
+      
+      // Get seller's products for context (even if AI is inactive, for fallback)
+      const products = await storage.getProductsBySeller(seller.id);
+      const storeName = seller.storeName || `فروشگاه ${seller.firstName}`;
+      
+      if (!aiService.isActive()) {
+        // Fallback response when AI is not active
+        const productNames = products.slice(0, 5).map((p: any) => p.name).join("، ");
+        return res.json({ 
+          response: `سلام! به ${storeName} خوش آمدید. 🌟\n\nمتأسفانه دستیار هوشمند ما در حال حاضر در دسترس نیست.\n\n${productNames ? `محصولات پرفروش ما: ${productNames}` : ""}\n\nبرای کسب اطلاعات بیشتر می‌توانید محصولات را در تب "ویترین" مشاهده کنید.`
+        });
+      }
+
+      // Create context for AI with product info
+      const productList = products.slice(0, 10).map((p: any) => `- ${p.name}: ${p.priceAfterDiscount || p.priceBeforeDiscount} تومان`).join("\n");
+      
+      const systemContext = `شما دستیار هوشمند فروشگاه "${storeName}" هستید. وظیفه شما کمک به مشتریان و پاسخ به سوالات آنها درباره محصولات و خدمات فروشگاه است.
+
+محصولات موجود در فروشگاه:
+${productList || "در حال حاضر محصولی ثبت نشده است."}
+
+لطفاً به زبان فارسی و با لحن صمیمی و حرفه‌ای پاسخ دهید. پاسخ‌ها را کوتاه و مفید نگه دارید. اگر سوالی خارج از حیطه فروشگاه پرسیده شد، مودبانه کاربر را راهنمایی کنید.`;
+
+      const fullMessage = `${systemContext}\n\nپیام مشتری: ${trimmedMessage}`;
+      
+      try {
+        const aiResponse = await aiService.generateResponse(fullMessage, seller.id);
+        res.json({ response: aiResponse });
+      } catch (aiError) {
+        console.error("AI response error:", aiError);
+        res.json({ 
+          response: `متشکرم از پیام شما! 🙏\n\nدر حال حاضر نمی‌توانم پاسخ مناسبی ارائه دهم. لطفاً محصولات ما را در تب "ویترین" مشاهده کنید یا بعداً دوباره تلاش کنید.`
+        });
+      }
+    } catch (error) {
+      console.error("Error in AI chat:", error);
+      res.json({ response: "متأسفانه خطایی رخ داد. لطفاً دوباره تلاش کنید." });
+    }
+  });
+
   // Get seller's vitrin settings (authenticated - level 1 only)
   app.get("/api/seller/vitrin", authenticateToken, async (req: AuthRequest, res) => {
     try {
