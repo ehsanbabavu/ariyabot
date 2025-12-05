@@ -44,6 +44,8 @@ import ChatWithSeller from "@/pages/user/chat-with-seller";
 import CustomerChats from "@/pages/level1/customer-chats";
 import ShippingSettings from "@/pages/level1/shipping-settings";
 import VatSettings from "@/pages/level1/vat-settings";
+import VitrinSettings from "@/pages/level1/vitrin-settings";
+import VitrinPage from "@/pages/vitrin";
 import BankCard from "@/pages/user/bank-card";
 import FaqsPage from "@/pages/faqs";
 import AddFaqPage from "@/pages/user/add-faq";
@@ -249,6 +251,8 @@ function Router() {
       <Route path="/faqs" component={() => <ProtectedRoute component={FaqsPage} />} />
       <Route path="/manage-faqs" component={() => <AdminOrLevel1Route component={ManageFaqsPage} />} />
       <Route path="/add-faq" component={() => <AdminOrLevel1Route component={AddFaqPage} />} />
+      <Route path="/vitrin-settings" component={() => <Level1Route component={VitrinSettings} />} />
+      <Route path="/vitrin/:username" component={VitrinPage} />
       <Route component={NotFound} />
     </Switch>
   );
