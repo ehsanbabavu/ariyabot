@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Eye, EyeOff, Key, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
@@ -16,13 +17,21 @@ interface AiTokenSettings {
   token: string;
   provider: string;
   workspaceId?: string;
+  model?: string;
   isActive: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
+const GEMINI_MODELS = [
+  { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash (پیشنهادی)" },
+  { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+  { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash (آزمایشی)" },
+];
+
 export default function AITokenSettings() {
   const [geminiToken, setGeminiToken] = useState("");
+  const [geminiModel, setGeminiModel] = useState("gemini-1.5-flash");
   const [liaraToken, setLiaraToken] = useState("");
   const [liaraWorkspaceId, setLiaraWorkspaceId] = useState("");
   const [showGeminiToken, setShowGeminiToken] = useState(false);
@@ -44,7 +53,7 @@ export default function AITokenSettings() {
   });
 
   const saveTokenMutation = useMutation({
-    mutationFn: async (tokenData: { token: string; provider: string; workspaceId?: string; isActive: boolean }) => {
+    mutationFn: async (tokenData: { token: string; provider: string; workspaceId?: string; model?: string; isActive: boolean }) => {
       const response = await createAuthenticatedRequest("/api/ai-token", {
         method: "POST",
         body: JSON.stringify(tokenData),
@@ -70,7 +79,7 @@ export default function AITokenSettings() {
 
   const handleSaveGeminiToken = (e: React.FormEvent) => {
     e.preventDefault();
-    saveTokenMutation.mutate({ token: geminiToken, provider: "gemini", isActive: geminiActive });
+    saveTokenMutation.mutate({ token: geminiToken, provider: "gemini", model: geminiModel, isActive: geminiActive });
   };
 
   const handleSaveLiaraToken = (e: React.FormEvent) => {
@@ -83,9 +92,11 @@ export default function AITokenSettings() {
     if (checked) {
       setLiaraActive(false);
     }
+    const geminiSettings = aiTokenData?.find(s => s.provider === "gemini");
     saveTokenMutation.mutate({ 
-      token: geminiToken || aiTokenData?.find(s => s.provider === "gemini")?.token || "", 
-      provider: "gemini", 
+      token: geminiToken || geminiSettings?.token || "", 
+      provider: "gemini",
+      model: geminiModel || geminiSettings?.model || "gemini-1.5-flash",
       isActive: checked 
     });
   };
@@ -111,6 +122,7 @@ export default function AITokenSettings() {
       
       if (geminiSettings) {
         setGeminiToken(geminiSettings.token);
+        setGeminiModel(geminiSettings.model || "gemini-1.5-flash");
         setGeminiActive(geminiSettings.isActive);
       }
       
@@ -189,6 +201,24 @@ export default function AITokenSettings() {
                               {showGeminiToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                             </Button>
                           </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="geminiModel">مدل Gemini</Label>
+                          <Select value={geminiModel} onValueChange={setGeminiModel}>
+                            <SelectTrigger data-testid="select-gemini-model">
+                              <SelectValue placeholder="انتخاب مدل..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GEMINI_MODELS.map((model) => (
+                                <SelectItem key={model.value} value={model.value}>
+                                  {model.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            مدل 1.5 Flash سهمیه رایگان بیشتری دارد و برای استفاده عمومی پیشنهاد می‌شود.
+                          </p>
                         </div>
                         <Button 
                           type="submit" 

@@ -26,12 +26,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-import productImg1 from "@assets/stock_images/product_package_box__aff87e0a.jpg";
-import productImg2 from "@assets/stock_images/product_package_box__3e574040.jpg";
-import productImg3 from "@assets/stock_images/product_package_box__01733114.jpg";
-import productImg4 from "@assets/stock_images/product_package_box__95a8ec97.jpg";
-import productImg5 from "@assets/stock_images/product_package_box__cde3f106.jpg";
-import productImg6 from "@assets/stock_images/product_package_box__6fb8a26d.jpg";
+import productImg1 from "@assets/stock_images/product_package_box__1e712da4.jpg";
+import productImg2 from "@assets/stock_images/product_package_box__99223179.jpg";
+import productImg3 from "@assets/stock_images/product_package_box__e1cc69ed.jpg";
+import productImg4 from "@assets/stock_images/product_package_box__89581715.jpg";
+import productImg5 from "@assets/stock_images/product_package_box__049f72e1.jpg";
+import productImg6 from "@assets/stock_images/product_package_box__f1802ba8.jpg";
 
 interface VitrinInfo {
   id: string;
@@ -69,12 +69,7 @@ function VitrinChatMessage({ role, content, isTyping }: { role: "user" | "assist
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className={cn(
-        "flex gap-4 p-6 w-full max-w-4xl mx-auto rounded-2xl transition-colors pt-[12px] pb-[12px]",
-        role === "assistant" 
-          ? "dark:bg-secondary/10 bg-[#8888f74d] flex-row-reverse" 
-          : "bg-white/50 border border-border/50"
-      )}
+      className="flex gap-4 p-6 w-full max-w-4xl mx-auto rounded-2xl transition-colors dark:bg-secondary/10 bg-[#8888f74d] flex-row-reverse pt-[10px] pb-[10px] mt-[120px] mb-[120px]"
     >
       <div className="shrink-0 mt-1">
         <Avatar className={cn(
