@@ -94,6 +94,18 @@ Preferred communication style: Simple, everyday language.
 
 # Recent Changes
 
+## December 5, 2025 - Personal Storefront (Vitrin)
+- **سیستم ویترین فروشگاه شخصی برای فروشندگان سطح 1**:
+  - صفحه عمومی ویترین در `/vitrin/:username` برای نمایش محصولات فروشنده
+  - سیستم چت مستقیم با فروشنده با امنیت session token
+  - صفحه تنظیمات ویترین در `/vitrin-settings` برای فروشندگان
+  - فیلدهای `storeName` و `storeDescription` به جدول users اضافه شد
+  - API های عمومی: GET /api/vitrin/:username, /api/vitrin/:username/products, /api/vitrin/:username/categories
+  - API های چت: POST /api/vitrin/:username/chat, GET /api/vitrin/:username/chat/:sessionToken
+  - API های فروشنده (احراز هویت): GET/PUT /api/seller/vitrin, POST /api/seller/vitrin/logo
+  - امنیت: session token شامل username فروشنده برای جلوگیری از دسترسی غیرمجاز
+  - طراحی RTL کامل با پشتیبانی از زبان فارسی
+
 ## November 28, 2025 - Auto-Save Crypto Transactions
 - **سیستم ذخیره‌سازی خودکار تراکنش‌های ارز دیجیتال**:
   - جدول `cryptoTransactions` در دیتابیس برای ذخیره‌سازی تفاصیل پرداخت ارز
@@ -123,7 +135,7 @@ Preferred communication style: Simple, everyday language.
 # Replit Setup & Configuration
 
 ## Initial Setup (Completed)
-- **Date**: November 29, 2025 (Fresh GitHub Clone Import - Setup Completed)
+- **Date**: December 5, 2025 (Fresh GitHub Clone Import - Setup Completed)
 - **Status**: ✅ Successfully imported and configured in Replit environment
 - **Setup Actions**:
   - ✅ Installed all npm dependencies (642 packages)

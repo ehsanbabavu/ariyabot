@@ -4956,6 +4956,227 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =================
+  // VITRIN ROUTES (ویترین فروشگاه شخصی)
+  // =================
+
+  // Get seller's vitrin info (public)
+  app.get("/api/vitrin/:username", async (req, res) => {
+    try {
+      const { username } = req.params;
+      
+      const seller = await storage.getUserByUsername(username);
+      
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "فروشگاه یافت نشد" });
+      }
+
+      res.json({
+        id: seller.id,
+        username: seller.username,
+        storeName: seller.storeName || `فروشگاه ${seller.firstName}`,
+        storeDescription: seller.storeDescription || "",
+        storeLogo: seller.storeLogo || seller.profilePicture,
+        firstName: seller.firstName,
+        lastName: seller.lastName,
+      });
+    } catch (error) {
+      console.error("Error getting vitrin info:", error);
+      res.status(500).json({ message: "خطا در دریافت اطلاعات فروشگاه" });
+    }
+  });
+
+  // Get seller's products (public)
+  app.get("/api/vitrin/:username/products", async (req, res) => {
+    try {
+      const { username } = req.params;
+      
+      const seller = await storage.getUserByUsername(username);
+      
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "فروشگاه یافت نشد" });
+      }
+
+      const products = await storage.getProductsByUser(seller.id);
+      const activeProducts = products.filter((p: any) => p.isActive);
+
+      res.json(activeProducts);
+    } catch (error) {
+      console.error("Error getting vitrin products:", error);
+      res.status(500).json({ message: "خطا در دریافت محصولات" });
+    }
+  });
+
+  // Get seller's categories (public)
+  app.get("/api/vitrin/:username/categories", async (req, res) => {
+    try {
+      const { username } = req.params;
+      
+      const seller = await storage.getUserByUsername(username);
+      
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "فروشگاه یافت نشد" });
+      }
+
+      const categories = await storage.getAllCategories(seller.id, seller.role);
+      const activeCategories = categories.filter((c: any) => c.isActive);
+
+      res.json(activeCategories);
+    } catch (error) {
+      console.error("Error getting vitrin categories:", error);
+      res.status(500).json({ message: "خطا در دریافت دسته‌بندی‌ها" });
+    }
+  });
+
+  // Send message to seller via vitrin chat (public)
+  app.post("/api/vitrin/:username/chat", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { sessionToken, message, guestName, guestPhone } = req.body;
+      
+      if (!sessionToken || !message?.trim()) {
+        return res.status(400).json({ message: "توکن جلسه و پیام الزامی است" });
+      }
+      
+      // Validate session token belongs to this seller (format: vitrin_sellerId_timestamp_random)
+      if (!sessionToken.startsWith(`vitrin_${username}_`)) {
+        return res.status(403).json({ message: "توکن جلسه معتبر نیست" });
+      }
+      
+      const seller = await storage.getUserByUsername(username);
+      
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "فروشگاه یافت نشد" });
+      }
+
+      // Get IP address
+      const rawIpAddress = req.headers['x-forwarded-for'] as string || req.ip || 'Unknown';
+      const guestIpAddress = typeof rawIpAddress === 'string' ? rawIpAddress.replace(/,\s*/g, '---') : rawIpAddress;
+
+      // Check if session already exists
+      let session = await storage.getGuestChatSessionByToken(sessionToken);
+      
+      if (!session) {
+        // Create new session with seller as target
+        session = await storage.createGuestChatSession(sessionToken, guestName, guestPhone, guestIpAddress);
+      }
+
+      // Create the message
+      const newMessage = await storage.createGuestChatMessage(session.id, message.trim(), "guest");
+      
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error sending vitrin chat message:", error);
+      res.status(500).json({ message: "خطا در ارسال پیام" });
+    }
+  });
+
+  // Get vitrin chat messages (public)
+  app.get("/api/vitrin/:username/chat/:sessionToken", async (req, res) => {
+    try {
+      const { username, sessionToken } = req.params;
+      
+      // Validate session token belongs to this seller (format: vitrin_sellerId_timestamp_random)
+      if (!sessionToken.startsWith(`vitrin_${username}_`)) {
+        return res.status(403).json({ message: "توکن جلسه معتبر نیست" });
+      }
+      
+      const seller = await storage.getUserByUsername(username);
+      
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "فروشگاه یافت نشد" });
+      }
+
+      const session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        return res.status(404).json({ message: "جلسه چت یافت نشد" });
+      }
+
+      const messages = await storage.getGuestChatMessages(session.id);
+      
+      // Mark admin messages as read
+      await storage.markGuestChatMessagesAsRead(session.id, "guest");
+
+      res.json({ session, messages });
+    } catch (error) {
+      console.error("Error getting vitrin chat messages:", error);
+      res.status(500).json({ message: "خطا در دریافت پیام‌ها" });
+    }
+  });
+
+  // Get seller's vitrin settings (authenticated - level 1 only)
+  app.get("/api/seller/vitrin", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "user_level_1") {
+        return res.status(403).json({ message: "فقط فروشندگان به این بخش دسترسی دارند" });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "کاربر یافت نشد" });
+      }
+
+      res.json({
+        username: user.username,
+        storeName: user.storeName || `فروشگاه ${user.firstName}`,
+        storeDescription: user.storeDescription || "",
+        storeLogo: user.storeLogo || user.profilePicture,
+        vitrinUrl: `/vitrin/${user.username}`,
+      });
+    } catch (error) {
+      console.error("Error getting seller vitrin settings:", error);
+      res.status(500).json({ message: "خطا در دریافت تنظیمات ویترین" });
+    }
+  });
+
+  // Update seller's vitrin settings (authenticated - level 1 only)
+  app.put("/api/seller/vitrin", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "user_level_1") {
+        return res.status(403).json({ message: "فقط فروشندگان به این بخش دسترسی دارند" });
+      }
+
+      const { storeName, storeDescription } = req.body;
+
+      await storage.updateUser(req.user.id, {
+        storeName: storeName || null,
+        storeDescription: storeDescription || null,
+      });
+
+      res.json({ message: "تنظیمات ویترین با موفقیت به‌روزرسانی شد" });
+    } catch (error) {
+      console.error("Error updating seller vitrin settings:", error);
+      res.status(500).json({ message: "خطا در به‌روزرسانی تنظیمات ویترین" });
+    }
+  });
+
+  // Upload store logo (authenticated - level 1 only)
+  app.post("/api/seller/vitrin/logo", authenticateToken, upload.single("logo"), async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "user_level_1") {
+        return res.status(403).json({ message: "فقط فروشندگان به این بخش دسترسی دارند" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "فایل تصویر الزامی است" });
+      }
+
+      const logoUrl = `/uploads/${req.file.filename}`;
+      
+      await storage.updateUser(req.user.id, {
+        storeLogo: logoUrl,
+      });
+
+      res.json({ 
+        message: "لوگوی فروشگاه با موفقیت آپلود شد",
+        logoUrl 
+      });
+    } catch (error) {
+      console.error("Error uploading store logo:", error);
+      res.status(500).json({ message: "خطا در آپلود لوگو" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

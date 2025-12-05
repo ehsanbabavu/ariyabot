@@ -26,6 +26,9 @@ export const users = pgTable("users", {
   profilePicture: text("profile_picture"),
   isWhatsappRegistered: boolean("is_whatsapp_registered").notNull().default(false), // Track if user was auto-registered via WhatsApp
   welcomeMessage: text("welcome_message"), // Custom welcome message for WhatsApp auto-registration
+  storeName: text("store_name"), // نام فروشگاه برای ویترین شخصی (کاربران سطح 1)
+  storeDescription: text("store_description"), // توضیحات فروشگاه
+  storeLogo: text("store_logo"), // لوگوی فروشگاه
   createdAt: timestamp("created_at").defaultNow(),
 });
 
