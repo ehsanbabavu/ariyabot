@@ -14,8 +14,9 @@ export class GeminiService {
       const tokenSettings = await storage.getAiTokenSettings("gemini");
       if (tokenSettings?.token && tokenSettings.isActive) {
         this.genAI = new GoogleGenerativeAI(tokenSettings.token);
-        this.model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-        console.log("🤖 سرویس Gemini AI با موفقیت راه‌اندازی شد");
+        const modelName = tokenSettings.model || "gemini-1.5-flash";
+        this.model = this.genAI.getGenerativeModel({ model: modelName });
+        console.log(`🤖 سرویس Gemini AI با مدل ${modelName} راه‌اندازی شد`);
       } else {
         console.log("⚠️ توکن Gemini AI تنظیم نشده یا غیرفعال است");
       }

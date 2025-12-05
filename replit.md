@@ -2,6 +2,16 @@
 
 **Ariya Bot** is an intelligent 24/7 customer support assistant and a modern, full-stack TypeScript Persian e-commerce platform. It aims to transform customer communication and streamline online business management, offering features from automated customer interactions to order processing. The project provides a comprehensive web application built for the Persian market, including intelligent customer support, e-commerce, user management, ticketing, inventory control, and subscription services with role-based access. It features a fully localized Farsi UI with RTL support, a responsive mobile-first design, and AI-powered functionalities like smart ordering and WhatsApp-based deposit receipt processing, enhancing user experience through advanced AI and robust system architecture.
 
+# Recent Changes
+
+**December 5, 2024**: Successfully imported GitHub project to Replit environment
+- Installed all npm dependencies
+- Pushed database schema using Drizzle
+- Fixed missing stock images for vitrin page
+- Configured workflow to run on port 5000 with webview
+- Set up deployment configuration for VM deployment
+- Application running successfully with test data
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -45,6 +55,38 @@ Preferred communication style: Simple, everyday language.
 - **AI Architecture**: Dual AI provider system (Gemini AI, Liara AI) with an AI Service Orchestrator for centralized management and automatic failover.
 - **Development & Deployment**: Vite for frontend bundling; Express serves static assets. Configured for VM deployment.
 - **Security**: JWT_SECRET and ADMIN_PASSWORD managed via Replit Secrets.
+
+## Replit Environment Setup
+
+### Database
+- PostgreSQL database is automatically provisioned via Replit
+- DATABASE_URL is automatically set in secrets
+- Schema is managed via Drizzle ORM
+- Run `npm run db:push` to sync schema changes
+
+### Default Credentials (Development)
+- Admin username: `ehsan`
+- Admin password: `admin123` (can be changed via ADMIN_PASSWORD secret)
+- Test seller username: `test_seller`, password: `test123`
+
+### Optional Environment Variables (Secrets)
+- `JWT_SECRET`: JWT signing secret (defaults to dev secret in development)
+- `ADMIN_PASSWORD`: Admin user password (defaults to "admin123")
+- `GEMINI_API_KEY`: Google Gemini AI API key (for AI features)
+- `LIARA_API_KEY`: Liara AI API key (alternative AI provider)
+- `CARDANOSCAN_API_KEY`: Cardanoscan API key (for Cardano blockchain integration)
+- `TRONGRID_API_KEY`: TronGrid API key (for Tron blockchain integration)
+
+### Running the Application
+- Development: `npm run dev` (runs on port 5000)
+- Production build: `npm run build`
+- Production start: `npm start`
+
+### Deployment
+- Configured for VM deployment on Replit
+- Build command: `npm run build`
+- Run command: `npm start`
+- Serves on port 5000 (auto-configured via PORT env var)
 
 # External Dependencies
 

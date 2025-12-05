@@ -184,7 +184,12 @@ class AIService {
     
     if (this.currentProvider === "gemini" && geminiService.isActive()) {
       const activeFaqs = faqs || await storage.getActiveFaqs();
-      return await geminiService.findMatchingFaq(userQuestion, activeFaqs);
+      const faqsWithId = activeFaqs.map(faq => ({
+        id: faq.id || '',
+        question: faq.question,
+        answer: faq.answer
+      }));
+      return await geminiService.findMatchingFaq(userQuestion, faqsWithId);
     } else if (this.currentProvider === "liara" && liaraService.isActive()) {
       return await liaraService.findMatchingFaq(userQuestion);
     }

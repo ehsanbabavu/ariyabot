@@ -114,6 +114,7 @@ export const aiTokenSettings = pgTable("ai_token_settings", {
   token: text("token").notNull(),
   provider: text("provider").notNull(), // gemini, liara
   workspaceId: text("workspace_id"), // workspace ID for Liara (optional)
+  model: text("model"), // model name (e.g. gemini-1.5-flash, gemini-2.0-flash-exp)
   isActive: boolean("is_active").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

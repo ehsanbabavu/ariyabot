@@ -5127,7 +5127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { aiService } = await import("./ai-service");
       
       // Get seller's products for context (even if AI is inactive, for fallback)
-      const products = await storage.getProductsBySeller(seller.id);
+      const products = await storage.getProductsByUser(seller.id);
       const storeName = seller.storeName || `فروشگاه ${seller.firstName}`;
       
       if (!aiService.isActive()) {
