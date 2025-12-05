@@ -26,12 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-import productImg1 from "@assets/stock_images/product_package_box__1e712da4.jpg";
-import productImg2 from "@assets/stock_images/product_package_box__99223179.jpg";
-import productImg3 from "@assets/stock_images/product_package_box__e1cc69ed.jpg";
-import productImg4 from "@assets/stock_images/product_package_box__89581715.jpg";
-import productImg5 from "@assets/stock_images/product_package_box__049f72e1.jpg";
-import productImg6 from "@assets/stock_images/product_package_box__f1802ba8.jpg";
+const placeholderImage = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%23f3f4f6' width='200' height='200'/%3E%3Ctext fill='%239ca3af' font-family='sans-serif' font-size='14' text-anchor='middle' x='100' y='100'%3E%D8%AA%D8%B5%D9%88%DB%8C%D8%B1 %D9%85%D8%AD%D8%B5%D9%88%D9%84%3C/text%3E%3C/svg%3E";
 
 interface VitrinInfo {
   id: string;
@@ -58,18 +53,27 @@ interface Message {
   content: string;
 }
 
+interface CartItem {
+  productId: string;
+  name: string;
+  image: string | null;
+  priceAfterDiscount: string;
+  priceBeforeDiscount: string;
+  quantity: number;
+}
+
 function formatPrice(price: string | number): string {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price;
   return numPrice.toLocaleString('fa-IR');
 }
 
-function VitrinChatMessage({ role, content, isTyping }: { role: "user" | "assistant"; content: string; isTyping?: boolean }) {
+function VitrinChatMessage({ role, content, isTyping, isFirst }: { role: "user" | "assistant"; content: string; isTyping?: boolean; isFirst?: boolean }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="flex gap-4 p-6 w-full max-w-4xl mx-auto rounded-2xl transition-colors dark:bg-secondary/10 bg-[#8888f74d] flex-row-reverse pt-[10px] pb-[10px] mt-[120px] mb-[120px]"
+      className={cn("flex gap-4 p-6 w-full max-w-4xl mx-auto rounded-2xl transition-colors dark:bg-secondary/10 bg-[#8888f74d] flex-row-reverse pt-[10px] pb-[10px]", isFirst ? "mt-[100px] mb-[20px]" : "mt-[120px] mb-[120px]")}
     >
       <div className="shrink-0 mt-1">
         <Avatar className={cn(
@@ -242,7 +246,53 @@ export default function VitrinPage() {
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const addToCart = (product: Product) => {
+    setCartItems((prev) => {
+      const existingItem = prev.find((item) => item.productId === product.id);
+      if (existingItem) {
+        return prev.map((item) =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [
+        ...prev,
+        {
+          productId: product.id,
+          name: product.name,
+          image: product.image,
+          priceAfterDiscount: product.priceAfterDiscount || product.priceBeforeDiscount,
+          priceBeforeDiscount: product.priceBeforeDiscount,
+          quantity: 1,
+        },
+      ];
+    });
+  };
+
+  const removeFromCart = (productId: string) => {
+    setCartItems((prev) => prev.filter((item) => item.productId !== productId));
+  };
+
+  const updateQuantity = (productId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+    } else {
+      setCartItems((prev) =>
+        prev.map((item) =>
+          item.productId === productId ? { ...item, quantity } : item
+        )
+      );
+    }
+  };
+
+  const cartTotal = cartItems.reduce(
+    (total, item) => total + parseFloat(item.priceAfterDiscount) * item.quantity,
+    0
+  );
 
   const { data: vitrinInfo, isLoading: isLoadingVitrin, error: vitrinError } = useQuery<VitrinInfo>({
     queryKey: ["/api/vitrin", username],
@@ -359,12 +409,12 @@ export default function VitrinPage() {
   }
 
   const fallbackProducts = [
-    { id: "1", name: "محصول 1", priceBeforeDiscount: "250000", priceAfterDiscount: "180000", description: "این محصول با کیفیت عالی و قیمت مناسب برای شما فراهم شده است.", image: productImg1, quantity: 10 },
-    { id: "2", name: "محصول 2", priceBeforeDiscount: "320000", priceAfterDiscount: "220000", description: "یکی از بهترین انتخاب ها در این دسته بندی است.", image: productImg2, quantity: 5 },
-    { id: "3", name: "محصول 3", priceBeforeDiscount: "180000", priceAfterDiscount: "135000", description: "محصول اقتصادی و با کارایی بالا برای افراد کم بودجه.", image: productImg3, quantity: 15 },
-    { id: "4", name: "محصول 4", priceBeforeDiscount: "420000", priceAfterDiscount: "280000", description: "محصول پریمیوم با تکنولوژی روز دنیا و طراحی شیک.", image: productImg4, quantity: 8 },
-    { id: "5", name: "محصول 5", priceBeforeDiscount: "150000", priceAfterDiscount: "99000", description: "گزینه برتر برای خریداران اقتصادی.", image: productImg5, quantity: 20 },
-    { id: "6", name: "محصول 6", priceBeforeDiscount: "380000", priceAfterDiscount: "250000", description: "محصول جدید با ویژگی های بهبود یافته.", image: productImg6, quantity: 3 },
+    { id: "1", name: "محصول 1", priceBeforeDiscount: "250000", priceAfterDiscount: "180000", description: "این محصول با کیفیت عالی و قیمت مناسب برای شما فراهم شده است.", image: placeholderImage, quantity: 10 },
+    { id: "2", name: "محصول 2", priceBeforeDiscount: "320000", priceAfterDiscount: "220000", description: "یکی از بهترین انتخاب ها در این دسته بندی است.", image: placeholderImage, quantity: 5 },
+    { id: "3", name: "محصول 3", priceBeforeDiscount: "180000", priceAfterDiscount: "135000", description: "محصول اقتصادی و با کارایی بالا برای افراد کم بودجه.", image: placeholderImage, quantity: 15 },
+    { id: "4", name: "محصول 4", priceBeforeDiscount: "420000", priceAfterDiscount: "280000", description: "محصول پریمیوم با تکنولوژی روز دنیا و طراحی شیک.", image: placeholderImage, quantity: 8 },
+    { id: "5", name: "محصول 5", priceBeforeDiscount: "150000", priceAfterDiscount: "99000", description: "گزینه برتر برای خریداران اقتصادی.", image: placeholderImage, quantity: 20 },
+    { id: "6", name: "محصول 6", priceBeforeDiscount: "380000", priceAfterDiscount: "250000", description: "محصول جدید با ویژگی های بهبود یافته.", image: placeholderImage, quantity: 3 },
   ];
 
   const displayProducts = products && products.length > 0 ? products : fallbackProducts;
@@ -377,7 +427,7 @@ export default function VitrinPage() {
             <div className="flex-1 overflow-y-auto scroll-smooth pt-30 bg-[#fafafa]">
               <div className="max-w-4xl mx-auto p-4 space-y-6 min-h-full pb-32">
                 {messages.map((msg, i) => (
-                  <VitrinChatMessage key={i} role={msg.role} content={msg.content} />
+                  <VitrinChatMessage key={i} role={msg.role} content={msg.content} isFirst={i === 0} />
                 ))}
                 {isLoading && (
                   <VitrinChatMessage role="assistant" content="" isTyping={true} />
@@ -398,7 +448,7 @@ export default function VitrinPage() {
                   <div key={product.id} className="bg-white rounded-xl overflow-hidden shadow-md border border-border/50 hover:shadow-lg hover:border-primary/30 transition-all duration-300 flex flex-col h-full">
                     <div className="w-full aspect-video relative overflow-hidden group">
                       <img 
-                        src={product.image || productImg1} 
+                        src={product.image || placeholderImage} 
                         alt={product.name} 
                         className="w-full h-full object-cover" 
                       />
@@ -415,7 +465,10 @@ export default function VitrinPage() {
                         {product.description || "محصول با کیفیت عالی"}
                       </p>
                       <div className="flex items-center justify-between gap-2">
-                        <Button size="sm" className="h-8 sm:h-9 w-8 sm:w-9 p-0 rounded-lg font-semibold bg-[#6572e5e6] text-[#ffffff] hover:bg-[#6572e5e6]/90 flex items-center justify-center">
+                        <Button 
+                          size="sm" 
+                          onClick={() => addToCart(product)}
+                          className="h-8 sm:h-9 w-8 sm:w-9 p-0 rounded-lg font-semibold bg-[#6572e5e6] text-[#ffffff] hover:bg-[#6572e5e6]/90 flex items-center justify-center">
                           <Plus className="w-3.5 h-3.5" />
                         </Button>
                         <div className="flex flex-col flex-1">
@@ -436,11 +489,78 @@ export default function VitrinPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="cart" className="flex-1 overflow-auto px-6 pb-6 pt-24 mt-0 data-[state=inactive]:hidden h-full">
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-border pt-[0px] pb-[0px] mt-[40px] mb-[40px]">
-                <p className="text-muted-foreground text-center py-12">سبد خرید شما خالی است</p>
-              </div>
+          <TabsContent value="cart" className="flex-1 flex flex-col overflow-hidden px-6 pt-24 mt-0 data-[state=inactive]:hidden h-full">
+            <div className="max-w-4xl mx-auto w-full h-full flex flex-col">
+              {cartItems.length === 0 ? (
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
+                  <p className="text-muted-foreground text-center py-12">سبد خرید شما خالی است</p>
+                </div>
+              ) : (
+                <div className="flex flex-col h-full min-h-0">
+                  {/* Total Card at Top */}
+                  <div className="bg-white rounded-lg p-4 shadow-lg border border-primary/30 mb-4 mt-20 flex-shrink-0">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-sm font-semibold">جمع کل:</span>
+                      <span className="text-lg font-bold text-primary">{formatPrice(cartTotal)} تومان</span>
+                    </div>
+                    <Button className="w-full bg-primary text-primary-foreground">
+                      ادامه خرید
+                    </Button>
+                  </div>
+                  
+                  {/* Scrollable Products List */}
+                  <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pb-24">
+                    {cartItems.map((item) => (
+                      <div key={item.productId} className="bg-white rounded-lg p-2 shadow-sm border border-border/50 flex gap-2 items-center">
+                        {item.image && (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-16 h-16 rounded-lg object-cover"
+                          />
+                        )}
+                        <div className="flex-1 flex flex-col justify-between text-right">
+                          <div>
+                            <h3 className="font-semibold text-[12px]">{item.name}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {formatPrice(item.priceAfterDiscount)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFromCart(item.productId)}
+                            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 text-xs"
+                          >
+                            ✕
+                          </Button>
+                          <div className="flex items-center gap-1 border border-border rounded">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                              className="h-6 w-6 p-0 text-xs"
+                            >
+                              −
+                            </Button>
+                            <span className="w-6 text-center text-xs">{item.quantity}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                              className="h-6 w-6 p-0 text-xs"
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
