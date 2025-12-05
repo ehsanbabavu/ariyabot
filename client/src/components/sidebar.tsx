@@ -152,6 +152,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   ];
 
   const level1MenuItems = [
+    { path: "/vitrin-settings", label: "ویترین فروشگاه", icon: Store },
     { path: "/received-orders", label: "سفارشات دریافتی", icon: Package },
     { path: "/transactions", label: "مدیریت تراکنش‌ها", icon: DollarSign },
     { path: "/crypto-transactions", label: "تراکنش ارز دیجیتال", icon: Wallet },
