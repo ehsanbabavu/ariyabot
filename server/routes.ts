@@ -5167,6 +5167,104 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
     }
   });
 
+  // Quick registration for vitrin customers (public)
+  app.post("/api/vitrin/:username/quick-register", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { phone, password } = req.body;
+      
+      if (!phone?.trim() || !password?.trim()) {
+        return res.status(400).json({ message: "لطفاً شماره تلفن و رمز عبور را وارد کنید" });
+      }
+      
+      if (password.length < 6) {
+        return res.status(400).json({ message: "رمز عبور باید حداقل ۶ کاراکتر باشد" });
+      }
+      
+      const seller = await storage.getUserByUsername(username);
+      
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "فروشگاه یافت نشد" });
+      }
+      
+      const normalizedPhone = phone.trim().startsWith('98') 
+        ? '0' + phone.trim().substring(2) 
+        : phone.trim();
+      
+      const existingUser = await storage.getUserByUsername(normalizedPhone);
+      if (existingUser) {
+        const isPasswordValid = await bcrypt.compare(password, existingUser.password || '');
+        if (isPasswordValid) {
+          const token = jwt.sign({ userId: existingUser.id }, jwtSecret, { expiresIn: "7d" });
+          return res.json({ 
+            user: { ...existingUser, password: undefined },
+            token,
+            isExisting: true
+          });
+        } else {
+          return res.status(400).json({ message: "این شماره قبلاً ثبت شده است. رمز عبور اشتباه است" });
+        }
+      }
+      
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const storeName = seller.storeName || `فروشگاه ${seller.firstName}`;
+      
+      const user = await storage.createUser({
+        username: normalizedPhone,
+        firstName: "مشتری",
+        lastName: storeName,
+        phone: normalizedPhone,
+        whatsappNumber: normalizedPhone,
+        password: hashedPassword,
+        role: "user_level_2",
+        parentUserId: seller.id,
+      });
+      
+      try {
+        const trialSubscription = (await storage.getAllSubscriptions()).find(sub => 
+          sub.isDefault === true
+        );
+        
+        if (trialSubscription) {
+          await storage.createUserSubscription({
+            userId: user.id,
+            subscriptionId: trialSubscription.id,
+            remainingDays: 7,
+            startDate: new Date(),
+            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            status: "active",
+            isTrialPeriod: true,
+          });
+        }
+      } catch (trialError) {
+        console.error("خطا در ایجاد اشتراک آزمایشی:", trialError);
+      }
+      
+      try {
+        const whatsappSettings = await storage.getWhatsappSettings();
+        if (whatsappSettings?.notifications?.includes('new_user') && whatsappSettings.isEnabled && whatsappSettings.token) {
+          if (seller.phone) {
+            const message = `👤 مشتری جدید از ویترین\n\nشماره: ${normalizedPhone}\nفروشگاه: ${storeName}`;
+            await whatsAppSender.sendMessage(seller.phone, message, seller.id);
+          }
+        }
+      } catch (notificationError) {
+        console.error("خطا در ارسال اعلان:", notificationError);
+      }
+      
+      const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: "7d" });
+      
+      res.json({ 
+        user: { ...user, password: undefined },
+        token,
+        isExisting: false
+      });
+    } catch (error) {
+      console.error("Error in vitrin quick register:", error);
+      res.status(500).json({ message: "خطا در ثبت‌نام" });
+    }
+  });
+
   // Get seller's vitrin settings (authenticated - level 1 only)
   app.get("/api/seller/vitrin", authenticateToken, async (req: AuthRequest, res) => {
     try {
