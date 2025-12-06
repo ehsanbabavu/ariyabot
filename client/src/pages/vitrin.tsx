@@ -280,6 +280,12 @@ export default function VitrinPage() {
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [registrationError, setRegistrationError] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isVitrinAuthenticated, setIsVitrinAuthenticated] = useState(() => {
+    if (typeof window !== 'undefined' && username) {
+      return localStorage.getItem(`vitrin_auth_${username}`) === 'true';
+    }
+    return false;
+  });
   const [currentUser, setCurrentUser] = useState<{ firstName: string; lastName: string } | null>(null);
 
   useEffect(() => {
@@ -345,15 +351,12 @@ export default function VitrinPage() {
     setRegistrationError("");
     
     try {
-      const response = await fetch("/api/auth/register", {
+      const response = await fetch(`/api/vitrin/${username}/quick-register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName: "کاربر",
-          lastName: "ویترین",
           phone: registrationPhone,
           password: registrationPassword,
-          role: "user_level_2"
         }),
       });
       
@@ -364,7 +367,9 @@ export default function VitrinPage() {
       }
       
       localStorage.setItem("token", data.token);
+      localStorage.setItem(`vitrin_auth_${username}`, 'true');
       setIsAuthenticated(true);
+      setIsVitrinAuthenticated(true);
       setCurrentUser({ firstName: data.user.firstName, lastName: data.user.lastName });
       setShowRegistrationForm(false);
       setRegistrationPhone("");
@@ -376,6 +381,19 @@ export default function VitrinPage() {
     } finally {
       setRegistrationLoading(false);
     }
+  };
+
+  const isMessageSimilar = (msg1: string, msg2: string): boolean => {
+    if (!msg1 || !msg2) return false;
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+    const n1 = normalize(msg1);
+    const n2 = normalize(msg2);
+    if (n1 === n2) return true;
+    if (n1.length === 0 || n2.length === 0) return false;
+    const longer = n1.length > n2.length ? n1 : n2;
+    const shorter = n1.length > n2.length ? n2 : n1;
+    const similarity = longer.includes(shorter) || shorter.includes(longer.substring(0, Math.min(100, longer.length)));
+    return similarity;
   };
 
   const generateInvoiceMessage = () => {
@@ -411,6 +429,10 @@ export default function VitrinPage() {
 
   const sendInvoiceMessage = () => {
     const invoiceContent = generateInvoiceMessage();
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && isMessageSimilar(lastMessage.content, invoiceContent)) {
+      return;
+    }
     const invoiceMsg: Message = { role: "assistant", content: invoiceContent };
     setMessages((prev) => [...prev, invoiceMsg]);
   };
@@ -420,7 +442,7 @@ export default function VitrinPage() {
     
     setActiveTab("chat");
     
-    if (!isAuthenticated) {
+    if (!isVitrinAuthenticated) {
       setShowRegistrationForm(true);
     } else {
       sendInvoiceMessage();
@@ -513,17 +535,23 @@ export default function VitrinPage() {
 
     try {
       const response = await sendMessageMutation.mutateAsync(content);
-      const aiMsg: Message = {
-        role: "assistant",
-        content: response.response || response.fallbackResponse || "متشکرم از پیام شما! به زودی پاسخ خواهم داد.",
-      };
-      setMessages((prev) => [...prev, aiMsg]);
+      const aiContent = response.response || response.fallbackResponse || "متشکرم از پیام شما! به زودی پاسخ خواهم داد.";
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.role === "assistant" && isMessageSimilar(lastMessage.content, aiContent)) {
+          return prev;
+        }
+        return [...prev, { role: "assistant", content: aiContent }];
+      });
     } catch (error) {
-      const errorMsg: Message = {
-        role: "assistant",
-        content: "متأسفانه در پردازش پیام شما مشکلی پیش آمد. لطفاً دوباره تلاش کنید.",
-      };
-      setMessages((prev) => [...prev, errorMsg]);
+      const errorContent = "متأسفانه در پردازش پیام شما مشکلی پیش آمد. لطفاً دوباره تلاش کنید.";
+      setMessages((prev) => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.role === "assistant" && isMessageSimilar(lastMessage.content, errorContent)) {
+          return prev;
+        }
+        return [...prev, { role: "assistant", content: errorContent }];
+      });
     } finally {
       setIsLoading(false);
     }
