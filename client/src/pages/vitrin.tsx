@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +22,12 @@ import {
   Loader2,
   AlertCircle,
   Plus,
-  Smartphone
+  Smartphone,
+  Trash2,
+  CreditCard,
+  UserPlus,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -36,6 +43,8 @@ interface VitrinInfo {
   storeLogo: string | null;
   firstName: string;
   lastName: string;
+  bankCardNumber: string | null;
+  bankCardHolderName: string | null;
 }
 
 interface Product {
@@ -182,21 +191,29 @@ interface VitrinBottomNavProps {
   activeTab?: string;
   storeLogo?: string | null;
   storeName?: string;
+  cartCount?: number;
 }
 
-function VitrinBottomNav({ onShowcase, onCart, onProfile, activeTab, storeLogo, storeName }: VitrinBottomNavProps) {
+function VitrinBottomNav({ onShowcase, onCart, onProfile, activeTab, storeLogo, storeName, cartCount = 0 }: VitrinBottomNavProps) {
   return (
     <nav className="fixed top-0 left-0 right-0 h-20 border-b border-border/40 bg-white backdrop-blur-xl flex items-center justify-between px-6 z-20">
       <button
         onClick={onCart}
         className={cn(
-          "flex flex-col items-center gap-1 transition-colors",
+          "flex flex-col items-center gap-1 transition-colors relative",
           activeTab === "cart" 
             ? "text-blue-600" 
             : "text-muted-foreground hover:text-primary"
         )}
       >
-        <ShoppingCart className="w-6 h-6" />
+        <div className="relative">
+          <ShoppingCart className="w-6 h-6" />
+          {cartCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {cartCount > 99 ? '99+' : cartCount}
+            </span>
+          )}
+        </div>
         <span className={cn("font-normal text-[15px]", activeTab === "cart" ? "text-blue-600" : "text-[#000000]")}>سبد خرید</span>
       </button>
       
@@ -246,8 +263,169 @@ export default function VitrinPage() {
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    if (typeof window !== 'undefined' && username) {
+      const saved = localStorage.getItem(`vitrin_cart_${username}`);
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  
+  const [showRegistrationForm, setShowRegistrationForm] = useState(false);
+  const [registrationPhone, setRegistrationPhone] = useState("");
+  const [registrationPassword, setRegistrationPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [registrationLoading, setRegistrationLoading] = useState(false);
+  const [registrationError, setRegistrationError] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ firstName: string; lastName: string } | null>(null);
+
+  useEffect(() => {
+    if (username) {
+      const saved = localStorage.getItem(`vitrin_cart_${username}`);
+      if (saved) {
+        setCartItems(JSON.parse(saved));
+      }
+    }
+  }, [username]);
+
+  useEffect(() => {
+    if (username && cartItems.length >= 0) {
+      localStorage.setItem(`vitrin_cart_${username}`, JSON.stringify(cartItems));
+    }
+  }, [cartItems, username]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        return;
+      }
+      
+      try {
+        const response = await fetch("/api/auth/me", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setIsAuthenticated(true);
+          setCurrentUser({ firstName: data.user.firstName, lastName: data.user.lastName });
+        } else {
+          setIsAuthenticated(false);
+          setCurrentUser(null);
+        }
+      } catch (error) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    };
+    
+    checkAuth();
+  }, []);
+
+  const handleRegister = async () => {
+    if (!registrationPhone.trim() || !registrationPassword.trim()) {
+      setRegistrationError("لطفاً شماره تلفن و رمز عبور را وارد کنید");
+      return;
+    }
+    
+    if (registrationPassword.length < 6) {
+      setRegistrationError("رمز عبور باید حداقل ۶ کاراکتر باشد");
+      return;
+    }
+    
+    setRegistrationLoading(true);
+    setRegistrationError("");
+    
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: "کاربر",
+          lastName: "ویترین",
+          phone: registrationPhone,
+          password: registrationPassword,
+          role: "user_level_2"
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || "خطا در ثبت‌نام");
+      }
+      
+      localStorage.setItem("token", data.token);
+      setIsAuthenticated(true);
+      setCurrentUser({ firstName: data.user.firstName, lastName: data.user.lastName });
+      setShowRegistrationForm(false);
+      setRegistrationPhone("");
+      setRegistrationPassword("");
+      
+      sendInvoiceMessage();
+    } catch (error: any) {
+      setRegistrationError(error.message || "خطا در ثبت‌نام");
+    } finally {
+      setRegistrationLoading(false);
+    }
+  };
+
+  const generateInvoiceMessage = () => {
+    if (!vitrinInfo) return "";
+    
+    let invoice = `📋 فاکتور خرید از ${vitrinInfo.storeName}\n`;
+    invoice += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    
+    cartItems.forEach((item, index) => {
+      invoice += `${index + 1}. ${item.name}\n`;
+      invoice += `   تعداد: ${item.quantity} عدد\n`;
+      invoice += `   قیمت واحد: ${formatPrice(item.priceAfterDiscount)} تومان\n`;
+      invoice += `   جمع: ${formatPrice(parseFloat(item.priceAfterDiscount) * item.quantity)} تومان\n\n`;
+    });
+    
+    invoice += `━━━━━━━━━━━━━━━━━━━━\n`;
+    invoice += `💰 جمع کل: ${formatPrice(cartTotal)} تومان\n\n`;
+    
+    if (vitrinInfo.bankCardNumber) {
+      invoice += `💳 اطلاعات پرداخت:\n`;
+      invoice += `شماره کارت: ${vitrinInfo.bankCardNumber}\n`;
+      if (vitrinInfo.bankCardHolderName) {
+        invoice += `به نام: ${vitrinInfo.bankCardHolderName}\n`;
+      }
+      invoice += `\n✅ پس از واریز، تصویر رسید را ارسال کنید.`;
+    } else {
+      invoice += `⚠️ اطلاعات پرداخت فروشنده ثبت نشده است.\n`;
+      invoice += `لطفاً با فروشنده تماس بگیرید.`;
+    }
+    
+    return invoice;
+  };
+
+  const sendInvoiceMessage = () => {
+    const invoiceContent = generateInvoiceMessage();
+    const invoiceMsg: Message = { role: "assistant", content: invoiceContent };
+    setMessages((prev) => [...prev, invoiceMsg]);
+  };
+
+  const handleCheckout = () => {
+    if (cartItems.length === 0 || !vitrinInfo) return;
+    
+    setActiveTab("chat");
+    
+    if (!isAuthenticated) {
+      setShowRegistrationForm(true);
+    } else {
+      sendInvoiceMessage();
+    }
+  };
 
   const addToCart = (product: Product) => {
     setCartItems((prev) => {
@@ -432,6 +610,93 @@ export default function VitrinPage() {
                 {isLoading && (
                   <VitrinChatMessage role="assistant" content="" isTyping={true} />
                 )}
+                
+                {showRegistrationForm && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="bg-white rounded-2xl shadow-lg border border-primary/20 p-6 max-w-md mx-auto mt-6"
+                  >
+                    <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <UserPlus className="w-8 h-8 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-bold text-foreground">ثبت‌نام سریع</h3>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        برای ادامه خرید، لطفاً شماره تلفن و رمز عبور خود را وارد کنید
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="text-right block">شماره تلفن</Label>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          placeholder="09123456789"
+                          value={registrationPhone}
+                          onChange={(e) => setRegistrationPhone(e.target.value)}
+                          className="text-left"
+                          dir="ltr"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="password" className="text-right block">رمز عبور</Label>
+                        <div className="relative">
+                          <Input
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="حداقل ۶ کاراکتر"
+                            value={registrationPassword}
+                            onChange={(e) => setRegistrationPassword(e.target.value)}
+                            className="text-left pl-10"
+                            dir="ltr"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {registrationError && (
+                        <p className="text-sm text-destructive text-right">{registrationError}</p>
+                      )}
+                      
+                      <Button 
+                        onClick={handleRegister} 
+                        disabled={registrationLoading}
+                        className="w-full bg-primary text-primary-foreground"
+                      >
+                        {registrationLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 ml-2 animate-spin" />
+                            در حال ثبت‌نام...
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4 ml-2" />
+                            ثبت‌نام و ادامه خرید
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => setShowRegistrationForm(false)}
+                        className="w-full text-muted-foreground"
+                      >
+                        انصراف
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
+                
                 <div ref={messagesEndRef} />
               </div>
             </div>
@@ -498,12 +763,12 @@ export default function VitrinPage() {
               ) : (
                 <div className="flex flex-col h-full min-h-0">
                   {/* Total Card at Top */}
-                  <div className="bg-white rounded-lg p-4 shadow-lg border border-primary/30 mb-4 mt-20 flex-shrink-0">
+                  <div className="bg-white rounded-lg p-4 shadow-lg border border-primary/30 mb-4 mt-8 flex-shrink-0">
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-sm font-semibold">جمع کل:</span>
                       <span className="text-lg font-bold text-primary">{formatPrice(cartTotal)} تومان</span>
                     </div>
-                    <Button className="w-full bg-primary text-primary-foreground">
+                    <Button onClick={handleCheckout} className="w-full bg-primary text-primary-foreground">
                       ادامه خرید
                     </Button>
                   </div>
@@ -532,9 +797,9 @@ export default function VitrinPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => removeFromCart(item.productId)}
-                            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10 text-xs"
+                            className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
                           >
-                            ✕
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                           <div className="flex items-center gap-1 border border-border rounded">
                             <Button
@@ -573,6 +838,7 @@ export default function VitrinPage() {
         activeTab={activeTab}
         storeLogo={vitrinInfo.storeLogo}
         storeName={vitrinInfo.storeName}
+        cartCount={cartItems.reduce((total, item) => total + item.quantity, 0)}
       />
     </div>
   );
