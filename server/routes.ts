@@ -4979,6 +4979,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storeLogo: seller.storeLogo || seller.profilePicture,
         firstName: seller.firstName,
         lastName: seller.lastName,
+        bankCardNumber: seller.bankCardNumber || null,
+        bankCardHolderName: seller.bankCardHolderName || null,
       });
     } catch (error) {
       console.error("Error getting vitrin info:", error);
