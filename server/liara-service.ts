@@ -13,13 +13,13 @@ export class LiaraService {
     try {
       const tokenSettings = await storage.getAiTokenSettings("liara");
       if (tokenSettings?.token && tokenSettings.isActive) {
-        const workspaceId = (tokenSettings as any).workspaceId;
-        if (!workspaceId) {
-          console.log("⚠️ Workspace ID برای Liara AI تنظیم نشده است");
+        const baseUrl = (tokenSettings as any).workspaceId;
+        if (!baseUrl) {
+          console.log("⚠️ آدرس Base URL برای Liara AI تنظیم نشده است");
           return;
         }
         this.openai = new OpenAI({
-          baseURL: `https://ai.liara.ir/api/${workspaceId}/v1`,
+          baseURL: baseUrl,
           apiKey: tokenSettings.token,
         });
         console.log("🤖 سرویس Liara AI با موفقیت راه‌اندازی شد");
