@@ -257,15 +257,19 @@ export default function AITokenSettings() {
                     <CardContent>
                       <form onSubmit={handleSaveLiaraToken} className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="liaraWorkspaceId">Workspace ID</Label>
+                          <Label htmlFor="liaraWorkspaceId">آدرس Base URL</Label>
                           <Input
                             id="liaraWorkspaceId"
                             type="text"
                             value={liaraWorkspaceId}
                             onChange={(e) => setLiaraWorkspaceId(e.target.value)}
-                            placeholder="مثال: 68e204eb1008fc6ccd20c83d"
+                            placeholder="مثال: https://ai.liara.ir/api/v1/..."
+                            dir="ltr"
                             data-testid="input-liara-workspace-id"
                           />
+                          <p className="text-xs text-muted-foreground">
+                            این آدرس را از پنل لیارا بعد از ساخت سرویس AI دریافت کنید
+                          </p>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="liaraToken">توکن Liara API</Label>
