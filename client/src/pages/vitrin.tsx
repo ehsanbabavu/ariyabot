@@ -327,6 +327,8 @@ export default function VitrinPage() {
   const [sellerShippingSettings, setSellerShippingSettings] = useState<ShippingSettings | null>(null);
   const [orderCreating, setOrderCreating] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [sellerCardInfo, setSellerCardInfo] = useState<{ cardNumber: string; holderName: string | null } | null>(null);
+  const [showSellerCard, setShowSellerCard] = useState(false);
 
   useEffect(() => {
     if (username) {
@@ -596,7 +598,7 @@ export default function VitrinPage() {
     setOrderCreating(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch("/api/orders", {
+      const res = await fetch("/api/orders/vitrin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -629,20 +631,23 @@ export default function VitrinPage() {
             const sellerResponse = await fetch(`/api/vitrin/${vitrinInfo?.username}`);
             if (sellerResponse.ok) {
               const sellerData = await sellerResponse.json();
-              const cardInfo = sellerData?.bankCardNumber 
-                ? `\n\n💳 شماره کارت: ${sellerData.bankCardNumber}${sellerData.bankCardHolderName ? `\n👤 به نام: ${sellerData.bankCardHolderName}` : ""}`
-                : "\n\n⚠️ اطلاعات کارت فروشنده ثبت نشده است";
+              if (sellerData?.bankCardNumber) {
+                setSellerCardInfo({
+                  cardNumber: sellerData.bankCardNumber,
+                  holderName: sellerData.bankCardHolderName || null
+                });
+              }
               
               setMessages(prev => [...prev, {
                 role: "assistant",
-                content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)} →${cardInfo}`
+                content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}\n\n💳 برای مشاهده اطلاعات کارت فروشنده، روی دکمه "نمایش شماره کارت" کلیک کنید.`
               }]);
             }
           } catch (error) {
             console.error("Error fetching seller data:", error);
             setMessages(prev => [...prev, {
               role: "assistant",
-              content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)} →`
+              content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}`
             }]);
           }
         } else {
@@ -1071,25 +1076,6 @@ export default function VitrinPage() {
                       </RadioGroup>
                     </div>
 
-                    {/* نمایش شماره کارت فروشنده */}
-                    {vitrinInfo?.bankCardNumber && (
-                      <div className="mb-4 bg-green-50 rounded-lg p-3 border border-green-200">
-                        <div className="flex flex-row-reverse items-center gap-2 mb-2">
-                          <CreditCard className="w-5 h-5 text-green-600" />
-                          <h3 className="text-sm font-bold text-green-700">اطلاعات کارت فروشنده</h3>
-                        </div>
-                        <div className="space-y-1 text-right">
-                          <p className="text-sm font-mono bg-white p-2 rounded border text-center tracking-wider">
-                            {vitrinInfo.bankCardNumber}
-                          </p>
-                          {vitrinInfo.bankCardHolderName && (
-                            <p className="text-xs text-green-600">
-                              به نام: {vitrinInfo.bankCardHolderName}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
 
                     <div className="flex gap-2">
                       <Button 
@@ -1132,6 +1118,33 @@ export default function VitrinPage() {
                       className="w-full mt-2 h-8 text-[16px] font-bold text-gray-500"
                     >
                       انصراف
+                    </Button>
+                  </motion.div>
+                )}
+
+                {/* دکمه نمایش شماره کارت فروشنده */}
+                {sellerCardInfo && !showSellerCard && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-xl shadow-md border border-green-200 p-4 max-w-sm mx-auto mt-4"
+                  >
+                    <Button
+                      onClick={() => {
+                        const cardMessage = sellerCardInfo.holderName 
+                          ? `💳 شماره کارت فروشنده:\n\n${sellerCardInfo.cardNumber}\n\n👤 به نام: ${sellerCardInfo.holderName}`
+                          : `💳 شماره کارت فروشنده:\n\n${sellerCardInfo.cardNumber}`;
+                        setMessages(prev => [...prev, {
+                          role: "assistant",
+                          content: cardMessage
+                        }]);
+                        setShowSellerCard(true);
+                      }}
+                      className="w-full h-10 text-sm bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <CreditCard className="w-4 h-4 ml-2" />
+                      نمایش شماره کارت
                     </Button>
                   </motion.div>
                 )}
