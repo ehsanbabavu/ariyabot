@@ -452,17 +452,7 @@ export default function VitrinPage() {
     invoice += `━━━━━━━━━━━━━━━━━━━━\n`;
     invoice += `💰 جمع کل: ${formatPrice(cartTotal)} تومان\n\n`;
     
-    if (vitrinInfo.bankCardNumber) {
-      invoice += `💳 اطلاعات پرداخت:\n`;
-      invoice += `شماره کارت: ${vitrinInfo.bankCardNumber}\n`;
-      if (vitrinInfo.bankCardHolderName) {
-        invoice += `به نام: ${vitrinInfo.bankCardHolderName}\n`;
-      }
-      invoice += `\n✅ پس از واریز، تصویر رسید را ارسال کنید.`;
-    } else {
-      invoice += `⚠️ اطلاعات پرداخت فروشنده ثبت نشده است.\n`;
-      invoice += `لطفاً با فروشنده تماس بگیرید.`;
-    }
+    invoice += `✅ برای تکمیل خرید، لطفاً با فروشنده تماس بگیرید.`;
     
     return invoice;
   };
@@ -634,18 +624,31 @@ export default function VitrinPage() {
         setShowShippingSelector(false);
         
         if (paymentType === "card") {
-          const cardInfo = vitrinInfo?.bankCardNumber 
-            ? `\n💳 شماره کارت: ${vitrinInfo.bankCardNumber}\n👤 به نام: ${vitrinInfo.bankCardHolderName || "فروشنده"}`
-            : "\n⚠️ اطلاعات کارت فروشنده ثبت نشده است";
-          
-          setMessages(prev => [...prev, {
-            role: "assistant",
-            content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}${cardInfo}\n\n✅ پس از واریز، تصویر رسید را ارسال کنید.`
-          }]);
+          // Fetch seller info to get the latest bank card details
+          try {
+            const sellerResponse = await fetch(`/api/vitrin/${vitrinInfo?.username}`);
+            if (sellerResponse.ok) {
+              const sellerData = await sellerResponse.json();
+              const cardInfo = sellerData?.bankCardNumber 
+                ? `\n\n💳 شماره کارت: ${sellerData.bankCardNumber}${sellerData.bankCardHolderName ? `\n👤 به نام: ${sellerData.bankCardHolderName}` : ""}`
+                : "\n\n⚠️ اطلاعات کارت فروشنده ثبت نشده است";
+              
+              setMessages(prev => [...prev, {
+                role: "assistant",
+                content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)} →${cardInfo}`
+              }]);
+            }
+          } catch (error) {
+            console.error("Error fetching seller data:", error);
+            setMessages(prev => [...prev, {
+              role: "assistant",
+              content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)} →`
+            }]);
+          }
         } else {
           setMessages(prev => [...prev, {
             role: "assistant",
-            content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}\n\n₿ برای پرداخت با ارز دیجیتال، لطفاً از پنل کاربری خود اقدام کنید.`
+            content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)} →\n\n₿ برای پرداخت با ارز دیجیتال، لطفاً از پنل کاربری خود اقدام کنید.`
           }]);
         }
         setCheckoutOrder(null);
@@ -990,10 +993,10 @@ export default function VitrinPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="bg-white rounded-xl shadow-md border border-primary/20 p-4 max-w-md mx-auto mt-4"
+                    className="bg-white rounded-xl shadow-md border border-primary/20 p-4 max-w-md mx-auto mt-4 text-right"
                   >
                     <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex flex-row-reverse items-center gap-2 mb-3">
                         <Package className="w-5 h-5 text-primary" />
                         <h3 className="text-sm font-bold text-foreground">جزئیات سفارش</h3>
                       </div>
@@ -1023,12 +1026,12 @@ export default function VitrinPage() {
                     </div>
 
                     <div className="mb-4">
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex flex-row-reverse items-center gap-2 mb-3">
                         <Truck className="w-5 h-5 text-primary" />
                         <h3 className="text-sm font-bold text-foreground">نحوه ارسال</h3>
                       </div>
                       
-                      <RadioGroup value={selectedShipping} onValueChange={handleShippingSelect} className="space-y-2">
+                      <RadioGroup value={selectedShipping} onValueChange={handleShippingSelect} className="grid grid-cols-2 gap-3">
                         {sellerShippingSettings?.postPishtazEnabled && (
                           <div className="flex items-center space-x-2 space-x-reverse bg-gray-50 p-3 rounded-lg">
                             <RadioGroupItem value="post_pishtaz" id="post_pishtaz" />
@@ -1068,6 +1071,26 @@ export default function VitrinPage() {
                       </RadioGroup>
                     </div>
 
+                    {/* نمایش شماره کارت فروشنده */}
+                    {vitrinInfo?.bankCardNumber && (
+                      <div className="mb-4 bg-green-50 rounded-lg p-3 border border-green-200">
+                        <div className="flex flex-row-reverse items-center gap-2 mb-2">
+                          <CreditCard className="w-5 h-5 text-green-600" />
+                          <h3 className="text-sm font-bold text-green-700">اطلاعات کارت فروشنده</h3>
+                        </div>
+                        <div className="space-y-1 text-right">
+                          <p className="text-sm font-mono bg-white p-2 rounded border text-center tracking-wider">
+                            {vitrinInfo.bankCardNumber}
+                          </p>
+                          {vitrinInfo.bankCardHolderName && (
+                            <p className="text-xs text-green-600">
+                              به نام: {vitrinInfo.bankCardHolderName}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-2">
                       <Button 
                         onClick={() => handlePayment("card")} 
@@ -1106,7 +1129,7 @@ export default function VitrinPage() {
                         setCheckoutOrder(null);
                         setSelectedShipping("");
                       }}
-                      className="w-full mt-2 h-8 text-xs text-gray-500"
+                      className="w-full mt-2 h-8 text-[16px] font-bold text-gray-500"
                     >
                       انصراف
                     </Button>
@@ -1246,7 +1269,6 @@ export default function VitrinPage() {
           </TabsContent>
         </Tabs>
       </div>
-      
       <VitrinBottomNav 
         onShowcase={() => setActiveTab("showcase")} 
         onCart={() => setActiveTab("cart")} 
