@@ -5365,6 +5365,111 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
     }
   });
 
+  // Upload receipt image for vitrin (card-to-card payment verification)
+  app.post("/api/vitrin/:username/upload-receipt", uploadWhatsApp.single("receipt"), async (req, res) => {
+    try {
+      const { username } = req.params;
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "لطفاً تصویر رسید را ارسال کنید" });
+      }
+
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "فروشگاه یافت نشد" });
+      }
+
+      const imageUrl = `/UploadsPicClienet/${req.file.filename}`;
+      const fullImageUrl = `${req.protocol}://${req.get('host')}${imageUrl}`;
+
+      const { aiService } = await import("./ai-service");
+      
+      if (!aiService.isActive()) {
+        return res.status(503).json({ 
+          message: "سرویس پردازش تصویر در دسترس نیست. لطفاً بعداً تلاش کنید." 
+        });
+      }
+
+      let depositInfo;
+      try {
+        depositInfo = await aiService.extractDepositInfoFromImage(fullImageUrl);
+      } catch (aiError) {
+        console.error("Error extracting deposit info:", aiError);
+        return res.status(500).json({ 
+          message: "خطا در پردازش تصویر رسید. لطفاً تصویر واضح‌تری ارسال کنید." 
+        });
+      }
+
+      const missingFields = [];
+      if (!depositInfo.amount) missingFields.push('مبلغ');
+      if (!depositInfo.referenceId) missingFields.push('شماره پیگیری');
+      
+      if (missingFields.length > 0) {
+        return res.json({ 
+          message: `تصویر دریافت شد ولی اطلاعات کامل نیست. فیلدهای ناقص: ${missingFields.join('، ')}\n\nلطفاً تصویر واضح‌تری ارسال کنید یا اطلاعات را به صورت متن ارسال کنید.`,
+          extracted: depositInfo
+        });
+      }
+
+      if (depositInfo.referenceId) {
+        const existingTransaction = await storage.getTransactionByReferenceId(depositInfo.referenceId);
+        if (existingTransaction) {
+          return res.json({ 
+            message: "این رسید قبلاً ثبت شده است.",
+            duplicate: true
+          });
+        }
+      }
+
+      const transaction = await storage.createTransaction({
+        userId: seller.id,
+        type: "deposit",
+        amount: depositInfo.amount || "0",
+        description: `واریز کارت به کارت از ویترین - ${depositInfo.referenceId || 'بدون شماره پیگیری'}`,
+        referenceId: depositInfo.referenceId || null,
+        status: "pending",
+        paymentMethod: depositInfo.paymentMethod || "کارت به کارت",
+        transactionDate: depositInfo.transactionDate || null,
+        transactionTime: depositInfo.transactionTime || null,
+        accountSource: depositInfo.accountSource || null,
+        imageUrl: imageUrl
+      });
+
+      try {
+        if (seller.whatsappNumber || seller.phone) {
+          const formattedAmount = parseFloat(depositInfo.amount || "0").toLocaleString('fa-IR');
+          const notificationMessage = `💰 واریز جدید از ویترین\n\n` +
+            `مبلغ: ${formattedAmount} ریال\n` +
+            `شماره پیگیری: ${depositInfo.referenceId || 'نامشخص'}\n` +
+            `تاریخ: ${depositInfo.transactionDate || 'نامشخص'}\n\n` +
+            `⏳ در انتظار تایید شما`;
+          
+          await whatsAppSender.sendMessage(
+            seller.whatsappNumber || seller.phone,
+            notificationMessage,
+            seller.id
+          );
+        }
+      } catch (notifyError) {
+        console.error("Error sending notification:", notifyError);
+      }
+
+      res.json({ 
+        message: "تصویر رسید دریافت و پردازش شد. ✅\n\nاطلاعات استخراج شده:\n" +
+          `💰 مبلغ: ${parseFloat(depositInfo.amount || "0").toLocaleString('fa-IR')} ریال\n` +
+          `📋 شماره پیگیری: ${depositInfo.referenceId || 'نامشخص'}\n` +
+          `📅 تاریخ: ${depositInfo.transactionDate || 'نامشخص'}\n\n` +
+          `در انتظار تایید فروشنده...`,
+        success: true,
+        transactionId: transaction.id
+      });
+
+    } catch (error) {
+      console.error("Error processing receipt upload:", error);
+      res.status(500).json({ message: "خطا در پردازش تصویر رسید" });
+    }
+  });
+
   // Get seller's vitrin settings (authenticated - level 1 only)
   app.get("/api/seller/vitrin", authenticateToken, async (req: AuthRequest, res) => {
     try {
