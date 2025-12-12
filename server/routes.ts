@@ -2815,6 +2815,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create order from vitrin (uses items from request body, not cart)
+  app.post("/api/orders/vitrin", authenticateToken, requireLevel2, async (req: AuthRequest, res) => {
+    try {
+      const { sellerId, addressId, shippingMethod, items, notes } = req.body;
+      
+      if (!items || items.length === 0) {
+        return res.status(400).json({ message: "لیست محصولات خالی است" });
+      }
+
+      if (!sellerId) {
+        return res.status(400).json({ message: "شناسه فروشنده الزامی است" });
+      }
+
+      // Calculate total amount
+      let totalAmount = 0;
+      for (const item of items) {
+        totalAmount += parseFloat(item.totalPrice || item.unitPrice) * (item.quantity || 1);
+      }
+
+      // Get VAT settings
+      const vatSettings = await storage.getVatSettings(sellerId);
+      const vatPercentage = vatSettings?.isEnabled ? parseFloat(vatSettings.vatPercentage) : 0;
+      const vatAmount = Math.round(totalAmount * (vatPercentage / 100));
+      const totalWithVat = totalAmount + vatAmount;
+
+      // Create order
+      const order = await storage.createOrder({
+        userId: req.user!.id,
+        sellerId,
+        totalAmount: totalWithVat.toString(),
+        addressId: addressId || null,
+        shippingMethod: shippingMethod || null,
+        notes: notes || null
+      });
+
+      // Create order items
+      for (const item of items) {
+        await storage.createOrderItem({
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice || (parseFloat(item.unitPrice) * (item.quantity || 1)).toString()
+        });
+      }
+
+      // Generate and send invoice
+      try {
+        console.log(`🖼️ در حال تولید فاکتور برای سفارش ویترین ${order.id}...`);
+        const invoiceUrl = await generateAndSaveInvoice(order.id);
+        console.log(`✅ فاکتور ذخیره شد: ${invoiceUrl}`);
+        
+        const user = await storage.getUser(req.user!.id);
+        if (user && user.whatsappNumber) {
+          const success = await whatsAppSender.sendImage(
+            user.whatsappNumber,
+            `📄 فاکتور سفارش شما`,
+            invoiceUrl,
+            order.sellerId
+          );
+          
+          if (success) {
+            console.log(`✅ فاکتور با موفقیت به ${user.whatsappNumber} ارسال شد`);
+          }
+        }
+      } catch (error) {
+        console.error(`❌ خطا در تولید یا ارسال فاکتور:`, error);
+      }
+
+      res.status(201).json({ 
+        message: "سفارش با موفقیت ثبت شد",
+        orders: [order],
+        id: order.id
+      });
+    } catch (error: any) {
+      console.error("Vitrin order creation error:", error);
+      res.status(500).json({ message: "خطا در ثبت سفارش" });
+    }
+  });
+
   // Update order status (only for sellers)
   app.put("/api/orders/:id/status", authenticateToken, requireAdminOrLevel1, async (req: AuthRequest, res) => {
     try {
