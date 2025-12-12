@@ -125,6 +125,12 @@ var init_schema = __esm({
       // Track if user was auto-registered via WhatsApp
       welcomeMessage: text("welcome_message"),
       // Custom welcome message for WhatsApp auto-registration
+      storeName: text("store_name"),
+      // نام فروشگاه برای ویترین شخصی (کاربران سطح 1)
+      storeDescription: text("store_description"),
+      // توضیحات فروشگاه
+      storeLogo: text("store_logo"),
+      // لوگوی فروشگاه
       createdAt: timestamp("created_at").defaultNow()
     });
     tickets = pgTable("tickets", {
@@ -213,6 +219,8 @@ var init_schema = __esm({
       // gemini, liara
       workspaceId: text("workspace_id"),
       // workspace ID for Liara (optional)
+      model: text("model"),
+      // model name (e.g. gemini-1.5-flash, gemini-2.0-flash-exp)
       isActive: boolean("is_active").notNull().default(false),
       createdAt: timestamp("created_at").defaultNow(),
       updatedAt: timestamp("updated_at").defaultNow()
@@ -486,6 +494,8 @@ var init_schema = __esm({
       // تاریخ تراکنش
       walletAddress: text("wallet_address"),
       // آدرس ولت فروشنده
+      paymentStatus: text("payment_status").notNull().default("not_paid"),
+      // paid, not_paid
       registeredAt: timestamp("registered_at").defaultNow(),
       // زمان ثبت
       createdAt: timestamp("created_at").defaultNow()
@@ -4869,8 +4879,9 @@ var init_gemini_service = __esm({
           const tokenSettings = await storage.getAiTokenSettings("gemini");
           if (tokenSettings?.token && tokenSettings.isActive) {
             this.genAI = new GoogleGenerativeAI(tokenSettings.token);
-            this.model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-            console.log("\u{1F916} \u0633\u0631\u0648\u06CC\u0633 Gemini AI \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0631\u0627\u0647\u200C\u0627\u0646\u062F\u0627\u0632\u06CC \u0634\u062F");
+            const modelName = tokenSettings.model || "gemini-1.5-flash";
+            this.model = this.genAI.getGenerativeModel({ model: modelName });
+            console.log(`\u{1F916} \u0633\u0631\u0648\u06CC\u0633 Gemini AI \u0628\u0627 \u0645\u062F\u0644 ${modelName} \u0631\u0627\u0647\u200C\u0627\u0646\u062F\u0627\u0632\u06CC \u0634\u062F`);
           } else {
             console.log("\u26A0\uFE0F \u062A\u0648\u06A9\u0646 Gemini AI \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u06CC\u0627 \u063A\u06CC\u0631\u0641\u0639\u0627\u0644 \u0627\u0633\u062A");
           }
@@ -5410,13 +5421,13 @@ var init_liara_service = __esm({
         try {
           const tokenSettings = await storage.getAiTokenSettings("liara");
           if (tokenSettings?.token && tokenSettings.isActive) {
-            const workspaceId = tokenSettings.workspaceId;
-            if (!workspaceId) {
-              console.log("\u26A0\uFE0F Workspace ID \u0628\u0631\u0627\u06CC Liara AI \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A");
+            const baseUrl = tokenSettings.workspaceId;
+            if (!baseUrl) {
+              console.log("\u26A0\uFE0F \u0622\u062F\u0631\u0633 Base URL \u0628\u0631\u0627\u06CC Liara AI \u062A\u0646\u0638\u06CC\u0645 \u0646\u0634\u062F\u0647 \u0627\u0633\u062A");
               return;
             }
             this.openai = new OpenAI({
-              baseURL: `https://ai.liara.ir/api/${workspaceId}/v1`,
+              baseURL: baseUrl,
               apiKey: tokenSettings.token
             });
             console.log("\u{1F916} \u0633\u0631\u0648\u06CC\u0633 Liara AI \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0631\u0627\u0647\u200C\u0627\u0646\u062F\u0627\u0632\u06CC \u0634\u062F");
@@ -6119,7 +6130,12 @@ var init_ai_service = __esm({
         }
         if (this.currentProvider === "gemini" && geminiService.isActive()) {
           const activeFaqs = faqs2 || await storage.getActiveFaqs();
-          return await geminiService.findMatchingFaq(userQuestion, activeFaqs);
+          const faqsWithId = activeFaqs.map((faq) => ({
+            id: faq.id || "",
+            question: faq.question,
+            answer: faq.answer
+          }));
+          return await geminiService.findMatchingFaq(userQuestion, faqsWithId);
         } else if (this.currentProvider === "liara" && liaraService.isActive()) {
           return await liaraService.findMatchingFaq(userQuestion);
         }
@@ -7475,7 +7491,7 @@ import path2 from "path";
 import { fileURLToPath } from "url";
 import { z as z2 } from "zod";
 import fs2 from "fs";
-import { and as and2 } from "drizzle-orm";
+import { and as and3 } from "drizzle-orm";
 
 // server/tron-service.ts
 import { createHash } from "crypto";
@@ -8016,6 +8032,250 @@ var CryptoPriceCacheService = class {
   }
 };
 var cryptoPriceCacheService = new CryptoPriceCacheService();
+
+// server/crypto-matching-service.ts
+init_db_storage();
+init_schema();
+import { and as and2, gt, lte, isNotNull } from "drizzle-orm";
+init_cardano_service();
+var CryptoMatchingService = class {
+  isRunning = false;
+  intervalId = null;
+  CHECK_INTERVAL_MS = 30 * 1e3;
+  TIMER_DURATION_MS = 10 * 60 * 1e3;
+  TOLERANCE_PERCENT = 5;
+  start() {
+    if (this.isRunning) {
+      console.log("\u26A0\uFE0F \u0633\u0631\u0648\u06CC\u0633 \u062A\u0637\u0628\u06CC\u0642 \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627 \u0627\u0632 \u0642\u0628\u0644 \u062F\u0631 \u062D\u0627\u0644 \u0627\u062C\u0631\u0627 \u0627\u0633\u062A");
+      return;
+    }
+    console.log("\u{1F504} \u0633\u0631\u0648\u06CC\u0633 \u062A\u0637\u0628\u06CC\u0642 \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0634\u0631\u0648\u0639 \u0634\u062F (\u0628\u0635\u0648\u0631\u062A \u067E\u0648\u06CC\u0627)");
+    this.isRunning = true;
+    this.checkAndProcessTransactions();
+    this.intervalId = setInterval(() => {
+      this.checkAndProcessTransactions();
+    }, this.CHECK_INTERVAL_MS);
+  }
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    this.isRunning = false;
+    console.log("\u23F9\uFE0F \u0633\u0631\u0648\u06CC\u0633 \u062A\u0637\u0628\u06CC\u0642 \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627 \u0645\u062A\u0648\u0642\u0641 \u0634\u062F");
+  }
+  async checkAndProcessTransactions() {
+    try {
+      const now = /* @__PURE__ */ new Date();
+      const timerCutoff = new Date(now.getTime() - this.TIMER_DURATION_MS);
+      const pendingTransactions = await db.select({
+        id: cryptoTransactions.id,
+        orderId: cryptoTransactions.orderId,
+        userId: cryptoTransactions.userId,
+        cryptoType: cryptoTransactions.cryptoType,
+        cryptoAmount: cryptoTransactions.cryptoAmount,
+        tomanEquivalent: cryptoTransactions.tomanEquivalent,
+        walletAddress: cryptoTransactions.walletAddress,
+        registeredAt: cryptoTransactions.registeredAt,
+        paymentStatus: cryptoTransactions.paymentStatus
+      }).from(cryptoTransactions).where(
+        and2(
+          eq(cryptoTransactions.paymentStatus, "not_paid"),
+          isNotNull(cryptoTransactions.registeredAt),
+          gt(cryptoTransactions.registeredAt, timerCutoff),
+          lte(cryptoTransactions.registeredAt, now)
+        )
+      );
+      if (pendingTransactions.length === 0) {
+        console.log("\u2139\uFE0F \u0647\u06CC\u0686 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0641\u0639\u0627\u0644\u06CC \u0628\u0631\u0627\u06CC \u0628\u0631\u0631\u0633\u06CC \u0648\u062C\u0648\u062F \u0646\u062F\u0627\u0631\u062F - \u0633\u0631\u0648\u06CC\u0633 \u062E\u0627\u0645\u0648\u0634 \u0645\u06CC\u200C\u0634\u0648\u062F");
+        this.stop();
+        return;
+      }
+      console.log(`\u{1F50D} \u0628\u0631\u0631\u0633\u06CC ${pendingTransactions.length} \u062A\u0631\u0627\u06A9\u0646\u0634 \u067E\u0631\u062F\u0627\u062E\u062A \u0646\u0634\u062F\u0647 \u0628\u0627 \u062A\u0627\u06CC\u0645\u0631 \u0641\u0639\u0627\u0644...`);
+      for (const transaction of pendingTransactions) {
+        await this.matchTransaction(transaction);
+      }
+    } catch (error) {
+      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0631\u0633\u06CC \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC \u067E\u0631\u062F\u0627\u062E\u062A \u0646\u0634\u062F\u0647:", error);
+    }
+  }
+  async checkForActiveTransactionsAndStart() {
+    try {
+      const now = /* @__PURE__ */ new Date();
+      const timerCutoff = new Date(now.getTime() - this.TIMER_DURATION_MS);
+      const activeTransactions = await db.select({ id: cryptoTransactions.id }).from(cryptoTransactions).where(
+        and2(
+          eq(cryptoTransactions.paymentStatus, "not_paid"),
+          isNotNull(cryptoTransactions.registeredAt),
+          gt(cryptoTransactions.registeredAt, timerCutoff),
+          lte(cryptoTransactions.registeredAt, now)
+        )
+      ).limit(1);
+      if (activeTransactions.length > 0 && !this.isRunning) {
+        console.log("\u2705 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0641\u0639\u0627\u0644 \u062C\u062F\u06CC\u062F \u0634\u0646\u0627\u0633\u0627\u06CC\u06CC \u0634\u062F - \u0633\u0631\u0648\u06CC\u0633 \u0641\u0639\u0627\u0644 \u0645\u06CC\u200C\u0634\u0648\u062F");
+        this.start();
+      }
+    } catch (error) {
+      console.error("\u274C \u062E\u0637\u0627 \u062F\u0631 \u0628\u0631\u0631\u0633\u06CC \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC \u0641\u0639\u0627\u0644:", error);
+    }
+  }
+  async matchTransaction(transaction) {
+    try {
+      if (!transaction.walletAddress) {
+        return;
+      }
+      if (!transaction.registeredAt) {
+        return;
+      }
+      const order = await db.select({
+        sellerId: orders.sellerId,
+        status: orders.status
+      }).from(orders).where(eq(orders.id, transaction.orderId)).limit(1);
+      if (order.length === 0) {
+        return;
+      }
+      if (order[0].status !== "awaiting_payment") {
+        return;
+      }
+      const seller = await db.select({
+        tronWalletAddress: users.tronWalletAddress,
+        usdtTrc20WalletAddress: users.usdtTrc20WalletAddress,
+        rippleWalletAddress: users.rippleWalletAddress,
+        cardanoWalletAddress: users.cardanoWalletAddress
+      }).from(users).where(eq(users.id, order[0].sellerId)).limit(1);
+      if (seller.length === 0) {
+        return;
+      }
+      const sellerWallets = seller[0];
+      const expectedAmount = parseFloat(transaction.cryptoAmount);
+      const registeredTime = new Date(transaction.registeredAt).getTime();
+      let blockchainTransactions = [];
+      switch (transaction.cryptoType) {
+        case "TRX":
+          if (sellerWallets.tronWalletAddress) {
+            try {
+              const trxTxs = await tronService.getTransactions(
+                sellerWallets.tronWalletAddress,
+                "incoming",
+                50
+              );
+              blockchainTransactions = trxTxs.map((tx) => ({
+                txId: tx.txId,
+                type: tx.type,
+                amount: tx.amount / 1e6,
+                timestamp: tx.timestamp,
+                status: tx.status
+              }));
+            } catch (error) {
+              console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC TRX:`, error);
+            }
+          }
+          break;
+        case "USDT":
+          if (sellerWallets.usdtTrc20WalletAddress) {
+            try {
+              const usdtTxs = await tronService.getTRC20Transactions(
+                sellerWallets.usdtTrc20WalletAddress,
+                "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                50
+              );
+              blockchainTransactions = usdtTxs.filter((tx) => tx.type === "incoming").map((tx) => ({
+                txId: tx.txId,
+                type: tx.type,
+                amount: typeof tx.amount === "string" ? parseInt(tx.amount) / 1e6 : tx.amount / 1e6,
+                timestamp: tx.timestamp,
+                status: tx.status || "SUCCESS"
+              }));
+            } catch (error) {
+              console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC USDT:`, error);
+            }
+          }
+          break;
+        case "XRP":
+          if (sellerWallets.rippleWalletAddress) {
+            try {
+              const xrpResult = await rippleService.getTransactions(
+                sellerWallets.rippleWalletAddress,
+                50
+              );
+              blockchainTransactions = xrpResult.transactions.filter((tx) => tx.type === "incoming" && tx.status === "SUCCESS").map((tx) => ({
+                txId: tx.txId,
+                type: tx.type,
+                amount: tx.amount / 1e6,
+                timestamp: tx.timestamp,
+                status: tx.status
+              }));
+            } catch (error) {
+              console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC XRP:`, error);
+            }
+          }
+          break;
+        case "ADA":
+          if (sellerWallets.cardanoWalletAddress) {
+            try {
+              const adaTxs = await cardanoService.getTransactions(
+                sellerWallets.cardanoWalletAddress,
+                50,
+                1
+              );
+              blockchainTransactions = adaTxs.filter((tx) => tx.type === "incoming" && tx.status === "SUCCESS").map((tx) => ({
+                txId: tx.txId,
+                type: tx.type,
+                amount: tx.amount / 1e6,
+                timestamp: tx.timestamp,
+                status: tx.status
+              }));
+            } catch (error) {
+              console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0631\u0627\u06A9\u0646\u0634\u200C\u0647\u0627\u06CC ADA:`, error);
+            }
+          }
+          break;
+      }
+      if (blockchainTransactions.length === 0) {
+        return;
+      }
+      const matchingTx = blockchainTransactions.find((tx) => {
+        if (tx.status !== "SUCCESS") return false;
+        if (tx.timestamp < registeredTime) return false;
+        const minAmount = expectedAmount * (1 - this.TOLERANCE_PERCENT / 100);
+        const maxAmount = expectedAmount * (1 + this.TOLERANCE_PERCENT / 100);
+        return tx.amount >= minAmount && tx.amount <= maxAmount;
+      });
+      if (matchingTx) {
+        const currentTransaction = await db.select({ paymentStatus: cryptoTransactions.paymentStatus }).from(cryptoTransactions).where(eq(cryptoTransactions.id, transaction.id)).limit(1);
+        if (currentTransaction.length === 0 || currentTransaction[0].paymentStatus !== "not_paid") {
+          return;
+        }
+        const currentOrder = await db.select({ status: orders.status }).from(orders).where(eq(orders.id, transaction.orderId)).limit(1);
+        if (currentOrder.length === 0 || currentOrder[0].status !== "awaiting_payment") {
+          return;
+        }
+        console.log(`\u2705 \u062A\u0637\u0627\u0628\u0642 \u06CC\u0627\u0641\u062A \u0634\u062F! \u062A\u0631\u0627\u06A9\u0646\u0634 ${transaction.id} \u0628\u0627 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0628\u0644\u0627\u06A9\u0686\u06CC\u0646 ${matchingTx.txId}`);
+        console.log(`   \u0645\u0642\u062F\u0627\u0631 \u0645\u0648\u0631\u062F \u0627\u0646\u062A\u0638\u0627\u0631: ${expectedAmount} ${transaction.cryptoType}`);
+        console.log(`   \u0645\u0642\u062F\u0627\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A\u06CC: ${matchingTx.amount} ${transaction.cryptoType}`);
+        await db.update(cryptoTransactions).set({ paymentStatus: "paid" }).where(
+          and2(
+            eq(cryptoTransactions.id, transaction.id),
+            eq(cryptoTransactions.paymentStatus, "not_paid")
+          )
+        );
+        await db.update(orders).set({
+          status: "pending",
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(
+          and2(
+            eq(orders.id, transaction.orderId),
+            eq(orders.status, "awaiting_payment")
+          )
+        );
+        console.log(`\u{1F4E6} \u0648\u0636\u0639\u06CC\u062A \u0633\u0641\u0627\u0631\u0634 ${transaction.orderId} \u0628\u0647 "\u062F\u0631 \u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u0627\u06CC\u06CC\u062F" \u062A\u063A\u06CC\u06CC\u0631 \u06CC\u0627\u0641\u062A`);
+      }
+    } catch (error) {
+      console.error(`\u274C \u062E\u0637\u0627 \u062F\u0631 \u062A\u0637\u0628\u06CC\u0642 \u062A\u0631\u0627\u06A9\u0646\u0634 ${transaction.id}:`, error);
+    }
+  }
+};
+var cryptoMatchingService = new CryptoMatchingService();
 
 // server/routes.ts
 var __filename = fileURLToPath(import.meta.url);
@@ -9777,21 +10037,6 @@ ${newPassword}
       res.json(orders2);
     } catch (error) {
       res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0633\u0641\u0627\u0631\u0634\u0627\u062A" });
-    }
-  });
-  app2.get("/api/orders/:orderId", authenticateToken, requireLevel2, async (req, res) => {
-    try {
-      const order = await storage.getOrder(req.params.orderId);
-      if (!order) {
-        return res.status(404).json({ message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
-      }
-      if (order.userId !== req.user.id) {
-        return res.status(403).json({ message: "\u0634\u0645\u0627 \u0645\u062C\u0627\u0632 \u0628\u0647 \u062F\u0633\u062A\u0631\u0633\u06CC \u0628\u0647 \u0627\u06CC\u0646 \u0633\u0641\u0627\u0631\u0634 \u0646\u06CC\u0633\u062A\u06CC\u062F" });
-      }
-      res.json(order);
-    } catch (error) {
-      console.error("Get order error:", error);
-      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0633\u0641\u0627\u0631\u0634" });
     }
   });
   app2.get("/api/orders/:orderId/seller-info", authenticateToken, requireLevel2, async (req, res) => {
@@ -11660,12 +11905,44 @@ ${newPassword}
   });
   app2.post("/api/crypto-transactions", authenticateToken, async (req, res) => {
     try {
-      const { orderId, cryptoType, cryptoAmount, tomanEquivalent, transactionDate, walletAddress } = req.body;
+      const { orderId, cryptoType, cryptoAmount, tomanEquivalent, transactionDate } = req.body;
       if (!orderId || !cryptoType || !cryptoAmount || !tomanEquivalent || !transactionDate) {
         return res.status(400).json({
           message: "\u062A\u0645\u0627\u0645 \u0641\u06CC\u0644\u062F\u0647\u0627 \u0627\u0644\u0632\u0627\u0645\u06CC \u0647\u0633\u062A\u0646\u062F"
         });
       }
+      const order = await db.query.orders.findFirst({
+        where: (o, { eq: eq3 }) => eq3(o.id, orderId)
+      });
+      if (!order) {
+        return res.status(404).json({
+          message: "\u0633\u0641\u0627\u0631\u0634 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F"
+        });
+      }
+      const seller = await db.query.users.findFirst({
+        where: (u, { eq: eq3 }) => eq3(u.id, order.sellerId)
+      });
+      if (!seller) {
+        return res.status(404).json({
+          message: "\u0641\u0631\u0648\u0634\u0646\u062F\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F"
+        });
+      }
+      let finalWalletAddress = null;
+      switch (cryptoType) {
+        case "TRX":
+          finalWalletAddress = seller.tronWalletAddress || null;
+          break;
+        case "USDT":
+          finalWalletAddress = seller.usdtTrc20WalletAddress || null;
+          break;
+        case "XRP":
+          finalWalletAddress = seller.rippleWalletAddress || null;
+          break;
+        case "ADA":
+          finalWalletAddress = seller.cardanoWalletAddress || null;
+          break;
+      }
+      console.log(`[Crypto Transaction] Creating transaction - Order: ${orderId}, Seller: ${seller.username}, CryptoType: ${cryptoType}, WalletAddress: ${finalWalletAddress}`);
       const cryptoTransaction = await db.insert(cryptoTransactions).values({
         orderId,
         userId: req.user.id,
@@ -11673,8 +11950,9 @@ ${newPassword}
         cryptoAmount: String(cryptoAmount),
         tomanEquivalent: String(tomanEquivalent),
         transactionDate,
-        walletAddress: walletAddress || null
+        walletAddress: finalWalletAddress
       }).returning();
+      await cryptoMatchingService.checkForActiveTransactionsAndStart();
       res.json({
         success: true,
         message: "\u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062B\u0628\u062A \u0634\u062F",
@@ -11692,7 +11970,7 @@ ${newPassword}
     try {
       const { orderId } = req.params;
       const transactions2 = await db.query.cryptoTransactions.findMany({
-        where: (t, { eq: eq3, and: and3 }) => and3(
+        where: (t, { eq: eq3, and: and4 }) => and4(
           eq3(t.orderId, orderId),
           eq3(t.userId, req.user.id)
         ),
@@ -11714,7 +11992,7 @@ ${newPassword}
   app2.delete("/api/crypto-transactions/:transactionId", authenticateToken, async (req, res) => {
     try {
       const { transactionId } = req.params;
-      await db.delete(cryptoTransactions).where(and2(eq(cryptoTransactions.id, transactionId), eq(cryptoTransactions.userId, req.user.id)));
+      await db.delete(cryptoTransactions).where(and3(eq(cryptoTransactions.id, transactionId), eq(cryptoTransactions.userId, req.user.id)));
       res.json({
         success: true,
         message: "\u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u062D\u0630\u0641 \u0634\u062F"
@@ -11725,6 +12003,319 @@ ${newPassword}
         message: error.message || "\u062E\u0637\u0627 \u062F\u0631 \u062D\u0630\u0641 \u062A\u0631\u0627\u06A9\u0646\u0634 \u0627\u0631\u0632 \u062F\u06CC\u062C\u06CC\u062A\u0627\u0644",
         success: false
       });
+    }
+  });
+  app2.get("/api/vitrin-ai-settings", async (req, res) => {
+    try {
+      const liaraSettings = await storage.getAiTokenSettings("liara");
+      if (!liaraSettings?.token || !liaraSettings.isActive) {
+        return res.status(404).json({ message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A AI \u062F\u0631 \u062F\u0633\u062A\u0631\u0633 \u0646\u06CC\u0633\u062A" });
+      }
+      res.json({
+        token: liaraSettings.token,
+        baseUrl: liaraSettings.workspaceId || "",
+        model: liaraSettings.model || "google/gemini-2.0-flash-001"
+      });
+    } catch (error) {
+      console.error("Error getting AI settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A AI" });
+    }
+  });
+  app2.get("/api/vitrin/:username", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json({
+        id: seller.id,
+        username: seller.username,
+        storeName: seller.storeName || `\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 ${seller.firstName}`,
+        storeDescription: seller.storeDescription || "",
+        storeLogo: seller.storeLogo || seller.profilePicture,
+        firstName: seller.firstName,
+        lastName: seller.lastName,
+        bankCardNumber: seller.bankCardNumber || null,
+        bankCardHolderName: seller.bankCardHolderName || null
+      });
+    } catch (error) {
+      console.error("Error getting vitrin info:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0641\u0631\u0648\u0634\u06AF\u0627\u0647" });
+    }
+  });
+  app2.get("/api/vitrin/:username/products", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const products2 = await storage.getProductsByUser(seller.id);
+      const activeProducts = products2.filter((p) => p.isActive);
+      res.json(activeProducts);
+    } catch (error) {
+      console.error("Error getting vitrin products:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u0645\u062D\u0635\u0648\u0644\u0627\u062A" });
+    }
+  });
+  app2.get("/api/vitrin/:username/categories", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const categories2 = await storage.getAllCategories(seller.id, seller.role);
+      const activeCategories = categories2.filter((c) => c.isActive);
+      res.json(activeCategories);
+    } catch (error) {
+      console.error("Error getting vitrin categories:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062F\u0633\u062A\u0647\u200C\u0628\u0646\u062F\u06CC\u200C\u0647\u0627" });
+    }
+  });
+  app2.post("/api/vitrin/:username/chat", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { sessionToken, message, guestName, guestPhone } = req.body;
+      if (!sessionToken || !message?.trim()) {
+        return res.status(400).json({ message: "\u062A\u0648\u06A9\u0646 \u062C\u0644\u0633\u0647 \u0648 \u067E\u06CC\u0627\u0645 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A" });
+      }
+      if (!sessionToken.startsWith(`vitrin_${username}_`)) {
+        return res.status(403).json({ message: "\u062A\u0648\u06A9\u0646 \u062C\u0644\u0633\u0647 \u0645\u0639\u062A\u0628\u0631 \u0646\u06CC\u0633\u062A" });
+      }
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const rawIpAddress = req.headers["x-forwarded-for"] || req.ip || "Unknown";
+      const guestIpAddress = typeof rawIpAddress === "string" ? rawIpAddress.replace(/,\s*/g, "---") : rawIpAddress;
+      let session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        session = await storage.createGuestChatSession(sessionToken, guestName, guestPhone, guestIpAddress);
+      }
+      const newMessage = await storage.createGuestChatMessage(session.id, message.trim(), "guest");
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error sending vitrin chat message:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u067E\u06CC\u0627\u0645" });
+    }
+  });
+  app2.get("/api/vitrin/:username/chat/:sessionToken", async (req, res) => {
+    try {
+      const { username, sessionToken } = req.params;
+      if (!sessionToken.startsWith(`vitrin_${username}_`)) {
+        return res.status(403).json({ message: "\u062A\u0648\u06A9\u0646 \u062C\u0644\u0633\u0647 \u0645\u0639\u062A\u0628\u0631 \u0646\u06CC\u0633\u062A" });
+      }
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const session = await storage.getGuestChatSessionByToken(sessionToken);
+      if (!session) {
+        return res.status(404).json({ message: "\u062C\u0644\u0633\u0647 \u0686\u062A \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const messages = await storage.getGuestChatMessages(session.id);
+      await storage.markGuestChatMessagesAsRead(session.id, "guest");
+      res.json({ session, messages });
+    } catch (error) {
+      console.error("Error getting vitrin chat messages:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u067E\u06CC\u0627\u0645\u200C\u0647\u0627" });
+    }
+  });
+  app2.post("/api/vitrin/:username/ai-chat", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { message } = req.body;
+      if (!message?.trim()) {
+        return res.status(400).json({ response: "\u0644\u0637\u0641\u0627\u064B \u067E\u06CC\u0627\u0645 \u062E\u0648\u062F \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F." });
+      }
+      const trimmedMessage = message.trim().slice(0, 2e3);
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ response: "\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F." });
+      }
+      const { aiService: aiService2 } = await Promise.resolve().then(() => (init_ai_service(), ai_service_exports));
+      const products2 = await storage.getProductsByUser(seller.id);
+      const storeName = seller.storeName || `\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 ${seller.firstName}`;
+      if (!aiService2.isActive()) {
+        const productNames = products2.slice(0, 5).map((p) => p.name).join("\u060C ");
+        return res.json({
+          response: `\u0633\u0644\u0627\u0645! \u0628\u0647 ${storeName} \u062E\u0648\u0634 \u0622\u0645\u062F\u06CC\u062F. \u{1F31F}
+
+\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062F\u0633\u062A\u06CC\u0627\u0631 \u0647\u0648\u0634\u0645\u0646\u062F \u0645\u0627 \u062F\u0631 \u062D\u0627\u0644 \u062D\u0627\u0636\u0631 \u062F\u0631 \u062F\u0633\u062A\u0631\u0633 \u0646\u06CC\u0633\u062A.
+
+${productNames ? `\u0645\u062D\u0635\u0648\u0644\u0627\u062A \u067E\u0631\u0641\u0631\u0648\u0634 \u0645\u0627: ${productNames}` : ""}
+
+\u0628\u0631\u0627\u06CC \u06A9\u0633\u0628 \u0627\u0637\u0644\u0627\u0639\u0627\u062A \u0628\u06CC\u0634\u062A\u0631 \u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u06CC\u062F \u0645\u062D\u0635\u0648\u0644\u0627\u062A \u0631\u0627 \u062F\u0631 \u062A\u0628 "\u0648\u06CC\u062A\u0631\u06CC\u0646" \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u06CC\u062F.`
+        });
+      }
+      const productList = products2.slice(0, 10).map((p) => `- ${p.name}: ${p.priceAfterDiscount || p.priceBeforeDiscount} \u062A\u0648\u0645\u0627\u0646`).join("\n");
+      const systemContext = `\u0634\u0645\u0627 \u062F\u0633\u062A\u06CC\u0627\u0631 \u0647\u0648\u0634\u0645\u0646\u062F \u0641\u0631\u0648\u0634\u06AF\u0627\u0647 "${storeName}" \u0647\u0633\u062A\u06CC\u062F. \u0648\u0638\u06CC\u0641\u0647 \u0634\u0645\u0627 \u06A9\u0645\u06A9 \u0628\u0647 \u0645\u0634\u062A\u0631\u06CC\u0627\u0646 \u0648 \u067E\u0627\u0633\u062E \u0628\u0647 \u0633\u0648\u0627\u0644\u0627\u062A \u0622\u0646\u0647\u0627 \u062F\u0631\u0628\u0627\u0631\u0647 \u0645\u062D\u0635\u0648\u0644\u0627\u062A \u0648 \u062E\u062F\u0645\u0627\u062A \u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u0627\u0633\u062A.
+
+\u0645\u062D\u0635\u0648\u0644\u0627\u062A \u0645\u0648\u062C\u0648\u062F \u062F\u0631 \u0641\u0631\u0648\u0634\u06AF\u0627\u0647:
+${productList || "\u062F\u0631 \u062D\u0627\u0644 \u062D\u0627\u0636\u0631 \u0645\u062D\u0635\u0648\u0644\u06CC \u062B\u0628\u062A \u0646\u0634\u062F\u0647 \u0627\u0633\u062A."}
+
+\u0644\u0637\u0641\u0627\u064B \u0628\u0647 \u0632\u0628\u0627\u0646 \u0641\u0627\u0631\u0633\u06CC \u0648 \u0628\u0627 \u0644\u062D\u0646 \u0635\u0645\u06CC\u0645\u06CC \u0648 \u062D\u0631\u0641\u0647\u200C\u0627\u06CC \u067E\u0627\u0633\u062E \u062F\u0647\u06CC\u062F. \u067E\u0627\u0633\u062E\u200C\u0647\u0627 \u0631\u0627 \u06A9\u0648\u062A\u0627\u0647 \u0648 \u0645\u0641\u06CC\u062F \u0646\u06AF\u0647 \u062F\u0627\u0631\u06CC\u062F. \u0627\u06AF\u0631 \u0633\u0648\u0627\u0644\u06CC \u062E\u0627\u0631\u062C \u0627\u0632 \u062D\u06CC\u0637\u0647 \u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u067E\u0631\u0633\u06CC\u062F\u0647 \u0634\u062F\u060C \u0645\u0648\u062F\u0628\u0627\u0646\u0647 \u06A9\u0627\u0631\u0628\u0631 \u0631\u0627 \u0631\u0627\u0647\u0646\u0645\u0627\u06CC\u06CC \u06A9\u0646\u06CC\u062F.`;
+      const fullMessage = `${systemContext}
+
+\u067E\u06CC\u0627\u0645 \u0645\u0634\u062A\u0631\u06CC: ${trimmedMessage}`;
+      try {
+        const aiResponse = await aiService2.generateResponse(fullMessage, seller.id);
+        res.json({ response: aiResponse });
+      } catch (aiError) {
+        console.error("AI response error:", aiError);
+        res.json({
+          response: `\u0645\u062A\u0634\u06A9\u0631\u0645 \u0627\u0632 \u067E\u06CC\u0627\u0645 \u0634\u0645\u0627! \u{1F64F}
+
+\u062F\u0631 \u062D\u0627\u0644 \u062D\u0627\u0636\u0631 \u0646\u0645\u06CC\u200C\u062A\u0648\u0627\u0646\u0645 \u067E\u0627\u0633\u062E \u0645\u0646\u0627\u0633\u0628\u06CC \u0627\u0631\u0627\u0626\u0647 \u062F\u0647\u0645. \u0644\u0637\u0641\u0627\u064B \u0645\u062D\u0635\u0648\u0644\u0627\u062A \u0645\u0627 \u0631\u0627 \u062F\u0631 \u062A\u0628 "\u0648\u06CC\u062A\u0631\u06CC\u0646" \u0645\u0634\u0627\u0647\u062F\u0647 \u06A9\u0646\u06CC\u062F \u06CC\u0627 \u0628\u0639\u062F\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F.`
+        });
+      }
+    } catch (error) {
+      console.error("Error in AI chat:", error);
+      res.json({ response: "\u0645\u062A\u0623\u0633\u0641\u0627\u0646\u0647 \u062E\u0637\u0627\u06CC\u06CC \u0631\u062E \u062F\u0627\u062F. \u0644\u0637\u0641\u0627\u064B \u062F\u0648\u0628\u0627\u0631\u0647 \u062A\u0644\u0627\u0634 \u06A9\u0646\u06CC\u062F." });
+    }
+  });
+  app2.post("/api/vitrin/:username/quick-register", async (req, res) => {
+    try {
+      const { username } = req.params;
+      const { phone, password } = req.body;
+      if (!phone?.trim() || !password?.trim()) {
+        return res.status(400).json({ message: "\u0644\u0637\u0641\u0627\u064B \u0634\u0645\u0627\u0631\u0647 \u062A\u0644\u0641\u0646 \u0648 \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0631\u0627 \u0648\u0627\u0631\u062F \u06A9\u0646\u06CC\u062F" });
+      }
+      if (password.length < 6) {
+        return res.status(400).json({ message: "\u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0628\u0627\u06CC\u062F \u062D\u062F\u0627\u0642\u0644 \u06F6 \u06A9\u0627\u0631\u0627\u06A9\u062A\u0631 \u0628\u0627\u0634\u062F" });
+      }
+      const seller = await storage.getUserByUsername(username);
+      if (!seller || seller.role !== "user_level_1") {
+        return res.status(404).json({ message: "\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      const normalizedPhone = phone.trim().startsWith("98") ? "0" + phone.trim().substring(2) : phone.trim();
+      const existingUser = await storage.getUserByUsername(normalizedPhone);
+      if (existingUser) {
+        const isPasswordValid = await bcrypt3.compare(password, existingUser.password || "");
+        if (isPasswordValid) {
+          const token2 = jwt.sign({ userId: existingUser.id }, jwtSecret, { expiresIn: "7d" });
+          return res.json({
+            user: { ...existingUser, password: void 0 },
+            token: token2,
+            isExisting: true
+          });
+        } else {
+          return res.status(400).json({ message: "\u0627\u06CC\u0646 \u0634\u0645\u0627\u0631\u0647 \u0642\u0628\u0644\u0627\u064B \u062B\u0628\u062A \u0634\u062F\u0647 \u0627\u0633\u062A. \u0631\u0645\u0632 \u0639\u0628\u0648\u0631 \u0627\u0634\u062A\u0628\u0627\u0647 \u0627\u0633\u062A" });
+        }
+      }
+      const hashedPassword = await bcrypt3.hash(password, 10);
+      const storeName = seller.storeName || `\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 ${seller.firstName}`;
+      const user = await storage.createUser({
+        username: normalizedPhone,
+        firstName: "\u0645\u0634\u062A\u0631\u06CC",
+        lastName: storeName,
+        phone: normalizedPhone,
+        whatsappNumber: normalizedPhone,
+        password: hashedPassword,
+        role: "user_level_2",
+        parentUserId: seller.id
+      });
+      try {
+        const trialSubscription = (await storage.getAllSubscriptions()).find(
+          (sub) => sub.isDefault === true
+        );
+        if (trialSubscription) {
+          await storage.createUserSubscription({
+            userId: user.id,
+            subscriptionId: trialSubscription.id,
+            remainingDays: 7,
+            startDate: /* @__PURE__ */ new Date(),
+            endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3),
+            status: "active",
+            isTrialPeriod: true
+          });
+        }
+      } catch (trialError) {
+        console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u06CC\u062C\u0627\u062F \u0627\u0634\u062A\u0631\u0627\u06A9 \u0622\u0632\u0645\u0627\u06CC\u0634\u06CC:", trialError);
+      }
+      try {
+        const whatsappSettings2 = await storage.getWhatsappSettings();
+        if (whatsappSettings2?.notifications?.includes("new_user") && whatsappSettings2.isEnabled && whatsappSettings2.token) {
+          if (seller.phone) {
+            const message = `\u{1F464} \u0645\u0634\u062A\u0631\u06CC \u062C\u062F\u06CC\u062F \u0627\u0632 \u0648\u06CC\u062A\u0631\u06CC\u0646
+
+\u0634\u0645\u0627\u0631\u0647: ${normalizedPhone}
+\u0641\u0631\u0648\u0634\u06AF\u0627\u0647: ${storeName}`;
+            await whatsAppSender.sendMessage(seller.phone, message, seller.id);
+          }
+        }
+      } catch (notificationError) {
+        console.error("\u062E\u0637\u0627 \u062F\u0631 \u0627\u0631\u0633\u0627\u0644 \u0627\u0639\u0644\u0627\u0646:", notificationError);
+      }
+      const token = jwt.sign({ userId: user.id }, jwtSecret, { expiresIn: "7d" });
+      res.json({
+        user: { ...user, password: void 0 },
+        token,
+        isExisting: false
+      });
+    } catch (error) {
+      console.error("Error in vitrin quick register:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062B\u0628\u062A\u200C\u0646\u0627\u0645" });
+    }
+  });
+  app2.get("/api/seller/vitrin", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0641\u0631\u0648\u0634\u0646\u062F\u06AF\u0627\u0646 \u0628\u0647 \u0627\u06CC\u0646 \u0628\u062E\u0634 \u062F\u0633\u062A\u0631\u0633\u06CC \u062F\u0627\u0631\u0646\u062F" });
+      }
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "\u06A9\u0627\u0631\u0628\u0631 \u06CC\u0627\u0641\u062A \u0646\u0634\u062F" });
+      }
+      res.json({
+        username: user.username,
+        storeName: user.storeName || `\u0641\u0631\u0648\u0634\u06AF\u0627\u0647 ${user.firstName}`,
+        storeDescription: user.storeDescription || "",
+        storeLogo: user.storeLogo || user.profilePicture,
+        vitrinUrl: `/vitrin/${user.username}`
+      });
+    } catch (error) {
+      console.error("Error getting seller vitrin settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u062F\u0631\u06CC\u0627\u0641\u062A \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u06CC\u062A\u0631\u06CC\u0646" });
+    }
+  });
+  app2.put("/api/seller/vitrin", authenticateToken, async (req, res) => {
+    try {
+      if (req.user?.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0641\u0631\u0648\u0634\u0646\u062F\u06AF\u0627\u0646 \u0628\u0647 \u0627\u06CC\u0646 \u0628\u062E\u0634 \u062F\u0633\u062A\u0631\u0633\u06CC \u062F\u0627\u0631\u0646\u062F" });
+      }
+      const { storeName, storeDescription } = req.body;
+      await storage.updateUser(req.user.id, {
+        storeName: storeName || null,
+        storeDescription: storeDescription || null
+      });
+      res.json({ message: "\u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u06CC\u062A\u0631\u06CC\u0646 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u0634\u062F" });
+    } catch (error) {
+      console.error("Error updating seller vitrin settings:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0628\u0647\u200C\u0631\u0648\u0632\u0631\u0633\u0627\u0646\u06CC \u062A\u0646\u0638\u06CC\u0645\u0627\u062A \u0648\u06CC\u062A\u0631\u06CC\u0646" });
+    }
+  });
+  app2.post("/api/seller/vitrin/logo", authenticateToken, upload.single("logo"), async (req, res) => {
+    try {
+      if (req.user?.role !== "user_level_1") {
+        return res.status(403).json({ message: "\u0641\u0642\u0637 \u0641\u0631\u0648\u0634\u0646\u062F\u06AF\u0627\u0646 \u0628\u0647 \u0627\u06CC\u0646 \u0628\u062E\u0634 \u062F\u0633\u062A\u0631\u0633\u06CC \u062F\u0627\u0631\u0646\u062F" });
+      }
+      if (!req.file) {
+        return res.status(400).json({ message: "\u0641\u0627\u06CC\u0644 \u062A\u0635\u0648\u06CC\u0631 \u0627\u0644\u0632\u0627\u0645\u06CC \u0627\u0633\u062A" });
+      }
+      const logoUrl = `/uploads/${req.file.filename}`;
+      await storage.updateUser(req.user.id, {
+        storeLogo: logoUrl
+      });
+      res.json({
+        message: "\u0644\u0648\u06AF\u0648\u06CC \u0641\u0631\u0648\u0634\u06AF\u0627\u0647 \u0628\u0627 \u0645\u0648\u0641\u0642\u06CC\u062A \u0622\u067E\u0644\u0648\u062F \u0634\u062F",
+        logoUrl
+      });
+    } catch (error) {
+      console.error("Error uploading store logo:", error);
+      res.status(500).json({ message: "\u062E\u0637\u0627 \u062F\u0631 \u0622\u067E\u0644\u0648\u062F \u0644\u0648\u06AF\u0648" });
     }
   });
   const httpServer = createServer(app2);
@@ -11978,5 +12569,6 @@ app.use((req, res, next) => {
     await cryptoPriceCacheService.initialize();
     whatsAppMessageService.start();
     cleanupService.start();
+    await cryptoMatchingService.checkForActiveTransactionsAndStart();
   });
 })();
