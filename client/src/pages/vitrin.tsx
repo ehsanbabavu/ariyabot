@@ -33,7 +33,9 @@ import {
   Truck,
   Bitcoin,
   CheckCircle,
-  X
+  X,
+  Paperclip,
+  Image as ImageIcon
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion, AnimatePresence } from "framer-motion";
@@ -101,6 +103,14 @@ interface CheckoutOrder {
   shippingMethod?: string;
 }
 
+interface CompletedOrder {
+  id: string;
+  items: CartItem[];
+  totalAmount: number;
+  shippingMethod: string;
+  createdAt: Date;
+}
+
 function formatPrice(price: string | number): string {
   const numPrice = typeof price === 'string' ? parseFloat(price) : price;
   return numPrice.toLocaleString('fa-IR');
@@ -153,9 +163,15 @@ function VitrinChatMessage({ role, content, isTyping, isFirst }: { role: "user" 
   );
 }
 
-function VitrinChatInput({ onSend, isLoading }: { onSend: (message: string) => void; isLoading: boolean }) {
+function VitrinChatInput({ onSend, onFileSelect, isLoading, isUploading }: { 
+  onSend: (message: string) => void; 
+  onFileSelect?: (file: File) => void;
+  isLoading: boolean;
+  isUploading?: boolean;
+}) {
   const [input, setInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSend = () => {
     if (input.trim() && !isLoading) {
@@ -168,6 +184,20 @@ function VitrinChatInput({ onSend, isLoading }: { onSend: (message: string) => v
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleFileClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onFileSelect) {
+      onFileSelect(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -185,6 +215,36 @@ function VitrinChatInput({ onSend, isLoading }: { onSend: (message: string) => v
         "bg-background/60 backdrop-blur-xl shadow-2xl",
         "border-primary/20 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10"
       )}>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*"
+          className="hidden"
+        />
+        
+        <div className="pb-2 pl-2">
+          <Button
+            type="button"
+            onClick={handleFileClick}
+            disabled={isLoading || isUploading}
+            size="icon"
+            variant="ghost"
+            className={cn(
+              "h-10 w-10 rounded-full transition-all duration-300",
+              "hover:bg-primary/10 text-muted-foreground hover:text-primary",
+              (isLoading || isUploading) && "opacity-50 cursor-not-allowed"
+            )}
+            title="ارسال تصویر رسید"
+          >
+            {isUploading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Paperclip className="w-5 h-5" />
+            )}
+          </Button>
+        </div>
+
         <Textarea
           ref={textareaRef}
           value={input}
@@ -329,6 +389,71 @@ export default function VitrinPage() {
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [sellerCardInfo, setSellerCardInfo] = useState<{ cardNumber: string; holderName: string | null } | null>(null);
   const [showSellerCard, setShowSellerCard] = useState(false);
+  const [completedOrders, setCompletedOrders] = useState<CompletedOrder[]>(() => {
+    if (typeof window !== 'undefined' && username) {
+      const saved = localStorage.getItem(`vitrin_completed_orders_${username}`);
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (file: File) => {
+    if (!username || !vitrinInfo) return;
+    
+    setIsUploading(true);
+    
+    setMessages(prev => [...prev, {
+      role: "user",
+      content: `📎 در حال ارسال تصویر رسید...`
+    }]);
+
+    try {
+      const formData = new FormData();
+      formData.append('receipt', file);
+      
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/vitrin/${username}/upload-receipt`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setMessages(prev => {
+          const filtered = prev.filter(m => m.content !== `📎 در حال ارسال تصویر رسید...`);
+          return [...filtered, {
+            role: "user",
+            content: `📎 تصویر رسید ارسال شد`
+          }, {
+            role: "assistant",
+            content: result.message || "تصویر رسید دریافت شد. اطلاعات پرداخت استخراج و به فروشنده ارسال خواهد شد."
+          }];
+        });
+      } else {
+        setMessages(prev => {
+          const filtered = prev.filter(m => m.content !== `📎 در حال ارسال تصویر رسید...`);
+          return [...filtered, {
+            role: "assistant",
+            content: result.message || "خطا در پردازش تصویر رسید. لطفاً دوباره تلاش کنید."
+          }];
+        });
+      }
+    } catch (error) {
+      console.error("Error uploading receipt:", error);
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.content !== `📎 در حال ارسال تصویر رسید...`);
+        return [...filtered, {
+          role: "assistant",
+          content: "خطا در ارسال تصویر. لطفاً دوباره تلاش کنید."
+        }];
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (username) {
@@ -344,6 +469,12 @@ export default function VitrinPage() {
       localStorage.setItem(`vitrin_cart_${username}`, JSON.stringify(cartItems));
     }
   }, [cartItems, username]);
+
+  useEffect(() => {
+    if (username && completedOrders.length >= 0) {
+      localStorage.setItem(`vitrin_completed_orders_${username}`, JSON.stringify(completedOrders));
+    }
+  }, [completedOrders, username]);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -377,6 +508,21 @@ export default function VitrinPage() {
     
     checkAuth();
   }, []);
+
+  // وقتی شماره کارت فروشنده درخواست میشود، مستقیماً پیام رو نشون بده
+  useEffect(() => {
+    if (sellerCardInfo && !showSellerCard) {
+      const formattedCardNumber = sellerCardInfo.cardNumber.replace(/(\d{4})(?=\d)/g, '$1-');
+      const cardMessage = sellerCardInfo.holderName 
+        ? `💳 شماره کارت فروشنده:\n\n${formattedCardNumber}\n\n👤 به نام: ${sellerCardInfo.holderName}`
+        : `💳 شماره کارت فروشنده:\n\n${formattedCardNumber}`;
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: cardMessage
+      }]);
+      setShowSellerCard(true);
+    }
+  }, [sellerCardInfo, showSellerCard]);
 
   const handleRegister = async () => {
     if (!registrationPhone.trim() || !registrationPassword.trim()) {
@@ -625,6 +771,16 @@ export default function VitrinPage() {
         setCreatedOrderId(orderId);
         setShowShippingSelector(false);
         
+        // اضافه کردن سفارش به لیست سفارشات ثبت شده
+        const newCompletedOrder: CompletedOrder = {
+          id: orderId,
+          items: [...checkoutOrder.items],
+          totalAmount: checkoutOrder.totalAmount,
+          shippingMethod: selectedShipping,
+          createdAt: new Date()
+        };
+        setCompletedOrders(prev => [newCompletedOrder, ...prev]);
+        
         if (paymentType === "card") {
           // Fetch seller info to get the latest bank card details
           try {
@@ -640,7 +796,7 @@ export default function VitrinPage() {
               
               setMessages(prev => [...prev, {
                 role: "assistant",
-                content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}\n\n💳 برای مشاهده اطلاعات کارت فروشنده، روی دکمه "نمایش شماره کارت" کلیک کنید.`
+                content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}`
               }]);
             }
           } catch (error) {
@@ -1122,39 +1278,13 @@ export default function VitrinPage() {
                   </motion.div>
                 )}
 
-                {/* دکمه نمایش شماره کارت فروشنده */}
-                {sellerCardInfo && !showSellerCard && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="bg-white rounded-xl shadow-md border border-green-200 p-4 max-w-sm mx-auto mt-4"
-                  >
-                    <Button
-                      onClick={() => {
-                        const cardMessage = sellerCardInfo.holderName 
-                          ? `💳 شماره کارت فروشنده:\n\n${sellerCardInfo.cardNumber}\n\n👤 به نام: ${sellerCardInfo.holderName}`
-                          : `💳 شماره کارت فروشنده:\n\n${sellerCardInfo.cardNumber}`;
-                        setMessages(prev => [...prev, {
-                          role: "assistant",
-                          content: cardMessage
-                        }]);
-                        setShowSellerCard(true);
-                      }}
-                      className="w-full h-10 text-sm bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <CreditCard className="w-4 h-4 ml-2" />
-                      نمایش شماره کارت
-                    </Button>
-                  </motion.div>
-                )}
                 
                 <div ref={messagesEndRef} />
               </div>
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background via-background/90 to-transparent pt-10 z-10">
-              <VitrinChatInput onSend={handleSend} isLoading={isLoading} />
+              <VitrinChatInput onSend={handleSend} onFileSelect={handleFileUpload} isLoading={isLoading} isUploading={isUploading} />
             </div>
           </TabsContent>
 
@@ -1207,12 +1337,51 @@ export default function VitrinPage() {
           </TabsContent>
 
           <TabsContent value="cart" className="flex-1 flex flex-col overflow-hidden px-6 pt-24 mt-0 data-[state=inactive]:hidden h-full">
-            <div className="max-w-4xl mx-auto w-full h-full flex flex-col">
-              {cartItems.length === 0 ? (
-                <div className="bg-white rounded-lg p-6 shadow-sm border border-border">
+            <div className="max-w-4xl mx-auto w-full h-full flex flex-col overflow-y-auto">
+              {/* سفارشات ثبت شده */}
+              {completedOrders.length > 0 && (
+                <div className="bg-green-50 rounded-lg p-4 shadow-sm border border-green-200 mb-4 mt-8">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <h3 className="font-bold text-green-700 text-sm">سفارشات ثبت شده</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {completedOrders.map((order) => (
+                      <div key={order.id} className="bg-white rounded-lg p-3 border border-green-100">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs text-gray-500">
+                            {new Date(order.createdAt).toLocaleDateString('fa-IR')}
+                          </span>
+                          <span className="text-sm font-bold text-green-600">
+                            {formatPrice(order.totalAmount)} تومان
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-600 mb-2">
+                          {order.items.length} محصول • {getShippingMethodLabel(order.shippingMethod)}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full h-8 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                          onClick={() => {
+                            const orderDetails = `📋 جزئیات سفارش:\n\n${order.items.map(item => `• ${item.name} (${item.quantity} عدد) - ${formatPrice(parseFloat(item.priceAfterDiscount) * item.quantity)} تومان`).join('\n')}\n\n💰 مبلغ کل: ${formatPrice(order.totalAmount)} تومان\n🚚 نحوه ارسال: ${getShippingMethodLabel(order.shippingMethod)}`;
+                            setMessages(prev => [...prev, { role: "assistant", content: orderDetails }]);
+                            setActiveTab("chat");
+                          }}
+                        >
+                          جزئیات
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {cartItems.length === 0 && completedOrders.length === 0 ? (
+                <div className="bg-white rounded-lg p-6 shadow-sm border border-border mt-8">
                   <p className="text-muted-foreground text-center py-12">سبد خرید شما خالی است</p>
                 </div>
-              ) : (
+              ) : cartItems.length === 0 ? null : (
                 <div className="flex flex-col h-full min-h-0">
                   {/* Total Card at Top */}
                   <div className="bg-white rounded-lg p-4 shadow-lg border border-primary/30 mb-4 mt-8 flex-shrink-0">
