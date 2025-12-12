@@ -4960,6 +4960,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // VITRIN ROUTES (ویترین فروشگاه شخصی)
   // =================
 
+  // Get AI settings for vitrin frontend (public - for frontend AI usage)
+  app.get("/api/vitrin-ai-settings", async (req, res) => {
+    try {
+      const liaraSettings = await storage.getAiTokenSettings("liara");
+      
+      if (!liaraSettings?.token || !liaraSettings.isActive) {
+        return res.status(404).json({ message: "تنظیمات AI در دسترس نیست" });
+      }
+
+      res.json({
+        token: liaraSettings.token,
+        baseUrl: (liaraSettings as any).workspaceId || "",
+        model: liaraSettings.model || "google/gemini-2.0-flash-001",
+      });
+    } catch (error) {
+      console.error("Error getting AI settings:", error);
+      res.status(500).json({ message: "خطا در دریافت تنظیمات AI" });
+    }
+  });
+
   // Get seller's vitrin info (public)
   app.get("/api/vitrin/:username", async (req, res) => {
     try {
