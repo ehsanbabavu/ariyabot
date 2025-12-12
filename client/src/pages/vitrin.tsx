@@ -28,8 +28,14 @@ import {
   CreditCard,
   UserPlus,
   Eye,
-  EyeOff
+  EyeOff,
+  MapPin,
+  Truck,
+  Bitcoin,
+  CheckCircle,
+  X
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -70,6 +76,29 @@ interface CartItem {
   priceAfterDiscount: string;
   priceBeforeDiscount: string;
   quantity: number;
+}
+
+interface Address {
+  id: string;
+  title: string;
+  fullAddress: string;
+  postalCode?: string;
+  isDefault: boolean;
+}
+
+interface ShippingSettings {
+  postPishtazEnabled: boolean;
+  postNormalEnabled: boolean;
+  piykEnabled: boolean;
+  freeShippingEnabled: boolean;
+  freeShippingMinAmount?: string;
+}
+
+interface CheckoutOrder {
+  items: CartItem[];
+  totalAmount: number;
+  address?: Address;
+  shippingMethod?: string;
 }
 
 function formatPrice(price: string | number): string {
@@ -288,6 +317,16 @@ export default function VitrinPage() {
     return false;
   });
   const [currentUser, setCurrentUser] = useState<{ firstName: string; lastName: string } | null>(null);
+  
+  const [checkoutOrder, setCheckoutOrder] = useState<CheckoutOrder | null>(null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressFormData, setAddressFormData] = useState({ title: "", fullAddress: "", postalCode: "" });
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [showShippingSelector, setShowShippingSelector] = useState(false);
+  const [selectedShipping, setSelectedShipping] = useState<string>("");
+  const [sellerShippingSettings, setSellerShippingSettings] = useState<ShippingSettings | null>(null);
+  const [orderCreating, setOrderCreating] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (username) {
@@ -438,15 +477,187 @@ export default function VitrinPage() {
     setMessages((prev) => [...prev, invoiceMsg]);
   };
 
-  const handleCheckout = () => {
+  const fetchShippingSettings = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/shipping-settings/${vitrinInfo?.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSellerShippingSettings(data);
+      }
+    } catch (error) {
+      console.error("Error fetching shipping settings:", error);
+    }
+  };
+
+  const fetchUserAddress = async (): Promise<Address | null> => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return null;
+      const res = await fetch("/api/addresses", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const addresses: Address[] = await res.json();
+        return addresses.find(a => a.isDefault) || addresses[0] || null;
+      }
+    } catch (error) {
+      console.error("Error fetching address:", error);
+    }
+    return null;
+  };
+
+  const handleCheckout = async () => {
     if (cartItems.length === 0 || !vitrinInfo) return;
     
-    setActiveTab("chat");
-    
     if (!isVitrinAuthenticated) {
+      setActiveTab("chat");
       setShowRegistrationForm(true);
+      return;
+    }
+
+    const orderData: CheckoutOrder = {
+      items: [...cartItems],
+      totalAmount: cartTotal,
+    };
+
+    const address = await fetchUserAddress();
+    await fetchShippingSettings();
+
+    if (address) {
+      orderData.address = address;
+    }
+
+    setCheckoutOrder(orderData);
+    setCartItems([]);
+    setActiveTab("chat");
+
+    if (!address) {
+      setShowAddressForm(true);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "لطفاً آدرس تحویل سفارش را وارد کنید:"
+      }]);
     } else {
-      sendInvoiceMessage();
+      setShowShippingSelector(true);
+    }
+  };
+
+  const handleAddressSubmit = async () => {
+    if (!addressFormData.title || !addressFormData.fullAddress) {
+      return;
+    }
+    
+    setAddressLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/addresses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: addressFormData.title,
+          fullAddress: addressFormData.fullAddress,
+          postalCode: addressFormData.postalCode || null,
+          isDefault: true
+        })
+      });
+
+      if (res.ok) {
+        const newAddress = await res.json();
+        setCheckoutOrder(prev => prev ? { ...prev, address: newAddress } : null);
+        setShowAddressForm(false);
+        setAddressFormData({ title: "", fullAddress: "", postalCode: "" });
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `آدرس شما ثبت شد:\n📍 ${newAddress.title}: ${newAddress.fullAddress}`
+        }]);
+        setShowShippingSelector(true);
+      }
+    } catch (error) {
+      console.error("Error creating address:", error);
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
+  const handleShippingSelect = (method: string) => {
+    setSelectedShipping(method);
+    setCheckoutOrder(prev => prev ? { ...prev, shippingMethod: method } : null);
+  };
+
+  const getShippingMethodLabel = (method: string) => {
+    switch (method) {
+      case "post_pishtaz": return "پست پیشتاز";
+      case "post_normal": return "پست عادی";
+      case "piyk": return "پیک";
+      case "free": return "ارسال رایگان";
+      default: return method;
+    }
+  };
+
+  const handlePayment = async (paymentType: "card" | "crypto") => {
+    if (!checkoutOrder || !selectedShipping) return;
+
+    setOrderCreating(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          sellerId: vitrinInfo?.id,
+          addressId: checkoutOrder.address?.id,
+          shippingMethod: selectedShipping,
+          items: checkoutOrder.items.map(item => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: item.priceAfterDiscount,
+            totalPrice: String(parseFloat(item.priceAfterDiscount) * item.quantity)
+          })),
+          totalAmount: checkoutOrder.totalAmount,
+          notes: ""
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const orderId = data.orders?.[0]?.id || data.id;
+        setCreatedOrderId(orderId);
+        setShowShippingSelector(false);
+        
+        if (paymentType === "card") {
+          const cardInfo = vitrinInfo?.bankCardNumber 
+            ? `\n💳 شماره کارت: ${vitrinInfo.bankCardNumber}\n👤 به نام: ${vitrinInfo.bankCardHolderName || "فروشنده"}`
+            : "\n⚠️ اطلاعات کارت فروشنده ثبت نشده است";
+          
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}${cardInfo}\n\n✅ پس از واریز، تصویر رسید را ارسال کنید.`
+          }]);
+        } else {
+          setMessages(prev => [...prev, {
+            role: "assistant",
+            content: `✅ سفارش شما با موفقیت ثبت شد!\n\n📋 جزئیات سفارش:\n${checkoutOrder.items.map(item => `• ${item.name} (${item.quantity} عدد)`).join('\n')}\n\n💰 مبلغ قابل پرداخت: ${formatPrice(checkoutOrder.totalAmount)} تومان\n🚚 نحوه ارسال: ${getShippingMethodLabel(selectedShipping)}\n\n₿ برای پرداخت با ارز دیجیتال، لطفاً از پنل کاربری خود اقدام کنید.`
+          }]);
+        }
+        setCheckoutOrder(null);
+      }
+    } catch (error) {
+      console.error("Error creating order:", error);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: "متأسفانه در ثبت سفارش مشکلی پیش آمد. لطفاً دوباره تلاش کنید."
+      }]);
+    } finally {
+      setOrderCreating(false);
     }
   };
 
@@ -533,10 +744,6 @@ export default function VitrinPage() {
     setIsLoading(true);
 
     try {
-      if (!aiInitialized || !isAIActive()) {
-        throw new Error("سرویس هوش مصنوعی در دسترس نیست");
-      }
-      
       const aiContent = await generateAIResponse(
         content, 
         vitrinInfo?.storeName,
@@ -712,6 +919,197 @@ export default function VitrinPage() {
                         </Button>
                       </div>
                     </div>
+                  </motion.div>
+                )}
+
+                {showAddressForm && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-xl shadow-md border border-primary/20 p-4 max-w-sm mx-auto mt-4"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="w-5 h-5 text-primary" />
+                      <h3 className="text-sm font-bold text-foreground">آدرس تحویل</h3>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <Input
+                        placeholder="عنوان آدرس (مثلا: منزل)"
+                        value={addressFormData.title}
+                        onChange={(e) => setAddressFormData(prev => ({ ...prev, title: e.target.value }))}
+                        className="h-9 text-sm"
+                      />
+                      <Textarea
+                        placeholder="آدرس کامل"
+                        value={addressFormData.fullAddress}
+                        onChange={(e) => setAddressFormData(prev => ({ ...prev, fullAddress: e.target.value }))}
+                        className="text-sm min-h-[80px]"
+                      />
+                      <Input
+                        placeholder="کد پستی (اختیاری)"
+                        value={addressFormData.postalCode}
+                        onChange={(e) => setAddressFormData(prev => ({ ...prev, postalCode: e.target.value }))}
+                        className="h-9 text-sm"
+                        dir="ltr"
+                      />
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={handleAddressSubmit} 
+                          disabled={addressLoading || !addressFormData.title || !addressFormData.fullAddress}
+                          className="flex-1 h-9 text-sm bg-primary text-primary-foreground"
+                        >
+                          {addressLoading ? (
+                            <>
+                              <Loader2 className="w-3 h-3 ml-1 animate-spin" />
+                              صبر کنید...
+                            </>
+                          ) : (
+                            "ثبت آدرس"
+                          )}
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => {
+                            setShowAddressForm(false);
+                            setCheckoutOrder(null);
+                          }}
+                          className="flex-1 h-9 text-sm"
+                        >
+                          انصراف
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {showShippingSelector && checkoutOrder && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-xl shadow-md border border-primary/20 p-4 max-w-md mx-auto mt-4"
+                  >
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Package className="w-5 h-5 text-primary" />
+                        <h3 className="text-sm font-bold text-foreground">جزئیات سفارش</h3>
+                      </div>
+                      
+                      <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-sm">
+                        {checkoutOrder.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center">
+                            <span className="text-gray-600">{item.name} × {item.quantity}</span>
+                            <span className="font-medium">{formatPrice(parseFloat(item.priceAfterDiscount) * item.quantity)} تومان</span>
+                          </div>
+                        ))}
+                        <div className="border-t pt-2 mt-2 flex justify-between items-center font-bold">
+                          <span>جمع کل:</span>
+                          <span className="text-primary">{formatPrice(checkoutOrder.totalAmount)} تومان</span>
+                        </div>
+                      </div>
+
+                      {checkoutOrder.address && (
+                        <div className="mt-3 bg-blue-50 rounded-lg p-3 text-sm">
+                          <div className="flex items-center gap-1 text-blue-700 font-medium mb-1">
+                            <MapPin className="w-4 h-4" />
+                            <span>{checkoutOrder.address.title}</span>
+                          </div>
+                          <p className="text-blue-600 text-xs">{checkoutOrder.address.fullAddress}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Truck className="w-5 h-5 text-primary" />
+                        <h3 className="text-sm font-bold text-foreground">نحوه ارسال</h3>
+                      </div>
+                      
+                      <RadioGroup value={selectedShipping} onValueChange={handleShippingSelect} className="space-y-2">
+                        {sellerShippingSettings?.postPishtazEnabled && (
+                          <div className="flex items-center space-x-2 space-x-reverse bg-gray-50 p-3 rounded-lg">
+                            <RadioGroupItem value="post_pishtaz" id="post_pishtaz" />
+                            <Label htmlFor="post_pishtaz" className="flex-1 cursor-pointer text-sm">پست پیشتاز</Label>
+                          </div>
+                        )}
+                        {sellerShippingSettings?.postNormalEnabled && (
+                          <div className="flex items-center space-x-2 space-x-reverse bg-gray-50 p-3 rounded-lg">
+                            <RadioGroupItem value="post_normal" id="post_normal" />
+                            <Label htmlFor="post_normal" className="flex-1 cursor-pointer text-sm">پست عادی</Label>
+                          </div>
+                        )}
+                        {sellerShippingSettings?.piykEnabled && (
+                          <div className="flex items-center space-x-2 space-x-reverse bg-gray-50 p-3 rounded-lg">
+                            <RadioGroupItem value="piyk" id="piyk" />
+                            <Label htmlFor="piyk" className="flex-1 cursor-pointer text-sm">پیک</Label>
+                          </div>
+                        )}
+                        {sellerShippingSettings?.freeShippingEnabled && (
+                          <div className="flex items-center space-x-2 space-x-reverse bg-gray-50 p-3 rounded-lg">
+                            <RadioGroupItem value="free" id="free" />
+                            <Label htmlFor="free" className="flex-1 cursor-pointer text-sm">ارسال رایگان</Label>
+                          </div>
+                        )}
+                        {!sellerShippingSettings && (
+                          <>
+                            <div className="flex items-center space-x-2 space-x-reverse bg-gray-50 p-3 rounded-lg">
+                              <RadioGroupItem value="post_normal" id="post_normal" />
+                              <Label htmlFor="post_normal" className="flex-1 cursor-pointer text-sm">پست عادی</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 space-x-reverse bg-gray-50 p-3 rounded-lg">
+                              <RadioGroupItem value="piyk" id="piyk" />
+                              <Label htmlFor="piyk" className="flex-1 cursor-pointer text-sm">پیک</Label>
+                            </div>
+                          </>
+                        )}
+                      </RadioGroup>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={() => handlePayment("card")} 
+                        disabled={!selectedShipping || orderCreating}
+                        className="flex-1 h-10 text-sm bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        {orderCreating ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <CreditCard className="w-4 h-4 ml-1" />
+                            کارت به کارت
+                          </>
+                        )}
+                      </Button>
+                      <Button 
+                        onClick={() => handlePayment("crypto")} 
+                        disabled={!selectedShipping || orderCreating}
+                        className="flex-1 h-10 text-sm bg-orange-500 hover:bg-orange-600 text-white"
+                      >
+                        {orderCreating ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Bitcoin className="w-4 h-4 ml-1" />
+                            ارز دیجیتال
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => {
+                        setShowShippingSelector(false);
+                        setCheckoutOrder(null);
+                        setSelectedShipping("");
+                      }}
+                      className="w-full mt-2 h-8 text-xs text-gray-500"
+                    >
+                      انصراف
+                    </Button>
                   </motion.div>
                 )}
                 

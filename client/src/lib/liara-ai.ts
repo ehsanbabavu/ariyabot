@@ -45,9 +45,35 @@ export function isAIActive(): boolean {
   return isInitialized && openaiClient !== null;
 }
 
+function generateFallbackResponse(message: string, storeName?: string, products?: any[]): string {
+  const lowerMessage = message.toLowerCase();
+  
+  if (lowerMessage.includes('سلام') || lowerMessage.includes('درود') || lowerMessage.includes('hi') || lowerMessage.includes('hello')) {
+    return `سلام! به فروشگاه ${storeName || 'ما'} خوش آمدید. چطور می‌توانم کمکتان کنم؟`;
+  }
+  
+  if (lowerMessage.includes('قیمت') || lowerMessage.includes('چند')) {
+    if (products && products.length > 0) {
+      const product = products[0];
+      return `محصولات ما با قیمت‌های مناسب در دسترس هستند. برای اطلاعات بیشتر می‌توانید محصولات را مشاهده کنید.`;
+    }
+    return 'لطفاً از بخش محصولات قیمت‌ها را مشاهده کنید.';
+  }
+  
+  if (lowerMessage.includes('خرید') || lowerMessage.includes('سفارش')) {
+    return 'برای خرید، محصول مورد نظر را به سبد خرید اضافه کنید و سپس تسویه حساب کنید.';
+  }
+  
+  if (lowerMessage.includes('تماس') || lowerMessage.includes('شماره')) {
+    return 'برای تماس با فروشگاه می‌توانید از بخش پشتیبانی استفاده کنید.';
+  }
+  
+  return `ممنون از پیام شما. برای کمک بیشتر می‌توانید محصولات فروشگاه ${storeName || 'ما'} را مشاهده کنید یا سوال خود را مطرح کنید.`;
+}
+
 export async function generateResponse(message: string, storeName?: string, products?: any[]): Promise<string> {
   if (!openaiClient) {
-    throw new Error("Liara AI فعال نیست");
+    return generateFallbackResponse(message, storeName, products);
   }
 
   try {
@@ -83,6 +109,6 @@ ${message}
     return text.trim();
   } catch (error) {
     console.error("❌ خطا در تولید پاسخ لیارا:", error);
-    throw new Error("خطا در تولید پاسخ هوش مصنوعی");
+    return generateFallbackResponse(message, storeName, products);
   }
 }
