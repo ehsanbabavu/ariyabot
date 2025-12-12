@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { initializeLiaraAI, isAIActive, generateResponse as generateAIResponse } from "@/lib/liara-ai";
 import { useRoute } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -516,17 +517,15 @@ export default function VitrinPage() {
     enabled: !!username,
   });
 
-  const sendMessageMutation = useMutation({
-    mutationFn: async (message: string) => {
-      const res = await fetch(`/api/vitrin/${username}/ai-chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
-      if (!res.ok) throw new Error("خطا در ارسال پیام");
-      return res.json();
-    },
-  });
+  const [aiInitialized, setAiInitialized] = useState(false);
+
+  useEffect(() => {
+    const initAI = async () => {
+      const success = await initializeLiaraAI();
+      setAiInitialized(success);
+    };
+    initAI();
+  }, []);
 
   const handleSend = async (content: string) => {
     const userMsg: Message = { role: "user", content };
@@ -534,8 +533,16 @@ export default function VitrinPage() {
     setIsLoading(true);
 
     try {
-      const response = await sendMessageMutation.mutateAsync(content);
-      const aiContent = response.response || response.fallbackResponse || "متشکرم از پیام شما! به زودی پاسخ خواهم داد.";
+      if (!aiInitialized || !isAIActive()) {
+        throw new Error("سرویس هوش مصنوعی در دسترس نیست");
+      }
+      
+      const aiContent = await generateAIResponse(
+        content, 
+        vitrinInfo?.storeName,
+        products || []
+      );
+      
       setMessages((prev) => {
         const lastMessage = prev[prev.length - 1];
         if (lastMessage && lastMessage.role === "assistant" && isMessageSimilar(lastMessage.content, aiContent)) {
@@ -643,84 +650,67 @@ export default function VitrinPage() {
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="bg-white rounded-2xl shadow-lg border border-primary/20 p-6 max-w-md mx-auto mt-6"
+                    transition={{ duration: 0.3 }}
+                    className="bg-white rounded-xl shadow-md border border-primary/20 p-4 max-w-sm mx-auto mt-4"
                   >
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <UserPlus className="w-8 h-8 text-primary" />
-                      </div>
-                      <h3 className="text-lg font-bold text-foreground">ثبت‌نام سریع</h3>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        برای ادامه خرید، لطفاً شماره تلفن و رمز عبور خود را وارد کنید
-                      </p>
-                    </div>
+                    <h3 className="text-sm font-bold text-foreground text-center mb-3">ثبت‌نام سریع</h3>
                     
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-right block">شماره تلفن</Label>
+                    <div className="space-y-3">
+                      <Input
+                        type="tel"
+                        placeholder="شماره تلفن"
+                        value={registrationPhone}
+                        onChange={(e) => setRegistrationPhone(e.target.value)}
+                        className="text-left h-9 text-sm"
+                        dir="ltr"
+                      />
+                      
+                      <div className="relative">
                         <Input
-                          id="phone"
-                          type="tel"
-                          placeholder="09123456789"
-                          value={registrationPhone}
-                          onChange={(e) => setRegistrationPhone(e.target.value)}
-                          className="text-left"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="رمز عبور (حداقل ۶ کاراکتر)"
+                          value={registrationPassword}
+                          onChange={(e) => setRegistrationPassword(e.target.value)}
+                          className="text-left pl-9 h-9 text-sm"
                           dir="ltr"
                         />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="password" className="text-right block">رمز عبور</Label>
-                        <div className="relative">
-                          <Input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            placeholder="حداقل ۶ کاراکتر"
-                            value={registrationPassword}
-                            onChange={(e) => setRegistrationPassword(e.target.value)}
-                            className="text-left pl-10"
-                            dir="ltr"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
                       </div>
                       
                       {registrationError && (
-                        <p className="text-sm text-destructive text-right">{registrationError}</p>
+                        <p className="text-xs text-destructive text-right">{registrationError}</p>
                       )}
                       
-                      <Button 
-                        onClick={handleRegister} 
-                        disabled={registrationLoading}
-                        className="w-full bg-primary text-primary-foreground"
-                      >
-                        {registrationLoading ? (
-                          <>
-                            <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                            در حال ثبت‌نام...
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus className="w-4 h-4 ml-2" />
-                            ثبت‌نام و ادامه خرید
-                          </>
-                        )}
-                      </Button>
-                      
-                      <Button 
-                        variant="ghost" 
-                        onClick={() => setShowRegistrationForm(false)}
-                        className="w-full text-muted-foreground"
-                      >
-                        انصراف
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={handleRegister} 
+                          disabled={registrationLoading}
+                          className="flex-1 h-9 text-sm bg-primary text-primary-foreground"
+                        >
+                          {registrationLoading ? (
+                            <>
+                              <Loader2 className="w-3 h-3 ml-1 animate-spin" />
+                              صبر کنید...
+                            </>
+                          ) : (
+                            "ثبت‌نام"
+                          )}
+                        </Button>
+                        
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowRegistrationForm(false)}
+                          className="flex-1 h-9 text-sm"
+                        >
+                          انصراف
+                        </Button>
+                      </div>
                     </div>
                   </motion.div>
                 )}
