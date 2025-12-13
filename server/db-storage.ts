@@ -1481,6 +1481,18 @@ export class DbStorage implements IStorage {
       .orderBy(desc(transactions.createdAt));
   }
 
+  async getTransactionsByInitiator(initiatorUserId: string): Promise<Transaction[]> {
+    return await db.select().from(transactions)
+      .where(eq(transactions.initiatorUserId, initiatorUserId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByInitiatorAndType(initiatorUserId: string, type: string): Promise<Transaction[]> {
+    return await db.select().from(transactions)
+      .where(and(eq(transactions.initiatorUserId, initiatorUserId), eq(transactions.type, type)))
+      .orderBy(desc(transactions.createdAt));
+  }
+
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
     const result = await db.insert(transactions).values(insertTransaction).returning();
     return result[0];

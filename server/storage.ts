@@ -127,6 +127,8 @@ export interface IStorage {
   getTransaction(id: string): Promise<Transaction | undefined>;
   getTransactionsByUser(userId: string): Promise<Transaction[]>;
   getTransactionsByUserAndType(userId: string, type: string): Promise<Transaction[]>;
+  getTransactionsByInitiator(initiatorUserId: string): Promise<Transaction[]>;
+  getTransactionsByInitiatorAndType(initiatorUserId: string, type: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(id: string, status: string): Promise<Transaction | undefined>;
   getUserBalance(userId: string): Promise<number>;
@@ -1479,6 +1481,18 @@ export class MemStorage implements IStorage {
   async getTransactionsByUserAndType(userId: string, type: string): Promise<Transaction[]> {
     return Array.from(this.transactions.values())
       .filter(transaction => transaction.userId === userId && transaction.type === type)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async getTransactionsByInitiator(initiatorUserId: string): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter(transaction => transaction.initiatorUserId === initiatorUserId)
+      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+  }
+
+  async getTransactionsByInitiatorAndType(initiatorUserId: string, type: string): Promise<Transaction[]> {
+    return Array.from(this.transactions.values())
+      .filter(transaction => transaction.initiatorUserId === initiatorUserId && transaction.type === type)
       .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
   }
 

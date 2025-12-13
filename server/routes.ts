@@ -155,6 +155,27 @@ const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunc
   }
 };
 
+// Optional auth middleware - doesn't require token but will set user if present
+const optionalAuthenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, jwtSecret) as { userId: string };
+    const user = await storage.getUser(decoded.userId);
+    if (user) {
+      req.user = user;
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};
+
 // Admin middleware
 const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (req.user?.role !== "admin") {
@@ -2984,13 +3005,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
         );
       } 
-      // برای سایر کاربران: فقط تراکنش‌های خودشان
+      // برای سایر کاربران: تراکنش‌های خودشان + تراکنش‌هایی که خودشان آغاز کرده‌اند
       else {
+        let userTransactions: any[] = [];
+        let initiatorTransactions: any[] = [];
+        
         if (type && typeof type === 'string') {
-          transactions = await storage.getTransactionsByUserAndType(req.user!.id, type);
+          userTransactions = await storage.getTransactionsByUserAndType(req.user!.id, type);
+          initiatorTransactions = await storage.getTransactionsByInitiatorAndType(req.user!.id, type);
         } else {
-          transactions = await storage.getTransactionsByUser(req.user!.id);
+          userTransactions = await storage.getTransactionsByUser(req.user!.id);
+          initiatorTransactions = await storage.getTransactionsByInitiator(req.user!.id);
         }
+        
+        // ترکیب و حذف تکراری‌ها (بر اساس id)
+        const transactionMap = new Map();
+        [...userTransactions, ...initiatorTransactions].forEach(tx => {
+          transactionMap.set(tx.id, tx);
+        });
+        
+        // مرتب‌سازی بر اساس تاریخ ایجاد (جدیدترین اول)
+        transactions = Array.from(transactionMap.values()).sort((a, b) => 
+          new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
+        );
       }
       
       res.json(transactions);
@@ -5366,7 +5403,7 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
   });
 
   // Upload receipt image for vitrin (card-to-card payment verification)
-  app.post("/api/vitrin/:username/upload-receipt", uploadWhatsApp.single("receipt"), async (req, res) => {
+  app.post("/api/vitrin/:username/upload-receipt", uploadWhatsApp.single("receipt"), optionalAuthenticateToken, async (req: AuthRequest, res) => {
     try {
       const { username } = req.params;
       
@@ -5378,6 +5415,9 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
       if (!seller || seller.role !== "user_level_1") {
         return res.status(404).json({ message: "فروشگاه یافت نشد" });
       }
+
+      // Get buyer/customer ID if authenticated
+      const buyerId = req.user?.id || null;
 
       const imageUrl = `/UploadsPicClienet/${req.file.filename}`;
       const fullImageUrl = `${req.protocol}://${req.get('host')}${imageUrl}`;
@@ -5391,12 +5431,45 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
       }
 
       let depositInfo;
+      let aiProcessingFailed = false;
       try {
         depositInfo = await aiService.extractDepositInfoFromImage(fullImageUrl);
       } catch (aiError) {
         console.error("Error extracting deposit info:", aiError);
-        return res.status(500).json({ 
-          message: "خطا در پردازش تصویر رسید. لطفاً تصویر واضح‌تری ارسال کنید." 
+        aiProcessingFailed = true;
+        depositInfo = {
+          amount: null,
+          transactionDate: null,
+          transactionTime: null,
+          accountSource: null,
+          paymentMethod: null,
+          referenceId: null
+        };
+      }
+
+      if (aiProcessingFailed) {
+        const transaction = await storage.createTransaction({
+          userId: seller.id,
+          initiatorUserId: buyerId,
+          parentUserId: seller.id,
+          type: "deposit",
+          amount: "0",
+          description: `واریز کارت به کارت از ویترین - در انتظار بررسی دستی`,
+          referenceId: null,
+          status: "pending",
+          paymentMethod: "کارت به کارت",
+          transactionDate: null,
+          transactionTime: null,
+          accountSource: null,
+          imageUrl: imageUrl
+        });
+
+        return res.json({ 
+          message: "تصویر رسید دریافت شد ✅\n\nسرویس پردازش خودکار موقتاً در دسترس نیست. تصویر شما ذخیره شد و فروشنده آن را بررسی خواهد کرد.\n\nلطفاً مبلغ و شماره پیگیری را به صورت متنی نیز ارسال کنید.",
+          success: true,
+          manualReviewRequired: true,
+          transactionId: transaction.id,
+          imageUrl: imageUrl
         });
       }
 
@@ -5405,9 +5478,28 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
       if (!depositInfo.referenceId) missingFields.push('شماره پیگیری');
       
       if (missingFields.length > 0) {
+        const transaction = await storage.createTransaction({
+          userId: seller.id,
+          initiatorUserId: buyerId,
+          parentUserId: seller.id,
+          type: "deposit",
+          amount: depositInfo.amount || "0",
+          description: `واریز کارت به کارت از ویترین - اطلاعات ناقص`,
+          referenceId: depositInfo.referenceId || null,
+          status: "pending",
+          paymentMethod: depositInfo.paymentMethod || "کارت به کارت",
+          transactionDate: depositInfo.transactionDate || null,
+          transactionTime: depositInfo.transactionTime || null,
+          accountSource: depositInfo.accountSource || null,
+          imageUrl: imageUrl
+        });
+
         return res.json({ 
-          message: `تصویر دریافت شد ولی اطلاعات کامل نیست. فیلدهای ناقص: ${missingFields.join('، ')}\n\nلطفاً تصویر واضح‌تری ارسال کنید یا اطلاعات را به صورت متن ارسال کنید.`,
-          extracted: depositInfo
+          message: `تصویر رسید دریافت شد ✅\n\nاطلاعات استخراج شده ناقص است. فیلدهای ناقص: ${missingFields.join('، ')}\n\nلطفاً ${missingFields.join(' و ')} را به صورت متنی ارسال کنید.`,
+          extracted: depositInfo,
+          success: true,
+          transactionId: transaction.id,
+          imageUrl: imageUrl
         });
       }
 
@@ -5423,6 +5515,8 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
 
       const transaction = await storage.createTransaction({
         userId: seller.id,
+        initiatorUserId: buyerId,
+        parentUserId: seller.id,
         type: "deposit",
         amount: depositInfo.amount || "0",
         description: `واریز کارت به کارت از ویترین - ${depositInfo.referenceId || 'بدون شماره پیگیری'}`,
