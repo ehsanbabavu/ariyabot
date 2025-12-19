@@ -49,6 +49,8 @@ import ManageFaqsPage from "@/pages/user/manage-faqs";
 import MaintenancePage from "@/pages/maintenance";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import EmailInbox from "@/pages/email-inbox";
+import EmailSettings from "@/pages/email-settings";
 
 interface MaintenanceStatus {
   isEnabled: boolean;
@@ -284,6 +286,8 @@ function Router() {
       <Route path="/faqs" component={() => <ProtectedRoute component={FaqsPage} />} />
       <Route path="/manage-faqs" component={() => <AdminOrLevel1Route component={ManageFaqsPage} />} />
       <Route path="/add-faq" component={() => <AdminOrLevel1Route component={AddFaqPage} />} />
+      <Route path="/email-inbox" component={() => <ProtectedRoute component={WithLayout(EmailInbox, "صندوق دریافت")} />} />
+      <Route path="/email-settings" component={() => <ProtectedRoute component={WithLayout(EmailSettings, "تنظیمات ایمیل")} />} />
       <Route path="/vitrin/:username" component={VitrinPage} />
       <Route component={NotFound} />
     </Switch>

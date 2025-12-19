@@ -9,11 +9,11 @@ import { cn } from "@/lib/utils";
 
 interface Email {
   id: string;
-  fromAddress: string;
-  subject: string;
-  body?: string;
-  isRead: boolean;
-  receivedAt: string;
+  sender: string;
+  message: string;
+  status: string;
+  timestamp?: string;
+  createdAt?: string;
 }
 
 export default function EmailInbox() {
@@ -22,9 +22,9 @@ export default function EmailInbox() {
 
   // دریافت لیست ایمیل‌ها
   const { data: emails = [], isLoading, refetch } = useQuery<Email[]>({
-    queryKey: ["/api/admin/emails"],
+    queryKey: ["/api/emails"],
     queryFn: async () => {
-      const response = await createAuthenticatedRequest("/api/admin/emails");
+      const response = await createAuthenticatedRequest("/api/emails");
       if (!response.ok) return [];
       return response.json();
     },
@@ -33,14 +33,14 @@ export default function EmailInbox() {
   // فیلتر ایمیل‌ها بر اساس جستجو
   const filteredEmails = emails.filter(
     (email) =>
-      email.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.fromAddress.toLowerCase().includes(searchTerm.toLowerCase())
+      email.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.sender.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // تابع علامت‌گذاری به عنوان خوانده شده
   const markAsRead = async (emailId: string) => {
-    await createAuthenticatedRequest(`/api/admin/emails/${emailId}/read`, {
-      method: "PATCH",
+    await createAuthenticatedRequest(`/api/emails/${emailId}/read`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
     });
     refetch();
@@ -48,14 +48,14 @@ export default function EmailInbox() {
 
   // تابع حذف ایمیل
   const deleteEmail = async (emailId: string) => {
-    await createAuthenticatedRequest(`/api/admin/emails/${emailId}`, {
+    await createAuthenticatedRequest(`/api/emails/${emailId}`, {
       method: "DELETE",
     });
     setSelectedEmail(null);
     refetch();
   };
 
-  const unreadCount = emails.filter((e) => !e.isRead).length;
+  const unreadCount = emails.filter((e) => e.status === "خوانده نشده").length;
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -102,29 +102,29 @@ export default function EmailInbox() {
                     key={email.id}
                     onClick={() => {
                       setSelectedEmail(email);
-                      if (!email.isRead) markAsRead(email.id);
+                      if (email.status === "خوانده نشده") markAsRead(email.id);
                     }}
                     className={cn(
                       "w-full p-4 text-right hover:bg-accent transition-colors border-b",
                       selectedEmail?.id === email.id && "bg-accent",
-                      !email.isRead && "bg-blue-50 dark:bg-blue-950"
+                      email.status === "خوانده نشده" && "bg-blue-50 dark:bg-blue-950"
                     )}
                   >
                     <div className="flex items-start gap-2 mb-1">
-                      {!email.isRead && (
+                      {email.status === "خوانده نشده" && (
                         <Circle className="w-2 h-2 fill-blue-500 text-blue-500 mt-2 ml-2" />
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm truncate">
-                          {email.fromAddress}
+                          {email.sender}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">
-                          {email.subject}
+                          {email.message.substring(0, 50)}...
                         </p>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground text-right">
-                      {new Date(email.receivedAt).toLocaleDateString("fa-IR")}
+                      {new Date(email.createdAt || email.timestamp || Date.now()).toLocaleDateString("fa-IR")}
                     </p>
                   </button>
                 ))}
@@ -140,16 +140,21 @@ export default function EmailInbox() {
                   <div className="flex items-start justify-between mb-4">
                     <div>
                       <h2 className="text-2xl font-bold mb-2">
-                        {selectedEmail.subject}
+                        {selectedEmail.sender}
                       </h2>
                       <p className="text-muted-foreground mb-2">
-                        از: {selectedEmail.fromAddress}
+                        از: {selectedEmail.sender}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(selectedEmail.receivedAt).toLocaleString(
+                        {new Date(selectedEmail.createdAt || selectedEmail.timestamp || Date.now()).toLocaleString(
                           "fa-IR"
                         )}
                       </p>
+                      {selectedEmail.status && (
+                        <Badge variant={selectedEmail.status === "خوانده شده" ? "secondary" : "default"} className="mt-2">
+                          {selectedEmail.status}
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -172,14 +177,12 @@ export default function EmailInbox() {
 
                 {/* Email Body */}
                 <div className="prose max-w-none dark:prose-invert">
-                  {selectedEmail.body && (
-                    <div
-                      className="text-right whitespace-pre-wrap"
-                      style={{ direction: "rtl" }}
-                    >
-                      {selectedEmail.body}
-                    </div>
-                  )}
+                  <div
+                    className="text-right whitespace-pre-wrap"
+                    style={{ direction: "rtl" }}
+                  >
+                    {selectedEmail.message}
+                  </div>
                 </div>
               </div>
             ) : (
