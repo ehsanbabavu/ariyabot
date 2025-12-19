@@ -2,8 +2,8 @@ import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { eq, sql, desc, and, gte, or, inArray, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests, cryptoTransactions } from "@shared/schema";
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type ContentSection, type InsertContentSection, type LoginLog, type InsertLoginLog, type CryptoPrice, type InsertCryptoPrice, type GuestChatSession, type InsertGuestChatSession, type GuestChatMessage, type InsertGuestChatMessage, type ProjectOrderRequest, type InsertProjectOrderRequest } from "@shared/schema";
+import { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests, cryptoTransactions, plugins, emails } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type ContentSection, type InsertContentSection, type LoginLog, type InsertLoginLog, type CryptoPrice, type InsertCryptoPrice, type GuestChatSession, type InsertGuestChatSession, type GuestChatMessage, type InsertGuestChatMessage, type ProjectOrderRequest, type InsertProjectOrderRequest, type Plugin, type InsertPlugin, type Email, type InsertEmail } from "@shared/schema";
 import { type IStorage } from "./storage";
 import bcrypt from "bcryptjs";
 
@@ -16,7 +16,7 @@ const pool = new Pool({
   ssl: false
 });
 const db = drizzle(pool, {
-  schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests, cryptoTransactions }
+  schema: { users, tickets, subscriptions, products, whatsappSettings, sentMessages, receivedMessages, aiTokenSettings, blockchainSettings, userSubscriptions, categories, carts, cartItems, addresses, orders, orderItems, transactions, internalChats, faqs, shippingSettings, passwordResetOtps, vatSettings, contentSections, loginLogs, cryptoPrices, guestChatSessions, guestChatMessages, projectOrderRequests, cryptoTransactions, plugins, emails }
 });
 
 // Export db instance for use in routes
@@ -32,6 +32,9 @@ export class DbStorage implements IStorage {
     
     // Initialize landing page content
     this.initializeLandingPageContent();
+    
+    // Initialize default plugins
+    this.initializeDefaultPlugins();
     
     // Initialize test data only in development environment
     if (process.env.NODE_ENV === 'development') {
@@ -1481,18 +1484,6 @@ export class DbStorage implements IStorage {
       .orderBy(desc(transactions.createdAt));
   }
 
-  async getTransactionsByInitiator(initiatorUserId: string): Promise<Transaction[]> {
-    return await db.select().from(transactions)
-      .where(eq(transactions.initiatorUserId, initiatorUserId))
-      .orderBy(desc(transactions.createdAt));
-  }
-
-  async getTransactionsByInitiatorAndType(initiatorUserId: string, type: string): Promise<Transaction[]> {
-    return await db.select().from(transactions)
-      .where(and(eq(transactions.initiatorUserId, initiatorUserId), eq(transactions.type, type)))
-      .orderBy(desc(transactions.createdAt));
-  }
-
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
     const result = await db.insert(transactions).values(insertTransaction).returning();
     return result[0];
@@ -2348,6 +2339,201 @@ export class DbStorage implements IStorage {
     } catch (error) {
       console.error("Error deleting project order request:", error);
       throw error;
+    }
+  }
+
+  // Plugin methods
+  async getPlugin(id: string): Promise<Plugin | undefined> {
+    try {
+      const result = await db.select().from(plugins).where(eq(plugins.id, id)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting plugin:", error);
+      return undefined;
+    }
+  }
+
+  async getPluginByName(name: string): Promise<Plugin | undefined> {
+    try {
+      const result = await db.select().from(plugins).where(eq(plugins.name, name)).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting plugin by name:", error);
+      return undefined;
+    }
+  }
+
+  async getAllPlugins(): Promise<Plugin[]> {
+    try {
+      return await db.select().from(plugins).orderBy(plugins.createdAt);
+    } catch (error) {
+      console.error("Error getting all plugins:", error);
+      return [];
+    }
+  }
+
+  async createPlugin(plugin: InsertPlugin): Promise<Plugin> {
+    try {
+      const result = await db.insert(plugins).values(plugin).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating plugin:", error);
+      throw error;
+    }
+  }
+
+  async updatePlugin(id: string, plugin: Partial<Plugin>): Promise<Plugin | undefined> {
+    try {
+      const result = await db
+        .update(plugins)
+        .set({ ...plugin, updatedAt: new Date() })
+        .where(eq(plugins.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error updating plugin:", error);
+      throw error;
+    }
+  }
+
+  async deletePlugin(id: string): Promise<boolean> {
+    try {
+      const plugin = await this.getPlugin(id);
+      if (plugin?.isBuiltIn) {
+        throw new Error("Cannot delete built-in plugins");
+      }
+      await db.delete(plugins).where(eq(plugins.id, id));
+      return true;
+    } catch (error) {
+      console.error("Error deleting plugin:", error);
+      return false;
+    }
+  }
+
+  async togglePluginStatus(id: string): Promise<Plugin | undefined> {
+    try {
+      const plugin = await this.getPlugin(id);
+      if (!plugin) return undefined;
+      
+      const result = await db
+        .update(plugins)
+        .set({ isEnabled: !plugin.isEnabled, updatedAt: new Date() })
+        .where(eq(plugins.id, id))
+        .returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error toggling plugin status:", error);
+      throw error;
+    }
+  }
+
+  async initializeDefaultPlugins(): Promise<void> {
+    try {
+      const existingWhatsapp = await this.getPluginByName("whatsapp");
+      if (!existingWhatsapp) {
+        await db.insert(plugins).values({
+          name: "whatsapp",
+          displayName: "واتس‌اپ",
+          description: "ارسال و دریافت پیام از طریق واتس‌اپ، چت با مشتریان و ارسال پیام‌های اتوماتیک",
+          icon: "MessageCircle",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default WhatsApp plugin initialized");
+      }
+
+      const existingVat = await this.getPluginByName("vat");
+      if (!existingVat) {
+        await db.insert(plugins).values({
+          name: "vat",
+          displayName: "مالیات بر ارزش افزوده",
+          description: "تنظیمات مالیات بر ارزش افزوده، اطلاعات شرکت و صدور فاکتور رسمی",
+          icon: "Receipt",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default VAT plugin initialized");
+      }
+
+      const existingAi = await this.getPluginByName("ai");
+      if (!existingAi) {
+        await db.insert(plugins).values({
+          name: "ai",
+          displayName: "هوش مصنوعی",
+          description: "اتصال به سرویس‌های هوش مصنوعی مانند Gemini و Liara برای پاسخ‌دهی خودکار",
+          icon: "Bot",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default AI plugin initialized");
+      }
+
+      const existingBackup = await this.getPluginByName("backup");
+      if (!existingBackup) {
+        await db.insert(plugins).values({
+          name: "backup",
+          displayName: "پشتیبان‌گیری",
+          description: "پشتیبان‌گیری و بازیابی دیتابیس، مدیریت حالت تعمیرات سایت",
+          icon: "Database",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default Backup plugin initialized");
+      }
+
+      const existingCrypto = await this.getPluginByName("crypto-transactions");
+      if (!existingCrypto) {
+        await db.insert(plugins).values({
+          name: "crypto-transactions",
+          displayName: "ارز دیجیتال",
+          description: "مدیریت تراکنش‌های ارز دیجیتال، کیف پول‌های کریپتو و پرداخت با رمزارز",
+          icon: "Wallet",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default Crypto Transactions plugin initialized");
+      }
+
+      const existingGuestChats = await this.getPluginByName("guest-chats");
+      if (!existingGuestChats) {
+        await db.insert(plugins).values({
+          name: "guest-chats",
+          displayName: "چت مهمانان",
+          description: "چت آنلاین با مهمانان سایت، پشتیبانی آنلاین و پاسخ‌دهی به سوالات کاربران",
+          icon: "MessageSquare",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default Guest Chats plugin initialized");
+      }
+
+      const existingLoginLogs = await this.getPluginByName("login-logs");
+      if (!existingLoginLogs) {
+        await db.insert(plugins).values({
+          name: "login-logs",
+          displayName: "لاگ ورود",
+          description: "ثبت و مشاهده تاریخچه ورود کاربران به سیستم",
+          icon: "History",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default Login Logs plugin initialized");
+      }
+
+      const existingEmail = await this.getPluginByName("email");
+      if (!existingEmail) {
+        await db.insert(plugins).values({
+          name: "email",
+          displayName: "ایمیل",
+          description: "مدیریت و ارسال ایمیل‌ها، تنظیمات SMTP و نمونه‌های ایمیل",
+          icon: "Mail",
+          isEnabled: true,
+          isBuiltIn: true,
+        });
+        console.log("✅ Default Email plugin initialized");
+      }
+    } catch (error) {
+      console.error("Error initializing default plugins:", error);
     }
   }
 

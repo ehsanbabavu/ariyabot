@@ -21,8 +21,6 @@ export class LiaraService {
         this.openai = new OpenAI({
           baseURL: baseUrl,
           apiKey: tokenSettings.token,
-          timeout: 120000,
-          maxRetries: 2,
         });
         console.log("🤖 سرویس Liara AI با موفقیت راه‌اندازی شد");
       } else {

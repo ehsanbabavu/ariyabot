@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog, type GuestChatSession, type GuestChatMessage, type ProjectOrderRequest, type InsertProjectOrderRequest } from "@shared/schema";
+import { type User, type InsertUser, type Ticket, type InsertTicket, type Subscription, type InsertSubscription, type Product, type InsertProduct, type WhatsappSettings, type InsertWhatsappSettings, type SentMessage, type InsertSentMessage, type ReceivedMessage, type InsertReceivedMessage, type AiTokenSettings, type InsertAiTokenSettings, type BlockchainSettings, type InsertBlockchainSettings, type UserSubscription, type InsertUserSubscription, type Category, type InsertCategory, type Cart, type InsertCart, type CartItem, type InsertCartItem, type Address, type InsertAddress, type Order, type InsertOrder, type OrderItem, type InsertOrderItem, type Transaction, type InsertTransaction, type InternalChat, type InsertInternalChat, type Faq, type InsertFaq, type UpdateFaq, type ShippingSettings, type InsertShippingSettings, type UpdateShippingSettings, type PasswordResetOtp, type InsertPasswordResetOtp, type VatSettings, type InsertVatSettings, type UpdateVatSettings, type LoginLog, type InsertLoginLog, type GuestChatSession, type GuestChatMessage, type ProjectOrderRequest, type InsertProjectOrderRequest, type Plugin, type InsertPlugin, type UpdatePlugin } from "@shared/schema";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -127,8 +127,6 @@ export interface IStorage {
   getTransaction(id: string): Promise<Transaction | undefined>;
   getTransactionsByUser(userId: string): Promise<Transaction[]>;
   getTransactionsByUserAndType(userId: string, type: string): Promise<Transaction[]>;
-  getTransactionsByInitiator(initiatorUserId: string): Promise<Transaction[]>;
-  getTransactionsByInitiatorAndType(initiatorUserId: string, type: string): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransactionStatus(id: string, status: string): Promise<Transaction | undefined>;
   getUserBalance(userId: string): Promise<number>;
@@ -199,6 +197,16 @@ export interface IStorage {
   getProjectOrderRequestById(id: string): Promise<ProjectOrderRequest | undefined>;
   updateProjectOrderRequestStatus(id: string, status: string): Promise<ProjectOrderRequest | undefined>;
   deleteProjectOrderRequest(id: string): Promise<void>;
+  
+  // Plugins
+  getPlugin(id: string): Promise<Plugin | undefined>;
+  getPluginByName(name: string): Promise<Plugin | undefined>;
+  getAllPlugins(): Promise<Plugin[]>;
+  createPlugin(plugin: InsertPlugin): Promise<Plugin>;
+  updatePlugin(id: string, plugin: Partial<Plugin>): Promise<Plugin | undefined>;
+  deletePlugin(id: string): Promise<boolean>;
+  togglePluginStatus(id: string): Promise<Plugin | undefined>;
+  initializeDefaultPlugins(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -1481,18 +1489,6 @@ export class MemStorage implements IStorage {
   async getTransactionsByUserAndType(userId: string, type: string): Promise<Transaction[]> {
     return Array.from(this.transactions.values())
       .filter(transaction => transaction.userId === userId && transaction.type === type)
-      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-  }
-
-  async getTransactionsByInitiator(initiatorUserId: string): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter(transaction => transaction.initiatorUserId === initiatorUserId)
-      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-  }
-
-  async getTransactionsByInitiatorAndType(initiatorUserId: string, type: string): Promise<Transaction[]> {
-    return Array.from(this.transactions.values())
-      .filter(transaction => transaction.initiatorUserId === initiatorUserId && transaction.type === type)
       .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
   }
 

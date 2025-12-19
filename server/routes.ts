@@ -6,13 +6,13 @@ import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
-import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, maintenanceMode, type User, cryptoTransactions } from "@shared/schema";
+import { insertUserSchema, insertSubUserSchema, insertTicketSchema, insertSubscriptionSchema, insertProductSchema, insertWhatsappSettingsSchema, insertSentMessageSchema, insertReceivedMessageSchema, insertAiTokenSettingsSchema, insertBlockchainSettingsSchema, insertUserSubscriptionSchema, insertCategorySchema, insertCartItemSchema, insertAddressSchema, updateAddressSchema, insertOrderSchema, insertOrderItemSchema, insertTransactionSchema, updateCategoryOrderSchema, ticketReplySchema, insertInternalChatSchema, insertFaqSchema, updateFaqSchema, maintenanceMode, type User, cryptoTransactions, emails } from "@shared/schema";
 import { z } from "zod";
 import fs from "fs";
 import { generateAndSaveInvoice } from "./invoice-service";
 import { whatsAppSender } from "./whatsapp-sender";
 import { db, eq } from "./db-storage";
-import { and } from "drizzle-orm";
+import { and, desc } from "drizzle-orm";
 import { orders } from "@shared/schema";
 import { tronService } from "./tron-service";
 import { rippleService } from "./ripple-service";
@@ -152,27 +152,6 @@ const authenticateToken = async (req: AuthRequest, res: Response, next: NextFunc
     next();
   } catch (error) {
     return res.status(403).json({ message: "توکن نامعتبر است" });
-  }
-};
-
-// Optional auth middleware - doesn't require token but will set user if present
-const optionalAuthenticateToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return next();
-  }
-
-  try {
-    const decoded = jwt.verify(token, jwtSecret) as { userId: string };
-    const user = await storage.getUser(decoded.userId);
-    if (user) {
-      req.user = user;
-    }
-    next();
-  } catch (error) {
-    next();
   }
 };
 
@@ -3005,29 +2984,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
         );
       } 
-      // برای سایر کاربران: تراکنش‌های خودشان + تراکنش‌هایی که خودشان آغاز کرده‌اند
+      // برای سایر کاربران: فقط تراکنش‌های خودشان
       else {
-        let userTransactions: any[] = [];
-        let initiatorTransactions: any[] = [];
-        
         if (type && typeof type === 'string') {
-          userTransactions = await storage.getTransactionsByUserAndType(req.user!.id, type);
-          initiatorTransactions = await storage.getTransactionsByInitiatorAndType(req.user!.id, type);
+          transactions = await storage.getTransactionsByUserAndType(req.user!.id, type);
         } else {
-          userTransactions = await storage.getTransactionsByUser(req.user!.id);
-          initiatorTransactions = await storage.getTransactionsByInitiator(req.user!.id);
+          transactions = await storage.getTransactionsByUser(req.user!.id);
         }
-        
-        // ترکیب و حذف تکراری‌ها (بر اساس id)
-        const transactionMap = new Map();
-        [...userTransactions, ...initiatorTransactions].forEach(tx => {
-          transactionMap.set(tx.id, tx);
-        });
-        
-        // مرتب‌سازی بر اساس تاریخ ایجاد (جدیدترین اول)
-        transactions = Array.from(transactionMap.values()).sort((a, b) => 
-          new Date(b.createdAt || '').getTime() - new Date(a.createdAt || '').getTime()
-        );
       }
       
       res.json(transactions);
@@ -5403,7 +5366,7 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
   });
 
   // Upload receipt image for vitrin (card-to-card payment verification)
-  app.post("/api/vitrin/:username/upload-receipt", uploadWhatsApp.single("receipt"), optionalAuthenticateToken, async (req: AuthRequest, res) => {
+  app.post("/api/vitrin/:username/upload-receipt", uploadWhatsApp.single("receipt"), async (req, res) => {
     try {
       const { username } = req.params;
       
@@ -5415,9 +5378,6 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
       if (!seller || seller.role !== "user_level_1") {
         return res.status(404).json({ message: "فروشگاه یافت نشد" });
       }
-
-      // Get buyer/customer ID if authenticated
-      const buyerId = req.user?.id || null;
 
       const imageUrl = `/UploadsPicClienet/${req.file.filename}`;
       const fullImageUrl = `${req.protocol}://${req.get('host')}${imageUrl}`;
@@ -5431,45 +5391,12 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
       }
 
       let depositInfo;
-      let aiProcessingFailed = false;
       try {
         depositInfo = await aiService.extractDepositInfoFromImage(fullImageUrl);
       } catch (aiError) {
         console.error("Error extracting deposit info:", aiError);
-        aiProcessingFailed = true;
-        depositInfo = {
-          amount: null,
-          transactionDate: null,
-          transactionTime: null,
-          accountSource: null,
-          paymentMethod: null,
-          referenceId: null
-        };
-      }
-
-      if (aiProcessingFailed) {
-        const transaction = await storage.createTransaction({
-          userId: seller.id,
-          initiatorUserId: buyerId,
-          parentUserId: seller.id,
-          type: "deposit",
-          amount: "0",
-          description: `واریز کارت به کارت از ویترین - در انتظار بررسی دستی`,
-          referenceId: null,
-          status: "pending",
-          paymentMethod: "کارت به کارت",
-          transactionDate: null,
-          transactionTime: null,
-          accountSource: null,
-          imageUrl: imageUrl
-        });
-
-        return res.json({ 
-          message: "تصویر رسید دریافت شد ✅\n\nسرویس پردازش خودکار موقتاً در دسترس نیست. تصویر شما ذخیره شد و فروشنده آن را بررسی خواهد کرد.\n\nلطفاً مبلغ و شماره پیگیری را به صورت متنی نیز ارسال کنید.",
-          success: true,
-          manualReviewRequired: true,
-          transactionId: transaction.id,
-          imageUrl: imageUrl
+        return res.status(500).json({ 
+          message: "خطا در پردازش تصویر رسید. لطفاً تصویر واضح‌تری ارسال کنید." 
         });
       }
 
@@ -5478,28 +5405,9 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
       if (!depositInfo.referenceId) missingFields.push('شماره پیگیری');
       
       if (missingFields.length > 0) {
-        const transaction = await storage.createTransaction({
-          userId: seller.id,
-          initiatorUserId: buyerId,
-          parentUserId: seller.id,
-          type: "deposit",
-          amount: depositInfo.amount || "0",
-          description: `واریز کارت به کارت از ویترین - اطلاعات ناقص`,
-          referenceId: depositInfo.referenceId || null,
-          status: "pending",
-          paymentMethod: depositInfo.paymentMethod || "کارت به کارت",
-          transactionDate: depositInfo.transactionDate || null,
-          transactionTime: depositInfo.transactionTime || null,
-          accountSource: depositInfo.accountSource || null,
-          imageUrl: imageUrl
-        });
-
         return res.json({ 
-          message: `تصویر رسید دریافت شد ✅\n\nاطلاعات استخراج شده ناقص است. فیلدهای ناقص: ${missingFields.join('، ')}\n\nلطفاً ${missingFields.join(' و ')} را به صورت متنی ارسال کنید.`,
-          extracted: depositInfo,
-          success: true,
-          transactionId: transaction.id,
-          imageUrl: imageUrl
+          message: `تصویر دریافت شد ولی اطلاعات کامل نیست. فیلدهای ناقص: ${missingFields.join('، ')}\n\nلطفاً تصویر واضح‌تری ارسال کنید یا اطلاعات را به صورت متن ارسال کنید.`,
+          extracted: depositInfo
         });
       }
 
@@ -5515,8 +5423,6 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
 
       const transaction = await storage.createTransaction({
         userId: seller.id,
-        initiatorUserId: buyerId,
-        parentUserId: seller.id,
         type: "deposit",
         amount: depositInfo.amount || "0",
         description: `واریز کارت به کارت از ویترین - ${depositInfo.referenceId || 'بدون شماره پیگیری'}`,
@@ -5634,6 +5540,194 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
     } catch (error) {
       console.error("Error uploading store logo:", error);
       res.status(500).json({ message: "خطا در آپلود لوگو" });
+    }
+  });
+
+  // =====================
+  // EMAILS API ROUTES
+  // =====================
+
+  // Get all emails for admin (admin only)
+  app.get("/api/admin/emails", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      const allEmails = await db
+        .select()
+        .from(emails)
+        .where(eq(emails.userId, req.user.id))
+        .orderBy(desc(emails.receivedAt));
+      res.json(allEmails);
+    } catch (error) {
+      console.error("Error getting emails:", error);
+      res.status(500).json({ message: "خطا در دریافت ایمیل‌ها" });
+    }
+  });
+
+  // Mark email as read (admin only)
+  app.patch("/api/admin/emails/:id/read", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      const email = await db
+        .update(emails)
+        .set({ isRead: true })
+        .where(eq(emails.id, req.params.id))
+        .returning();
+      res.json(email[0]);
+    } catch (error) {
+      console.error("Error marking email as read:", error);
+      res.status(500).json({ message: "خطا در علامت‌گذاری ایمیل" });
+    }
+  });
+
+  // Delete email (admin only)
+  app.delete("/api/admin/emails/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      await db
+        .delete(emails)
+        .where(eq(emails.id, req.params.id));
+      res.json({ message: "ایمیل با موفقیت حذف شد" });
+    } catch (error) {
+      console.error("Error deleting email:", error);
+      res.status(500).json({ message: "خطا در حذف ایمیل" });
+    }
+  });
+
+  // =====================
+  // PLUGINS API ROUTES
+  // =====================
+
+  // Get all plugins (admin only)
+  app.get("/api/admin/plugins", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      const plugins = await storage.getAllPlugins();
+      res.json(plugins);
+    } catch (error) {
+      console.error("Error getting plugins:", error);
+      res.status(500).json({ message: "خطا در دریافت پلاگین‌ها" });
+    }
+  });
+
+  // Create a new plugin (admin only)
+  app.post("/api/admin/plugins", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      const { name, displayName, description, icon } = req.body;
+      
+      if (!name || !displayName) {
+        return res.status(400).json({ message: "نام و نام نمایشی الزامی است" });
+      }
+
+      const existingPlugin = await storage.getPluginByName(name);
+      if (existingPlugin) {
+        return res.status(400).json({ message: "پلاگین با این نام قبلاً وجود دارد" });
+      }
+
+      const plugin = await storage.createPlugin({
+        name,
+        displayName,
+        description: description || "",
+        icon: icon || "Puzzle",
+        isEnabled: true,
+        isBuiltIn: false,
+      });
+      res.status(201).json(plugin);
+    } catch (error) {
+      console.error("Error creating plugin:", error);
+      res.status(500).json({ message: "خطا در ایجاد پلاگین" });
+    }
+  });
+
+  // Toggle plugin status (admin only)
+  app.patch("/api/admin/plugins/:id/toggle", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      const plugin = await storage.togglePluginStatus(req.params.id);
+      if (!plugin) {
+        return res.status(404).json({ message: "پلاگین یافت نشد" });
+      }
+      res.json(plugin);
+    } catch (error) {
+      console.error("Error toggling plugin:", error);
+      res.status(500).json({ message: "خطا در تغییر وضعیت پلاگین" });
+    }
+  });
+
+  // Update plugin (admin only)
+  app.put("/api/admin/plugins/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      const { displayName, description, icon } = req.body;
+      const plugin = await storage.updatePlugin(req.params.id, {
+        displayName,
+        description,
+        icon,
+      });
+      if (!plugin) {
+        return res.status(404).json({ message: "پلاگین یافت نشد" });
+      }
+      res.json(plugin);
+    } catch (error) {
+      console.error("Error updating plugin:", error);
+      res.status(500).json({ message: "خطا در به‌روزرسانی پلاگین" });
+    }
+  });
+
+  // Delete plugin (admin only, non-builtin only)
+  app.delete("/api/admin/plugins/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+      const plugin = await storage.getPlugin(req.params.id);
+      if (!plugin) {
+        return res.status(404).json({ message: "پلاگین یافت نشد" });
+      }
+      if (plugin.isBuiltIn) {
+        return res.status(400).json({ message: "پلاگین‌های پیش‌فرض قابل حذف نیستند" });
+      }
+      await storage.deletePlugin(req.params.id);
+      res.json({ message: "پلاگین با موفقیت حذف شد" });
+    } catch (error) {
+      console.error("Error deleting plugin:", error);
+      res.status(500).json({ message: "خطا در حذف پلاگین" });
+    }
+  });
+
+  // Check if a specific plugin is enabled (for conditional menu items)
+  app.get("/api/plugins/:name/status", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const plugin = await storage.getPluginByName(req.params.name);
+      res.json({ isEnabled: plugin?.isEnabled ?? false });
+    } catch (error) {
+      console.error("Error checking plugin status:", error);
+      res.status(500).json({ message: "خطا در بررسی وضعیت پلاگین" });
+    }
+  });
+
+  // Public endpoint to check guest-chats plugin status (no auth required)
+  app.get("/api/plugins/guest-chats/public-status", async (req, res) => {
+    try {
+      const plugin = await storage.getPluginByName("guest-chats");
+      res.json({ isEnabled: plugin?.isEnabled ?? false });
+    } catch (error) {
+      console.error("Error checking guest-chats plugin status:", error);
+      res.json({ isEnabled: false });
     }
   });
 

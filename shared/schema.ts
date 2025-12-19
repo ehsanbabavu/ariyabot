@@ -757,3 +757,61 @@ export const updateProjectOrderRequestSchema = createInsertSchema(projectOrderRe
 export type ProjectOrderRequest = typeof projectOrderRequests.$inferSelect;
 export type InsertProjectOrderRequest = z.infer<typeof insertProjectOrderRequestSchema>;
 export type UpdateProjectOrderRequest = z.infer<typeof updateProjectOrderRequestSchema>;
+
+// Emails - For storing received and sent emails
+export const emails = pgTable("emails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  fromAddress: text("from_address").notNull(),
+  toAddress: text("to_address").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body"),
+  htmlBody: text("html_body"),
+  isRead: boolean("is_read").notNull().default(false),
+  isSent: boolean("is_sent").notNull().default(false), // true if sent, false if received
+  attachments: text("attachments"), // JSON array of attachment objects
+  messageId: text("message_id"), // Email message ID (for threading)
+  inReplyTo: text("in_reply_to"), // Message ID of the email this replies to
+  receivedAt: timestamp("received_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertEmailSchema = createInsertSchema(emails).omit({
+  id: true,
+  receivedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateEmailSchema = createInsertSchema(emails).partial().required({ id: true });
+
+export type Email = typeof emails.$inferSelect;
+export type InsertEmail = z.infer<typeof insertEmailSchema>;
+export type UpdateEmail = z.infer<typeof updateEmailSchema>;
+
+// Plugins Management - For enabling/disabling features
+export const plugins = pgTable("plugins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // Unique identifier for the plugin
+  displayName: text("display_name").notNull(), // Persian display name
+  description: text("description"), // Plugin description
+  icon: text("icon").notNull().default("Puzzle"), // Lucide icon name
+  isEnabled: boolean("is_enabled").notNull().default(true), // Plugin status
+  isBuiltIn: boolean("is_built_in").notNull().default(false), // Built-in plugins cannot be deleted
+  settings: text("settings"), // JSON string for plugin-specific settings
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPluginSchema = createInsertSchema(plugins).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updatePluginSchema = createInsertSchema(plugins).partial().required({ id: true });
+
+export type Plugin = typeof plugins.$inferSelect;
+export type InsertPlugin = z.infer<typeof insertPluginSchema>;
+export type UpdatePlugin = z.infer<typeof updatePluginSchema>;

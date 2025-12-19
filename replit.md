@@ -4,6 +4,20 @@
 
 # Recent Changes
 
+**December 19, 2024**: Added Email plugin and fixed duplicate menu items
+- Created "email" as a built-in plugin with Mail icon
+- Email plugin initialized with displayName "ایمیل" and description "مدیریت و ارسال ایمیل‌ها، تنظیمات SMTP و نمونه‌های ایمیل"
+- Removed email from admin settings menu (only exists as a plugin)
+- Fixed duplicate menu rendering in sidebar - removed redundant "تنظیمات فروشگاه" section that was showing menu items twice
+- Sidebar now has unified "تنظیمات" menu for admin and user_level_1 roles
+
+**December 13, 2024**: Converted crypto-transactions and guest-chats pages to plugins
+- Added crypto-transactions and guest-chats as built-in plugins (can be toggled on/off from admin plugins page)
+- Created PluginAwareAdminRoute wrapper in App.tsx for plugin-gated routes
+- Sidebar conditionally shows/hides menu items based on plugin status
+- Home page landing page conditionally shows/hides guest chat widget based on plugin status
+- Both plugins default to enabled but can be toggled by admin
+
 **December 12, 2024**: Fresh GitHub import successfully configured for Replit environment
 - Installed all npm dependencies (642 packages)
 - Created PostgreSQL database and pushed schema using Drizzle
