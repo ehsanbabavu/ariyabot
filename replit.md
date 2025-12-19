@@ -4,6 +4,15 @@
 
 # Recent Changes
 
+**December 19, 2025**: Implemented email inbox and SMTP server integration
+- Added SMTP server listening on port 2525 for receiving emails
+- Created email management API endpoints (GET, POST, PUT, DELETE)
+- Updated email-inbox component to display real emails from database
+- Emails stored in receivedMessages table with proper status tracking
+- Added test email endpoint for quick testing
+- Fixed Postfix installation and SMTP receiver service
+- Email support for authenticated users with proper authorization
+
 **December 19, 2024**: Added Email plugin and fixed duplicate menu items
 - Created "email" as a built-in plugin with Mail icon
 - Email plugin initialized with displayName "ایمیل" and description "مدیریت و ارسال ایمیل‌ها، تنظیمات SMTP و نمونه‌های ایمیل"
@@ -29,7 +38,7 @@
 
 # User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language in Farsi.
 
 # System Architecture
 
@@ -45,6 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **Authentication**: JWT with bcrypt hashing and role-based access control (admin, user_level_1, user_level_2).
 - **File Management**: Multer for uploads, local storage for images, Puppeteer for HTML-to-image invoice generation.
 - **Data Storage**: PostgreSQL with Drizzle ORM, Neon Database for serverless hosting, Drizzle Kit for migrations, and connect-pg-simple for session storage.
+- **Email System**: SMTP server listening on port 2525 for receiving emails, integrated with database for persistent storage.
 
 ## Feature Specifications
 - **WhatsApp Integration**: AI-powered OCR for deposit receipts (Gemini Vision), smart product ordering, duplicate transaction detection, automated notifications, and invoice delivery. Includes an intelligent, rate-limited queue system.
@@ -65,11 +75,13 @@ Preferred communication style: Simple, everyday language.
 - **Auto-Save Crypto Transactions**: System to automatically save cryptocurrency transaction details for orders.
 - **Guest Chat System**: Chat system for non-member visitors on the home page, with admin management.
 - **New Homepage**: Modern landing page with Framer Motion animations and news carousel.
+- **Email Inbox**: Real email receiving system via SMTP server, database storage, and web UI for viewing and managing emails.
 
 ## System Design Choices
 - **AI Architecture**: Dual AI provider system (Gemini AI, Liara AI) with an AI Service Orchestrator for centralized management and automatic failover.
 - **Development & Deployment**: Vite for frontend bundling; Express serves static assets. Configured for VM deployment.
 - **Security**: JWT_SECRET and ADMIN_PASSWORD managed via Replit Secrets.
+- **Email System**: SMTP server on port 2525 for development, with mailparser for email parsing and database integration.
 
 ## Replit Environment Setup
 
@@ -92,13 +104,21 @@ Preferred communication style: Simple, everyday language.
 - `CARDANOSCAN_API_KEY`: Cardanoscan API key (for Cardano blockchain integration)
 - `TRONGRID_API_KEY`: TronGrid API key (for Tron blockchain integration)
 
+### Email System Configuration
+- SMTP Server running on port 2525
+- Listens on 0.0.0.0 for all interfaces
+- Receives emails from external mail clients
+- Stores emails in receivedMessages table
+- Email format: `sender@domain.com` -> User's inbox
+- Test endpoint: POST `/api/test/send-email` (authenticated)
+
 ### Running the Application
 - Development: `npm run dev` (runs on port 5000)
 - Production build: `npm run build`
 - Production start: `npm start`
 
 ### Deployment
-- Configured for VM deployment on Replit
+- Configured for autoscale deployment on Replit
 - Build command: `npm run build`
 - Run command: `npm start`
 - Serves on port 5000 (auto-configured via PORT env var)
@@ -113,6 +133,9 @@ Preferred communication style: Simple, everyday language.
 
 ## Backend Services
 - Express.js, Drizzle ORM, Multer, jsonwebtoken, bcrypt, Puppeteer.
+
+## Email Services
+- SMTP Server, mailparser
 
 ## AI Services
 - Gemini AI

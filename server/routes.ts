@@ -5731,6 +5731,93 @@ ${productList || "در حال حاضر محصولی ثبت نشده است."}
     }
   });
 
+  // Email management endpoints
+  app.get("/api/emails", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "کاربر تشخیص داده نشد" });
+      }
+      const emails = await db.query.receivedMessages.findMany({
+        where: eq(receivedMessages.userId, req.user.id),
+      });
+      res.json(emails);
+    } catch (error) {
+      console.error("خطا در دریافت ایمیل‌ها:", error);
+      res.status(500).json({ message: "خطا در دریافت ایمیل‌ها" });
+    }
+  });
+
+  app.post("/api/emails/receive", async (req, res) => {
+    try {
+      const { userId, sender, subject, message } = req.body;
+      
+      if (!userId || !sender || !message) {
+        return res.status(400).json({ message: "اطلاعات ناقص است" });
+      }
+
+      await db.insert(receivedMessages).values({
+        userId,
+        whatsiPlusId: `email_${Date.now()}_${Math.random()}`,
+        sender,
+        message: `موضوع: ${subject || 'بدون موضوع'}\n\n${message}`,
+        status: "خوانده نشده",
+        timestamp: new Date(),
+      });
+
+      console.log(`📧 ایمیل جدید دریافت شد از: ${sender}`);
+      res.json({ message: "ایمیل با موفقیت دریافت شد" });
+    } catch (error) {
+      console.error("خطا:", error);
+      res.status(500).json({ message: "خطا در ذخیره ایمیل" });
+    }
+  });
+
+  app.put("/api/emails/:id/read", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const email = await db.query.receivedMessages.findFirst({
+        where: eq(receivedMessages.id, id),
+      });
+
+      if (!email || email.userId !== req.user?.id) {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      await db.update(receivedMessages)
+        .set({ status: "خوانده شده" })
+        .where(eq(receivedMessages.id, id));
+
+      res.json({ message: "ایمیل به عنوان خوانده شده علامت‌گذاری شد" });
+    } catch (error) {
+      console.error("خطا:", error);
+      res.status(500).json({ message: "خطا در به‌روزرسانی وضعیت" });
+    }
+  });
+
+  app.delete("/api/emails/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const email = await db.query.receivedMessages.findFirst({
+        where: eq(receivedMessages.id, id),
+      });
+
+      if (!email || email.userId !== req.user?.id) {
+        return res.status(403).json({ message: "دسترسی غیرمجاز" });
+      }
+
+      await db.delete(receivedMessages)
+        .where(eq(receivedMessages.id, id));
+
+      res.json({ message: "ایمیل حذف شد" });
+    } catch (error) {
+      console.error("خطا:", error);
+      res.status(500).json({ message: "خطا در حذف ایمیل" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
+
+// Email management endpoints
+

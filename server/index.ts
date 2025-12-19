@@ -6,6 +6,7 @@ import { aiService } from "./ai-service";
 import { cleanupService } from "./cleanup-service";
 import { cryptoPriceCacheService } from "./crypto-price-cache-service";
 import { cryptoMatchingService } from "./crypto-matching-service";
+import { startSMTPServer } from "./smtp-server";
 import path from "path";
 
 const app = express();
@@ -105,5 +106,7 @@ app.use((req, res, next) => {
     cleanupService.start();
     // سرویس تطبیق تراکنش‌های ارز دیجیتال را بررسی کن و اگر تراکنش فعال وجود داشت فعال کن
     await cryptoMatchingService.checkForActiveTransactionsAndStart();
+    // شروع سرور SMTP برای دریافت ایمیل‌های واقعی
+    startSMTPServer();
   });
 })();
