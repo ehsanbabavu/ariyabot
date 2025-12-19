@@ -607,6 +607,14 @@ export default function Home() {
   const [isShaking, setIsShaking] = useState(false);
   const prevMessagesCount = useRef(0);
   const shakeTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isGuestChatsPluginEnabled, setIsGuestChatsPluginEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/plugins/guest-chats/public-status')
+      .then(res => res.ok ? res.json() : { isEnabled: false })
+      .then(data => setIsGuestChatsPluginEnabled(data.isEnabled ?? false))
+      .catch(() => setIsGuestChatsPluginEnabled(false));
+  }, []);
   
   // Project Order Modal State
   const [isProjectOrderOpen, setIsProjectOrderOpen] = useState(false);
@@ -1819,7 +1827,9 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Floating Chat Button - Modern Design */}
+      {/* Floating Chat Button - Modern Design (only show if guest-chats plugin is enabled) */}
+      {isGuestChatsPluginEnabled && (
+      <>
       <motion.div
         className="fixed bottom-8 right-8 z-40 flex items-center gap-3 flex-row-reverse"
         initial={{ opacity: 0, y: 20 }}
@@ -2047,6 +2057,8 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+      </>
+      )}
 
       {/* Project Order Modal */}
       <Dialog open={isProjectOrderOpen} onOpenChange={setIsProjectOrderOpen}>

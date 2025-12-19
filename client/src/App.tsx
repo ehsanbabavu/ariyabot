@@ -18,11 +18,8 @@ import AITokenSettings from "@/pages/admin/ai-token";
 import DatabaseBackup from "@/pages/admin/database-backup";
 import LoginLogs from "@/pages/admin/login-logs";
 import Categories from "@/pages/admin/categories";
-import UserWhatsappTokens from "@/pages/admin/user-whatsapp-tokens";
-import CardanoSettings from "@/pages/admin/cardano-settings";
-import BankCardsManagement from "@/pages/admin/bank-cards";
 import GuestChats from "@/pages/admin/guest-chats";
-import ProjectOrders from "@/pages/admin/project-orders";
+import PluginsManagement from "@/pages/admin/plugins";
 import Profile from "@/pages/user/profile";
 import SendTicket from "@/pages/user/send-ticket";
 import MyTickets from "@/pages/user/my-tickets";
@@ -44,7 +41,6 @@ import ChatWithSeller from "@/pages/user/chat-with-seller";
 import CustomerChats from "@/pages/level1/customer-chats";
 import ShippingSettings from "@/pages/level1/shipping-settings";
 import VatSettings from "@/pages/level1/vat-settings";
-import VitrinSettings from "@/pages/level1/vitrin-settings";
 import VitrinPage from "@/pages/vitrin";
 import BankCard from "@/pages/user/bank-card";
 import FaqsPage from "@/pages/faqs";
@@ -114,6 +110,46 @@ function AdminRoute({ component: Component }: { component: React.ComponentType }
   if (user.role !== "admin") {
     return <div className="min-h-screen flex items-center justify-center">
       <div className="text-lg text-destructive">دسترسی محدود - این صفحه مخصوص مدیران است</div>
+    </div>;
+  }
+  
+  return <Component />;
+}
+
+function PluginAwareAdminRoute({ component: Component, pluginName }: { component: React.ComponentType; pluginName: string }) {
+  const { user, isLoading } = useAuth();
+  const { data: pluginStatus, isLoading: pluginLoading } = useQuery<{ isEnabled: boolean }>({
+    queryKey: [`/api/plugins/${pluginName}/status`],
+    queryFn: async () => {
+      const response = await fetch(`/api/plugins/${pluginName}/status`, {
+        credentials: 'include'
+      });
+      if (!response.ok) return { isEnabled: false };
+      return response.json();
+    },
+    enabled: !!user,
+    staleTime: 30000,
+  });
+  
+  if (isLoading || pluginLoading) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg">در حال بارگذاری...</div>
+    </div>;
+  }
+  
+  if (!user) {
+    return <Login />;
+  }
+  
+  if (user.role !== "admin") {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg text-destructive">دسترسی محدود - این صفحه مخصوص مدیران است</div>
+    </div>;
+  }
+  
+  if (!pluginStatus?.isEnabled) {
+    return <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg text-muted-foreground">این پلاگین غیرفعال است</div>
     </div>;
   }
   
@@ -215,17 +251,14 @@ function Router() {
       ) : <Login />} />
       <Route path="/users" component={() => <AdminRoute component={UserManagement} />} />
       <Route path="/tickets" component={() => <AdminRoute component={TicketManagement} />} />
-      <Route path="/guest-chats" component={() => <AdminRoute component={GuestChats} />} />
-      <Route path="/project-orders" component={() => <AdminRoute component={ProjectOrders} />} />
+      <Route path="/guest-chats" component={() => <PluginAwareAdminRoute component={GuestChats} pluginName="guest-chats" />} />
+      <Route path="/plugins" component={() => <AdminRoute component={PluginsManagement} />} />
       <Route path="/subscriptions" component={() => <AdminRoute component={Subscriptions} />} />
       <Route path="/categories" component={() => <AdminOrLevel1Route component={Categories} />} />
       <Route path="/ai-token" component={() => <AdminRoute component={AITokenSettings} />} />
-      <Route path="/cardano-settings" component={() => <AdminRoute component={CardanoSettings} />} />
       <Route path="/login-logs" component={() => <AdminRoute component={LoginLogs} />} />
       <Route path="/database-backup" component={() => <AdminRoute component={DatabaseBackup} />} />
-      <Route path="/bank-cards-management" component={() => <AdminRoute component={BankCardsManagement} />} />
       <Route path="/admin/welcome-message" component={() => <AdminOrLevel1Route component={WelcomeMessage} />} />
-      <Route path="/user-whatsapp-tokens" component={() => <AdminRoute component={UserWhatsappTokens} />} />
       <Route path="/whatsapp-settings" component={() => <AdminOrLevel1Route component={WhatsappSettings} />} />
       <Route path="/send-message" component={() => <AdminOrLevel1Route component={SendMessage} />} />
       <Route path="/reports" component={() => <AdminOrLevel1Route component={Reports} />} />
@@ -242,7 +275,7 @@ function Router() {
       <Route path="/received-orders" component={() => <AdminOrLevel1Route component={WithLayout(ReceivedOrders, "سفارشات دریافتی")} />} />
       <Route path="/financial" component={() => <Level2Route component={WithLayout(Financial, "امور مالی")} />} />
       <Route path="/transactions" component={() => <AdminOrLevel1Route component={WithLayout(SuccessfulTransactions, "مدیریت تراکنش‌ها")} />} />
-      <Route path="/crypto-transactions" component={() => <Level1Route component={CryptoTransactions} />} />
+      <Route path="/crypto-transactions" component={() => <PluginAwareAdminRoute component={CryptoTransactions} pluginName="crypto-transactions" />} />
       <Route path="/customer-chats" component={() => <Level1Route component={WithLayout(CustomerChats, "مدیریت چت با مشتریان")} />} />
       <Route path="/shipping-settings" component={() => <AdminOrLevel1Route component={ShippingSettings} />} />
       <Route path="/vat-settings" component={() => <AdminOrLevel1Route component={VatSettings} />} />
@@ -251,7 +284,6 @@ function Router() {
       <Route path="/faqs" component={() => <ProtectedRoute component={FaqsPage} />} />
       <Route path="/manage-faqs" component={() => <AdminOrLevel1Route component={ManageFaqsPage} />} />
       <Route path="/add-faq" component={() => <AdminOrLevel1Route component={AddFaqPage} />} />
-      <Route path="/vitrin-settings" component={() => <Level1Route component={VitrinSettings} />} />
       <Route path="/vitrin/:username" component={VitrinPage} />
       <Route component={NotFound} />
     </Switch>

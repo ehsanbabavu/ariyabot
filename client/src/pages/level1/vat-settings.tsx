@@ -11,7 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { createAuthenticatedRequest } from "@/lib/auth";
 import type { VatSettings } from "@shared/schema";
-import { Building2, FileText, Image as ImageIcon, MessageSquare, Settings2 } from "lucide-react";
+import { Building2, FileText, Image as ImageIcon, MessageSquare, Settings2, AlertTriangle, Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Link } from "wouter";
 
 export default function VatSettingsPage() {
   const { toast } = useToast();
@@ -26,6 +28,17 @@ export default function VatSettingsPage() {
   const [stampImage, setStampImage] = useState<string>("");
   const [thankYouMessage, setThankYouMessage] = useState<string>("از خرید شما متشکریم");
   const [uploadingStamp, setUploadingStamp] = useState<boolean>(false);
+
+  const { data: pluginStatus, isLoading: isLoadingPlugin } = useQuery<{ isEnabled: boolean }>({
+    queryKey: ["/api/plugins/vat/status"],
+    queryFn: async () => {
+      const response = await createAuthenticatedRequest("/api/plugins/vat/status");
+      if (!response.ok) return { isEnabled: false };
+      return response.json();
+    },
+  });
+
+  const isPluginEnabled = pluginStatus?.isEnabled ?? true;
 
   const { data: vatSettings, isLoading } = useQuery<VatSettings>({
     queryKey: ["/api/vat-settings"],
@@ -178,6 +191,34 @@ export default function VatSettingsPage() {
       setUploadingStamp(false);
     }
   };
+
+  if (isLoadingPlugin) {
+    return (
+      <DashboardLayout title="تنظیمات ارزش افزوده">
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!isPluginEnabled) {
+    return (
+      <DashboardLayout title="تنظیمات ارزش افزوده">
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>پلاگین غیرفعال است</AlertTitle>
+          <AlertDescription>
+            پلاگین مالیات بر ارزش افزوده غیرفعال است. برای استفاده از این قابلیت، ابتدا آن را از بخش{" "}
+            <Link href="/plugins" className="underline font-medium">
+              مدیریت پلاگین‌ها
+            </Link>{" "}
+            فعال کنید.
+          </AlertDescription>
+        </Alert>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="تنظیمات ارزش افزوده">
